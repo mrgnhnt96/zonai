@@ -16,6 +16,26 @@ final class RecordNotFoundException extends CrudException {
   }
 }
 
+/// An update's `expect` did not hold for [current], so nothing was written.
+///
+/// Distinct from [RecordNotFoundException] on purpose: "the row changed under
+/// you" and "the row is gone" call for opposite responses from a client that
+/// is reconciling, and a 404 for both made them indistinguishable. [current]
+/// is each failing target row the caller may view, already sanitized, so the
+/// client can reconcile without a second read.
+final class PreconditionFailedException extends CrudException {
+  const PreconditionFailedException({
+    required super.table,
+    required this.current,
+  });
+
+  final List<Map<String, Object?>> current;
+
+  @override
+  String toString() =>
+      'Precondition failed for ${current.length} row(s) (table: $table)';
+}
+
 final class RecordDeletedWhileStreamingException extends CrudException {
   const RecordDeletedWhileStreamingException({required super.table, this.id});
 

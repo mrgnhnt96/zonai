@@ -23,6 +23,9 @@ export 'src/photos.dart' show Photos;
 // it to catch it -- without taking a direct dependency on the transport package
 // it happens to come from.
 export 'package:revali_client/revali_client.dart' show ServerException;
+// Thrown by `Db.update`/`updateMany` when a row fails the update's `expect`.
+export 'src/precondition_failed_exception.dart'
+    show PreconditionFailedException;
 // The `Where` / `Update` / `OrderByTerm` vocabulary below is the query surface a
 // generated typed client returns and consumes, so a consumer must be able to
 // name it. Two members of it are deliberately absent: `Null` and `NotNull`

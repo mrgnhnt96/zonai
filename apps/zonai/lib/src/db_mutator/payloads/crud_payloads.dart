@@ -29,12 +29,17 @@ class UpdatePayload extends JwtPayload {
     required this.where,
     required this.updates,
     this.limit,
+    this.expect,
     super.jwt,
   });
 
   final Where where;
   final int? limit;
   final List<Update> updates;
+
+  /// A precondition every target row must meet, or the update is refused
+  /// whole with [PreconditionFailedException] and nothing is written.
+  final Where? expect;
 }
 
 /// [where] is nullable — unlike [UpdatePayload], a custom operation may be

@@ -3506,6 +3506,11 @@
           "b": "// Update every record matching a filter await client.db.updateMany( body: UpdateBody( table: 'posts', updates: [Update.column('published', UpdateValue.literal(true))], where: Eq('author_id', 'abc_au'), ), fromJson: (row) => row, ); // Update exactly one record await client.db.update( body: UpdateOneBody( table: 'posts', updates: [Update.column('title', UpdateValue.literal('New title'))], where: Eq('id', 'abc_ps'), ), fromJson: (row) => row, );"
         },
         {
+          "h": "Update only if the row is still what you read",
+          "a": "update-only-if-the-row-is-still-what-you-read",
+          "b": "expect is a precondition every target row must meet. If any row fails it, nothing is written and the update throws PreconditionFailedException, whose current carries the failing rows as they are now. That's optimistic concurrency: read a row, then write it back only if nobody else changed it in between. try { await client.db.update( body: UpdateOneBody( table: 'posts', where: Eq('id', 'abc_ps'), updates: [Update.column('title', UpdateValue.literal('New title'))], expect: Eq('rev', 3), // the revision you read ), fromJson: (row) => row, ); } on PreconditionFailedException catch (e) { final now = e.current.single; // someone else's edit; reconcile with it print('changed under us: $now'); } A precondition failure is a 412, with error.code set to precondition_failed and the rows in error.details.current. It is not a 404: a row that no longer matches where at all still returns 404 from update, or an empty list from updateMany. The two mean different things to a client that is reconciling. updateMany is refused whole when any target fails, and current lists only the failing rows. current holds only rows you may view. On the wire, expect must be a where-object. Missing or null means no pr"
+        },
+        {
           "h": "Delete records",
           "a": "delete-records",
           "b": "// Delete every record matching a filter await client.db.deleteMany( body: DeleteBody(table: 'posts', where: Eq('author_id', 'abc_au')), ); // Delete exactly one record await client.db.delete( body: DeleteOneBody(table: 'posts', where: Eq('id', 'abc_ps')), );"

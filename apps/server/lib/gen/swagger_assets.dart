@@ -3652,6 +3652,14 @@ const kSwaggerJson = r'''{
             "items": {
               "$ref": "#/components/schemas/Update"
             }
+          },
+          "expect": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -3679,6 +3687,14 @@ const kSwaggerJson = r'''{
             "items": {
               "$ref": "#/components/schemas/Update"
             }
+          },
+          "expect": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -6202,6 +6218,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Update'
+        expect:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
       required:
         - table
         - where
@@ -6221,6 +6241,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Update'
+        expect:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
       required:
         - table
         - where

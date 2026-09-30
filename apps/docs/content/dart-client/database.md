@@ -137,6 +137,34 @@ await client.db.update(
 );
 ```
 
+### Update only if the row is still what you read
+
+`expect` is a precondition every target row must meet. If any row fails it, nothing is written and the update throws `PreconditionFailedException`, whose `current` carries the failing rows as they are now. That's optimistic concurrency: read a row, then write it back only if nobody else changed it in between.
+
+```dart in:client
+try {
+  await client.db.update(
+    body: UpdateOneBody(
+      table: 'posts',
+      where: Eq('id', 'abc_ps'),
+      updates: [Update.column('title', UpdateValue.literal('New title'))],
+      expect: Eq('rev', 3), // the revision you read
+    ),
+    fromJson: (row) => row,
+  );
+} on PreconditionFailedException catch (e) {
+  final now = e.current.single; // someone else's edit; reconcile with it
+  print('changed under us: $now');
+}
+```
+
+- A precondition failure is a `412`, with `error.code` set to `precondition_failed` and the rows in `error.details.current`. It is not a `404`: a row that no longer matches `where` at all still returns `404` from `update`, or an empty list from `updateMany`. The two mean different things to a client that is reconciling.
+- `updateMany` is refused whole when any target fails, and `current` lists only the failing rows.
+- `current` holds only rows you may view.
+- On the wire, `expect` must be a where-object. Missing or `null` means no precondition; anything else (`[]`, `"rev=3"`) is a `400` with code `invalid_expect`, never an unconditional write.
+- Every permission refusal comes first: a `403` always wins over a `412`, and a `beforeUpdate` hook never runs for an update the precondition refuses.
+- A server older than this feature ignores `expect` and applies the update unconditionally. Know your server version before you rely on it.
+
 ### Delete records
 
 ```dart in:client

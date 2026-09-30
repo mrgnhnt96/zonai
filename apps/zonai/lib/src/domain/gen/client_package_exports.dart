@@ -77,6 +77,7 @@ const kZonaiClientExports = <String>[
   'PasswordResetRequiredException',
   'PhotoCreateMeta',
   'Photos',
+  'PreconditionFailedException',
   'Remove',
   'RemoveAll',
   'ResetPasswordAuthBody',
