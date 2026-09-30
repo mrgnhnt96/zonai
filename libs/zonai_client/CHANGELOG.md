@@ -1,6 +1,10 @@
 ## Unreleased
 
 - **`ServerException` is exported.** Every non-2xx response is thrown as one, so catching it used to need a direct dependency on `revali_client`, a transport detail. Now `package:zonai_client/zonai_client.dart` is enough. Additive.
+- **`PreconditionFailedException`.** `Db.update` and `Db.updateMany` throw it
+  when the server refuses an update on its `expect` (`412`,
+  `precondition_failed`); `current` carries the failing rows. Any other
+  failure is rethrown unchanged. Additive.
 
 ## 0.2.4
 

@@ -285,6 +285,19 @@ final class Exceptions implements LifecycleComponent {
     return switch (exception) {
       RecordNotFoundException() || RecordDeletedWhileStreamingException() =>
         .handled(statusCode: 404, body: {'error': '$exception'}),
+      // 412, not 409: 409 already means "that id exists" on a create, and a
+      // client reconciling a sync has to tell the two apart without parsing
+      // prose. Structured like `password_reset_required`, so the client's
+      // `ServerException.fromBody` reads `details.current` directly.
+      final PreconditionFailedException e => .handled(
+        statusCode: 412,
+        body: HttpError(
+          statusCode: 412,
+          code: 'precondition_failed',
+          message: 'The update was refused: a target row does not meet expect',
+          details: {'current': e.current},
+        ).toEnvelope(),
+      ),
       PasswordUpdateForbiddenException() => .handled(
         statusCode: 403,
         body: {'error': '$exception'},

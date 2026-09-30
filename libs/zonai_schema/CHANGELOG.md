@@ -58,6 +58,14 @@ Two kinds of table are unaffected:
 - A table that passes its own `extra` callback to `authTable`. That callback
   replaces the default indexes, as before.
 
+**`UpdateBody.expect`: an update that only applies if the row is still what
+you read.** A `Where` every target row must meet; if any does not, the server
+writes nothing and answers `412` with code `precondition_failed` and the
+failing rows (as they are now, and only those the caller may view) in
+`details.current`. Distinct from the `404` for a row that is gone. Additive:
+omitted, an update behaves exactly as before. A server that predates this
+field ignores it, so a client relying on it must know its server.
+
 ## 0.5.0
 
 **One server, development and production iOS builds.** An APNs token belongs

@@ -67,6 +67,7 @@ class DbHandler {
         where: body.where,
         limit: body.limit,
         updates: body.updates,
+        expect: body.expect,
         jwt: _parseBearerAuthorization(authorization),
       ),
     );
@@ -92,6 +93,7 @@ class DbHandler {
         where: body.where,
         limit: body.limit,
         updates: body.updates,
+        expect: body.expect,
         jwt: _parseBearerAuthorization(authorization),
       ),
     );

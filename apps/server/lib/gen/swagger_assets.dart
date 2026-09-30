@@ -2489,6 +2489,7 @@ const kSwaggerJson = r'''{
         "type": "string",
         "enum": [
           "ios",
+          "iosSandbox",
           "android"
         ]
       },
@@ -3505,6 +3506,14 @@ const kSwaggerJson = r'''{
             "items": {
               "$ref": "#/components/schemas/Update"
             }
+          },
+          "expect": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -3532,6 +3541,14 @@ const kSwaggerJson = r'''{
             "items": {
               "$ref": "#/components/schemas/Update"
             }
+          },
+          "expect": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -5259,6 +5276,7 @@ components:
       type: string
       enum:
         - ios
+        - iosSandbox
         - android
     Email:
       type: object
@@ -5951,6 +5969,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Update'
+        expect:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
       required:
         - table
         - where
@@ -5970,6 +5992,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Update'
+        expect:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
       required:
         - table
         - where

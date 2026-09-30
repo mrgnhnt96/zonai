@@ -288,6 +288,11 @@ extension _UpdateX on ZonaiDb {
     }
     logger.trace('row_access');
 
+    if (payload.expect case final expect?) {
+      await _requirePrecondition(table, objects, expect, jwt);
+      logger.trace('precondition');
+    }
+
     final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
 
     await _requirePhotoReferencesFromUpdates(table, payload.updates);
@@ -316,10 +321,17 @@ extension _UpdateX on ZonaiDb {
     // `UpdateOne` reads with `LIMIT 1`, so exactly one row is adjudicated --
     // while the UPDATE built from the raw `where` carried no limit and wrote
     // every match. See [_authorizedRowsWhere].
+    final authorized = await _authorizedRowsWhere(table, objects);
     final operation = await _getOperation(
       UpdateOperationRequest(
         table: table,
-        where: await _authorizedRowsWhere(table, objects),
+        // `expect` rides the write too. Writes are serialized, so the check
+        // above has already decided; this makes the write itself unable to
+        // land on a row that no longer meets it, whatever runs in between.
+        where: switch (payload.expect) {
+          null => authorized,
+          final expect => And([authorized, expect]),
+        },
         updates: updates,
         jwt: jwt,
       ),
@@ -334,6 +346,56 @@ extension _UpdateX on ZonaiDb {
       sanitizedBefore,
       refetchOperation: refetch,
       updateOperation: operation,
+    );
+  }
+
+  /// Refuses the update when any of [targets] fails [expect].
+  ///
+  /// One query over the authorized rows asks which of them meet [expect]; any
+  /// that do not are reported back in [PreconditionFailedException.current],
+  /// and the whole update is refused -- a partial write would leave a caller
+  /// reconciling a set it never asked for. Only rows the caller may VIEW are
+  /// returned, sanitized: being allowed to write a row is not the same as
+  /// being allowed to read it back.
+  Future<void> _requirePrecondition(
+    String table,
+    List<Map<String, Object?>> targets,
+    Where expect,
+    Jwt? jwt,
+  ) async {
+    if (targets.isEmpty) return;
+
+    final idColumn = await _cachedColumnName(table, .id);
+    final meeting = await _getOperation(
+      ListOperationRequest(
+        table: table,
+        where: And([await _authorizedRowsWhere(table, targets), expect]),
+        limit: null,
+        offset: null,
+        jwt: jwt,
+      ),
+    );
+    final (error, result) = await _execute((meeting.query, meeting.values));
+    if (error != null || result == null) {
+      _throwDatabaseError(
+        error,
+        table: table,
+        failure: ([cause]) =>
+            RecordUpdateFailedException(table: table, cause: cause),
+      );
+    }
+
+    final met = {for (final row in result.rows) row.toMap()[idColumn]};
+    final failing = [
+      for (final row in targets)
+        if (!met.contains(row[idColumn])) row,
+    ];
+    if (failing.isEmpty) return;
+
+    final viewable = await _filterRowsAccess(table, .view, failing, jwt);
+    throw PreconditionFailedException(
+      table: table,
+      current: await _sanitizeRows(table, viewable, jwt: jwt),
     );
   }
 }

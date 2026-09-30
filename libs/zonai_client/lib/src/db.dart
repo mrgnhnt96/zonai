@@ -1,5 +1,6 @@
 import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_client/src/db_listen.dart';
+import 'package:zonai_client/src/precondition_failed_exception.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/src/types/paginated.dart';
 
@@ -58,7 +59,9 @@ class Db {
     required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    final data = await _db.update(body: body, authorization: authorization);
+    final data = await translatePreconditionRefusal(
+      () => _db.update(body: body, authorization: authorization),
+    );
     return fromJson(data);
   }
 
@@ -67,7 +70,9 @@ class Db {
     required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    final data = await _db.updateMany(body: body, authorization: authorization);
+    final data = await translatePreconditionRefusal(
+      () => _db.updateMany(body: body, authorization: authorization),
+    );
     return data.map(fromJson).toList();
   }
 
