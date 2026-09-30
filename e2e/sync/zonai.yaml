@@ -1,0 +1,7 @@
+version: 0.9.4
+
+migrationsPath: .zonai/migrations
+dataPath: .zonai/data
+schemasPath: lib/src/schemas
+rulesPath: lib/src/rules
+configPath: lib/src/config
