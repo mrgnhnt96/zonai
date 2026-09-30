@@ -9,6 +9,12 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   @override
   Future<bool> canView(Jwt? jwt, Item row) async => true;
 
+  /// Every row, as a filter. Row rules that check each row need a scope for
+  /// `/db/count` to answer at all (#45); this one admits everything, so the
+  /// count still covers the whole table while per-row checks keep running.
+  @override
+  Future<Where?> viewScope(Jwt? jwt) async => const NotNull('id');
+
   @override
   Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async => true;
 
