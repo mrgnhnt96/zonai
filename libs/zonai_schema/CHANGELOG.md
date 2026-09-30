@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+**A user can no longer verify themselves or change their own email.** The
+default `AuthRowRules.canUpdate` allowed the row's owner any change. An app
+that opens `canUpdate` at the table level, usually for profile edits, let a
+user set their own `is_verified` (skipping the email verification it
+records) or change `email` to an address they never proved. The owner is now
+refused a change to either column; everything else on their row stays
+editable, and an admin is unaffected.
+
+**Behaviour change.** If your app relies on users PATCHing their own `email`,
+override `canUpdate` in your `AuthRowRules`. A hook that sets `is_verified`
+through `mutate` under the user's token is refused too.
+
 **A password auth table now gets the unique email index it always claimed.**
 `authTable` meant to declare `<table>.email_unique` for every `PasswordAuth`
 table, and the docs say the column is `TEXT UNIQUE`, but the check tested the
