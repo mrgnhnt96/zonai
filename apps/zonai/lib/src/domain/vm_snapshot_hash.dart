@@ -170,9 +170,10 @@ bool _isLowerHexByte(int byte) =>
 /// The VM snapshot hash of the SDK that [dartExecutablePath] belongs to, or
 /// `null` when it cannot be determined.
 ///
-/// The hash is read from the `dartaotruntime` sitting beside the given `dart`,
-/// because that is the runtime the SDK's own `dart compile aot-snapshot`
-/// output is built to be loaded by.
+/// The hash is read from that SDK's `dartaotruntime` -- beside the given
+/// `dart` in a Dart SDK, under `bin/cache/dart-sdk` in a Flutter SDK (see
+/// [_dartaotruntimeFor]) -- because that is the runtime the SDK's own
+/// `dart compile aot-snapshot` output is built to be loaded by.
 ///
 /// [dartExecutablePath] is whatever `DartExecutable.resolve()` returned, and
 /// that is not always a path: its last candidate is the bare name `dart`,
@@ -185,7 +186,7 @@ bool _isLowerHexByte(int byte) =>
 /// directory. The literal sibling is preferred when it exists, since that is
 /// the runtime an invocation of this `dart` would actually reach for.
 ///
-/// `null` when no `dartaotruntime` is found beside any candidate, or when the
+/// `null` when no `dartaotruntime` is found for any candidate, or when the
 /// one found is ambiguous. As everywhere in this file, that means UNKNOWN, and
 /// as with [vmSnapshotHashOfFile] this never throws.
 String? sdkVmSnapshotHash(String dartExecutablePath) {
