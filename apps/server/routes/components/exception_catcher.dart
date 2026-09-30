@@ -4,6 +4,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 
 import 'package:zonai_server/src/handlers/email_handler.dart';
@@ -152,6 +153,25 @@ final class Exceptions implements LifecycleComponent {
     SignUpDeclinedException exception,
   ) {
     return .handled(statusCode: 403, body: {'error': exception.reason});
+  }
+
+  /// A request body the server could not read -- a missing field, a wrong
+  /// type, a `where` that is not a where. See `parseBody`.
+  ///
+  /// 400, and a structured envelope like `precondition_failed`, so a client
+  /// can branch on `invalid_body`. The message names the body and the field,
+  /// never row data: it is built only from what the caller sent.
+  ExceptionCatcherResult<InvalidBodyException> onInvalidBody(
+    InvalidBodyException exception,
+  ) {
+    return .handled(
+      statusCode: 400,
+      body: HttpError(
+        statusCode: 400,
+        code: 'invalid_body',
+        message: '${exception.message}',
+      ).toEnvelope(),
+    );
   }
 
   ExceptionCatcherResult<AuthException> onAuthException(

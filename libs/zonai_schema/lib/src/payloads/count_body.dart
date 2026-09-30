@@ -1,9 +1,13 @@
 import 'package:zonai_schema/src/types/where.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class CountBody {
   const CountBody({required this.table, this.where});
 
-  factory CountBody.fromJson(Map<String, dynamic> json) {
+  factory CountBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('CountBody', () => CountBody._fromJson(json));
+
+  factory CountBody._fromJson(Map<String, dynamic> json) {
     return CountBody(
       table: json['table'] as String,
       where: switch (json['where']) {

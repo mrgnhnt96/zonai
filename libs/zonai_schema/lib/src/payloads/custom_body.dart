@@ -1,5 +1,6 @@
 import '../types/where.dart';
 import '../update/update.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 /// The operation name itself travels on the URL (`PATCH /db/custom/:operation`),
 /// not in this body — `table` still comes from the body like every other
@@ -20,7 +21,10 @@ class CustomBody {
   final int? limit;
   final List<Update> updates;
 
-  factory CustomBody.fromJson(Map<String, dynamic> json) {
+  factory CustomBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('CustomBody', () => CustomBody._fromJson(json));
+
+  factory CustomBody._fromJson(Map<String, dynamic> json) {
     return CustomBody(
       table: json['table'] as String,
       where: switch (json['where']) {
@@ -52,7 +56,10 @@ class CustomOneBody extends CustomBody {
     List<Update> updates = const [],
   }) : super(table: table, where: where, limit: 1, updates: updates);
 
-  factory CustomOneBody.fromJson(Map<String, dynamic> json) {
+  factory CustomOneBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('CustomOneBody', () => CustomOneBody._fromJson(json));
+
+  factory CustomOneBody._fromJson(Map<String, dynamic> json) {
     return CustomOneBody(
       table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),

@@ -564,6 +564,72 @@ void main() {
       },
     );
 
+    // A body the server cannot read is the caller's mistake, so a 400 that
+    // says so -- not a 500 that reads as the server being broken. Each of
+    // these failed differently inside `fromJson`: an ArgumentError from
+    // `Where.fromJson`, a TypeError from a cast, and so on.
+    test('a malformed request body is a 400 invalid_body, not a 500', () async {
+      if (!_runningOnDartVm) return;
+
+      final where = Eq('title', 'service-note-$unique').toJson();
+      final update = Update.column('title', .literal('x')).toJson();
+      final cases = <(String, String, Map<String, Object?>)>[
+        (
+          'expect is an empty where',
+          'PATCH',
+          {
+            'table': 'notes',
+            'where': where,
+            'updates': [update],
+            'expect': <String, Object?>{},
+          },
+        ),
+        (
+          'where has an unknown type',
+          'PATCH',
+          {
+            'table': 'notes',
+            'where': {'type': 'nope'},
+            'updates': [update],
+          },
+        ),
+        (
+          'table is not a string',
+          'PATCH',
+          {
+            'table': 42,
+            'where': where,
+            'updates': [update],
+          },
+        ),
+        (
+          'updates is not a list',
+          'PATCH',
+          {'table': 'notes', 'where': where, 'updates': 'x'},
+        ),
+        ('object is not a map', 'POST', {'table': 'notes', 'object': 'x'}),
+      ];
+
+      for (final (label, method, body) in cases) {
+        final request = http.Request(method, server.uri('/db'))
+          ..headers.addAll({
+            'content-type': 'application/json',
+            'authorization': 'Bearer $adminJwt',
+          })
+          ..body = jsonEncode(body);
+        final response = await http.Response.fromStream(
+          await client.send(request),
+        );
+
+        expect(response.statusCode, 400, reason: '$label: ${response.body}');
+        expect(
+          (jsonDecode(response.body) as Map)['error'],
+          containsPair('code', 'invalid_body'),
+          reason: label,
+        );
+      }
+    });
+
     test('an API token cannot mint a token', () async {
       if (!_runningOnDartVm) return;
 

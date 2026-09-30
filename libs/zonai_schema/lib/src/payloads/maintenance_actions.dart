@@ -5,6 +5,8 @@
 /// afterwards, which is the part the engine cannot do on its own.
 library;
 
+import 'package:zonai_schema/src/payloads/parse_body.dart';
+
 /// Internal tables a bulk purge is allowed to empty.
 ///
 /// A mirror of the engine's `_purgeableTables`, and deliberately a written-out
@@ -102,7 +104,10 @@ class PurgeLogsBody {
   /// the destructive one into the routine one — or the reverse.
   final int? olderThanDays;
 
-  factory PurgeLogsBody.fromJson(Map<String, dynamic> json) {
+  factory PurgeLogsBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('PurgeLogsBody', () => PurgeLogsBody._fromJson(json));
+
+  factory PurgeLogsBody._fromJson(Map<String, dynamic> json) {
     return PurgeLogsBody(olderThanDays: json['older_than_days'] as int?);
   }
 
@@ -118,7 +123,10 @@ class PurgeTableBody {
   /// a browser.
   final String table;
 
-  factory PurgeTableBody.fromJson(Map<String, dynamic> json) {
+  factory PurgeTableBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('PurgeTableBody', () => PurgeTableBody._fromJson(json));
+
+  factory PurgeTableBody._fromJson(Map<String, dynamic> json) {
     return PurgeTableBody(table: json['table'] as String);
   }
 

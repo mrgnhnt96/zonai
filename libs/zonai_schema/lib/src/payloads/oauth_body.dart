@@ -10,6 +10,8 @@
 /// payload types instead, so the bodies stay their own family.
 library;
 
+import 'package:zonai_schema/src/payloads/parse_body.dart';
+
 /// Body of `POST /auth/oauth` -- the native / public-client flow
 /// (design §3.2). The app has already run the provider's own SDK and hands
 /// zonai the result.
@@ -28,7 +30,10 @@ sealed class OAuthBody {
     required this.type,
   });
 
-  factory OAuthBody.fromJson(Map<String, dynamic> json) {
+  factory OAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('OAuthBody', () => OAuthBody._fromJson(json));
+
+  factory OAuthBody._fromJson(Map<String, dynamic> json) {
     // Tolerant of a missing `type` the same way `AuthBody.fromJson` is: the
     // two shapes are unambiguous from their own fields, and falling through
     // to a null cast would surface as an HTTP 500 rather than a 400.
@@ -180,7 +185,10 @@ class OAuthCallbackBody {
     this.user,
   });
 
-  factory OAuthCallbackBody.fromJson(Map<String, dynamic> json) {
+  factory OAuthCallbackBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('OAuthCallbackBody', () => OAuthCallbackBody._fromJson(json));
+
+  factory OAuthCallbackBody._fromJson(Map<String, dynamic> json) {
     return OAuthCallbackBody(
       code: json['code'] as String?,
       state: json['state'] as String?,

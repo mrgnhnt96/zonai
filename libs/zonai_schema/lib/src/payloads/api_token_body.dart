@@ -1,6 +1,7 @@
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart'
     show TableOperation;
 import 'package:zonai_schema/src/types/api_token_scope.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 /// The `POST /admin/tokens` body — everything `zonai db token create` takes,
 /// in the shape the dashboard sends it.
@@ -21,7 +22,10 @@ class ApiTokenCreateBody {
     this.expiresAt,
   });
 
-  factory ApiTokenCreateBody.fromJson(Map<String, dynamic> json) {
+  factory ApiTokenCreateBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('ApiTokenCreateBody', () => ApiTokenCreateBody._fromJson(json));
+
+  factory ApiTokenCreateBody._fromJson(Map<String, dynamic> json) {
     final name = json['name'];
     if (name is! String || name.trim().isEmpty) {
       throw ArgumentError.value(

@@ -1,3 +1,5 @@
+import 'package:zonai_schema/src/payloads/parse_body.dart';
+
 /// `POST /auth/anonymous` -- create an anonymous account in [table].
 ///
 /// [object] carries the app's own columns for the new row, as a sign-up body
@@ -6,7 +8,10 @@
 class AnonymousAuthBody {
   const AnonymousAuthBody({required this.table, this.object});
 
-  factory AnonymousAuthBody.fromJson(Map<String, dynamic> json) {
+  factory AnonymousAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('AnonymousAuthBody', () => AnonymousAuthBody._fromJson(json));
+
+  factory AnonymousAuthBody._fromJson(Map<String, dynamic> json) {
     return AnonymousAuthBody(
       table: json['table'] as String,
       object: json['object'] as Map<String, dynamic>?,
@@ -25,7 +30,13 @@ class AnonymousAuthBody {
 class ResumeAnonymousAuthBody {
   const ResumeAnonymousAuthBody({required this.credential});
 
-  factory ResumeAnonymousAuthBody.fromJson(Map<String, dynamic> json) {
+  factory ResumeAnonymousAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody(
+        'ResumeAnonymousAuthBody',
+        () => ResumeAnonymousAuthBody._fromJson(json),
+      );
+
+  factory ResumeAnonymousAuthBody._fromJson(Map<String, dynamic> json) {
     return ResumeAnonymousAuthBody(credential: json['credential'] as String);
   }
 
@@ -39,7 +50,10 @@ class ResumeAnonymousAuthBody {
 class UpgradeAuthBody {
   const UpgradeAuthBody({required this.email});
 
-  factory UpgradeAuthBody.fromJson(Map<String, dynamic> json) {
+  factory UpgradeAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('UpgradeAuthBody', () => UpgradeAuthBody._fromJson(json));
+
+  factory UpgradeAuthBody._fromJson(Map<String, dynamic> json) {
     return UpgradeAuthBody(email: json['email'] as String);
   }
 
@@ -58,7 +72,13 @@ class ConfirmUpgradeAuthBody {
     this.password,
   });
 
-  factory ConfirmUpgradeAuthBody.fromJson(Map<String, dynamic> json) {
+  factory ConfirmUpgradeAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody(
+        'ConfirmUpgradeAuthBody',
+        () => ConfirmUpgradeAuthBody._fromJson(json),
+      );
+
+  factory ConfirmUpgradeAuthBody._fromJson(Map<String, dynamic> json) {
     return ConfirmUpgradeAuthBody(
       email: json['email'] as String,
       code: json['code'] as String,

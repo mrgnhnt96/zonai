@@ -1,3 +1,5 @@
+import 'package:zonai_schema/src/payloads/parse_body.dart';
+
 /// Query metadata for `POST /photos` (create).
 ///
 /// The image itself is sent as the raw request body (`application/octet-stream`
@@ -9,7 +11,10 @@ class PhotoCreateMeta {
   /// Target collection the photo is attached to.
   final String table;
 
-  factory PhotoCreateMeta.fromJson(Map<String, dynamic> json) {
+  factory PhotoCreateMeta.fromJson(Map<String, dynamic> json) =>
+      parseBody('PhotoCreateMeta', () => PhotoCreateMeta._fromJson(json));
+
+  factory PhotoCreateMeta._fromJson(Map<String, dynamic> json) {
     return PhotoCreateMeta(table: json['table'] as String);
   }
 
