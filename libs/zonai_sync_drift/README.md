@@ -9,8 +9,12 @@ your rows, a local edit and its outbox entry, or a pulled page and its cursor,
 commit in one SQLite transaction.
 
 You describe each synced table with a `DriftSyncTable`: read, write, delete
-and clear by id in zonai's wire format. `zonai_sync_gen` generates these
-from your server schema, or you can write them by hand:
+and clear by id in zonai's wire format. You write these by hand (a generator
+from the server schema is planned, not shipped):
+
+Values in zonai's wire format must be JSON-encodable, because the outbox
+stores payloads as JSON: dates as epoch milliseconds, booleans as 0/1 or bool,
+no `DateTime` or bytes.
 
 ```dart
 final store = await DriftSyncStore.open(appDb, [CoursesSync(appDb), StudentsSync(appDb)]);

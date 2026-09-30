@@ -6,8 +6,9 @@ import 'package:zonai_sync/zonai_sync.dart';
 /// Maps one synced table between the app's drift schema and zonai's wire
 /// format (the map the server sends and receives).
 ///
-/// This is the only per-table code an app writes, and it is what
-/// `zonai_sync_gen` generates from the server schema. Every method runs
+/// This is the only per-table code an app writes (a generator from the
+/// server schema is planned). Values must be JSON-encodable, because the
+/// outbox stores payloads as JSON. Every method runs
 /// inside the store's transaction when the engine needs atomicity.
 abstract interface class DriftSyncTable {
   /// The zonai table name.
