@@ -40,6 +40,15 @@ void main() {
       ZonaiClient.instance = previous;
     });
 
+    // Every non-2xx response reaches a caller as a `ServerException`, so a
+    // consumer that cannot name it cannot catch it -- and used to have to
+    // depend on `revali_client` directly, a transport detail, to do so.
+    test('ServerException is usable', () async {
+      const e = ServerException(message: 'Not found', statusCode: 404);
+      expect(e, isA<Exception>());
+      expect(e.statusCode, 404);
+    });
+
     // OAuth types are re-exported from `package:zonai_schema/payloads.dart`
     // via an explicit `show` list, the same shape that let a storage export
     // go missing for two months (see the comment atop this file). Nothing
