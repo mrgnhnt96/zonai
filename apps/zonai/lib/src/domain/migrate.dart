@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' as io;
 
 import 'package:file/file.dart';
 import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
+import 'package:raindrop_cli/src/core/journal.dart';
 import 'package:raindrop_cli/src/core/snapshot.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai/src/deps/args.dart';
@@ -248,9 +250,23 @@ class Migrate {
 
       hasChanges |= !_setEquals(before, _migrationFileNames());
 
-      if (hasChanges && !allowDestructive) {
-        if (_refuseDestructive(backup, name: name) case final refused?) {
-          return result = refused;
+      if (dryRun ?? false) {
+        await _warnDryRunLosses(backup, name: name);
+      } else if (hasChanges) {
+        final losses = _losses(backup, _captureMigrations());
+        if (losses.isNotEmpty) {
+          if (!allowDestructive) {
+            return result = _refuse(backup, losses, name: name);
+          }
+          // Allowed, but not in silence: a flag passed out of habit should
+          // still leave a record of what it let through.
+          logger.warn(
+            [
+              'Migration "$name" destroys data (allowed by '
+                  '--allow-destructive):',
+              for (final loss in losses) '  - it $loss',
+            ].join('\n'),
+          );
         }
       }
 
@@ -308,7 +324,11 @@ class Migrate {
   /// bug the resolve was added to fix, in the other direction, on the host
   /// that had never run the suite.
   @visibleForTesting
-  List<String> generateArgs({required String name, required bool dryRun}) => [
+  List<String> generateArgs({
+    required String name,
+    required bool dryRun,
+    String? out,
+  }) => [
     // zonai fully drives dialect/schemas/out itself, so point --config at a
     // path that can't exist. Otherwise raindrop_cli defaults to
     // './raindrop.yaml' and would pick up an unrelated one sitting in the
@@ -334,7 +354,7 @@ class Migrate {
     '--schemas',
     canonicalPath(settings.schemasPath),
     '--out',
-    settings.migrationsPath,
+    out ?? settings.migrationsPath,
     'generate',
     if (dryRun) '--dry-run',
     '--name',
@@ -355,59 +375,78 @@ class Migrate {
     };
   }
 
-  /// Every file under [settings.migrationsPath], by path, with its bytes --
-  /// enough to put the directory back exactly as it was.
-  Map<String, List<int>> _captureMigrations() {
-    final dir = fs.directory(settings.migrationsPath);
+  /// Every file under [root] (default [settings.migrationsPath]), by path
+  /// relative to it, with its bytes -- enough to put the directory back
+  /// exactly as it was, or to lay it down somewhere else.
+  Map<String, List<int>> _captureMigrations([String? root]) {
+    final base = root ?? settings.migrationsPath;
+    final dir = fs.directory(base);
     if (!dir.existsSync()) return const {};
     return {
       for (final entity in dir.listSync(recursive: true))
-        if (entity is File) entity.path: entity.readAsBytesSync(),
+        if (entity is File)
+          fs.path.relative(entity.path, from: base): entity.readAsBytesSync(),
     };
   }
 
-  /// The newest `meta/*_snapshot.json` among [paths], or null.
-  String? _newestSnapshot(Iterable<String> paths) {
-    final snapshots = [
-      for (final path in paths)
-        if (fs.path.basename(path).endsWith('_snapshot.json')) path,
-    ]..sort((a, b) => fs.path.basename(a).compareTo(fs.path.basename(b)));
-    return snapshots.isEmpty ? null : snapshots.last;
+  /// The snapshot the journal in [files] names as newest, or null when there
+  /// is no journal or it has no entries.
+  ///
+  /// Read from the journal, as raindrop itself does (`generate` diffs against
+  /// `journal.entries.last`), not picked by file name: a snapshot no entry
+  /// names -- left by a hand-deleted migration, say -- would otherwise be
+  /// "newest" both before and after a run, and be compared with itself.
+  /// Throws when the journal or the snapshot it names cannot be read.
+  SchemaSnapshot? _newestSnapshot(Map<String, List<int>> files) {
+    final journal = files[fs.path.join('meta', '_journal.json')];
+    if (journal == null) return null;
+    final entries = MigrationJournal.fromJson(utf8.decode(journal)).entries;
+    if (entries.isEmpty) return null;
+    final name = fs.path.join('meta', entries.last.snapshotFileName);
+    final snapshot = files[name];
+    if (snapshot == null) {
+      throw StateError('the journal names $name, which does not exist');
+    }
+    return SchemaSnapshot.fromJson(utf8.decode(snapshot));
   }
 
-  /// Undoes a generate that would destroy data, and says what it would have
-  /// destroyed. Returns the exit code to fail with, or null to let it stand.
+  /// What going from the migrations in [before] to those in [after] would
+  /// destroy, one line each. Empty when nothing is lost.
   ///
-  /// Compares the newest snapshot from before the run with the newest after
-  /// it. The generate has already written its files by the time anything can
-  /// be compared, so a refusal restores [backup]: new files removed, changed
-  /// ones (the journal) rewritten. A snapshot that cannot be read refuses
-  /// too -- "could not tell" is not "nothing is lost".
-  int? _refuseDestructive(
-    Map<String, List<int>> backup, {
+  /// A snapshot that cannot be read counts as a loss: "could not tell" is not
+  /// "nothing is lost".
+  List<String> _losses(
+    Map<String, List<int>> before,
+    Map<String, List<int>> after,
+  ) {
+    try {
+      final to = _newestSnapshot(after);
+      if (to == null) return const [];
+      return destructiveChanges(_newestSnapshot(before), to);
+    } catch (e) {
+      return ['could not compare schema snapshots ($e)'];
+    }
+  }
+
+  /// Undoes a generate that would destroy data, says what it would have
+  /// destroyed, and returns the exit code to fail with.
+  ///
+  /// The generate has already written its files by the time anything can be
+  /// compared, so this restores [backup]: new files removed, changed ones
+  /// (the journal) rewritten.
+  int _refuse(
+    Map<String, List<int>> backup,
+    List<String> losses, {
     required String name,
   }) {
-    final after = _captureMigrations();
-    final newestAfter = _newestSnapshot(after.keys);
-    if (newestAfter == null) return null;
-
-    final newestBefore = _newestSnapshot(backup.keys);
-    List<String> losses;
-    try {
-      losses = destructiveChanges(switch (newestBefore) {
-        null => null,
-        final path => SchemaSnapshot.fromJson(utf8.decode(backup[path]!)),
-      }, SchemaSnapshot.fromJson(utf8.decode(after[newestAfter]!)));
-    } catch (e) {
-      losses = ['could not compare schema snapshots ($e)'];
-    }
-    if (losses.isEmpty) return null;
-
-    for (final path in after.keys) {
-      if (!backup.containsKey(path)) fs.file(path).deleteSync();
+    final root = settings.migrationsPath;
+    for (final path in _captureMigrations().keys) {
+      if (!backup.containsKey(path)) {
+        fs.file(fs.path.join(root, path)).deleteSync();
+      }
     }
     for (final MapEntry(key: path, value: bytes) in backup.entries) {
-      final file = fs.file(path);
+      final file = fs.file(fs.path.join(root, path));
       if (!file.existsSync() || !_bytesEqual(file.readAsBytesSync(), bytes)) {
         file.writeAsBytesSync(bytes);
       }
@@ -426,6 +465,52 @@ class Migrate {
       ].join('\n'),
     );
     return 1;
+  }
+
+  /// Says what the migration a `--dry-run` previewed would destroy.
+  ///
+  /// A dry run writes no files, so there is no new snapshot to compare. This
+  /// generates for real into a throwaway copy of the migrations directory
+  /// and compares that. It costs a second generate, which only a dry run --
+  /// the command the docs recommend as the sanity check -- pays.
+  Future<void> _warnDryRunLosses(
+    Map<String, List<int>> backup, {
+    required String name,
+  }) async {
+    final scratch = fs.systemTempDirectory.createTempSync(
+      'zonai_migrate_dry_run_',
+    );
+    try {
+      for (final MapEntry(key: path, value: bytes) in backup.entries) {
+        fs.file(fs.path.join(scratch.path, path))
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(bytes);
+      }
+      final argv = generateArgs(name: name, dryRun: false, out: scratch.path);
+      // raindrop reports with `stdout.writeln`, which the `print` hook in
+      // [run] never sees. Left alone, this scratch run would print
+      // "Generated migration:" and a temp-directory path after the dry run's
+      // own preview, which reads as the dry run having written one. Its
+      // output goes to debug instead.
+      final exit = await io.IOOverrides.runZoned(
+        () => (runRaindropCli ?? _invokeRaindropCli)(argv),
+        stdout: () => _DebugLines('dry-run scratch'),
+        stderr: () => _DebugLines('dry-run scratch (stderr)'),
+      );
+      if (exit != 0) return;
+
+      final losses = _losses(backup, _captureMigrations(scratch.path));
+      if (losses.isEmpty) return;
+      logger.warn(
+        [
+          'Migration "$name" would destroy data, and a real generate will '
+              'refuse it without --allow-destructive:',
+          for (final loss in losses) '  - it $loss',
+        ].join('\n'),
+      );
+    } finally {
+      scratch.deleteSync(recursive: true);
+    }
   }
 
   static bool _bytesEqual(List<int> a, List<int> b) {
@@ -491,4 +576,31 @@ class Migrate {
 
     return migrations;
   }
+}
+
+/// A stand-in for `stdout`/`stderr` that sends each line to `logger.debug`.
+///
+/// For the dry run's scratch generate: its output describes a throwaway
+/// directory, not the user's project. Only the members raindrop_cli uses are
+/// real; anything else fails loudly rather than silently doing nothing.
+final class _DebugLines implements io.Stdout {
+  _DebugLines(this._label);
+
+  final String _label;
+
+  @override
+  void writeln([Object? object = '']) => logger.debug('$_label: $object');
+
+  @override
+  void write(Object? object) => logger.debug('$_label: $object');
+
+  @override
+  bool get hasTerminal => false;
+
+  @override
+  bool get supportsAnsiEscapes => false;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName} on $_label output');
 }

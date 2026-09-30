@@ -16,7 +16,7 @@ Flags:
 | Flag            | Short | Description                                                                    |
 | --------------- | ----- | ------------------------------------------------------------------------------ |
 | `--name <name>` | `-n`  | Adds a human-readable suffix to the filename (e.g. `--name add_avatar_column`) |
-| `--dry-run`     |       | Prints the SQL that would be generated without writing a file                  |
+| `--dry-run`     |       | Prints the SQL that would be generated without writing a file, and warns if it would drop a table or a column |
 | `--allow-destructive` | | Allows a migration that drops a table or a column (refused otherwise) |
 
 ## When to Generate
@@ -72,6 +72,8 @@ When the loss is what you want, say so:
 ```bash
 zonai db migrate generate --name drop_archive --allow-destructive
 ```
+
+The migration is kept, and what it drops is still logged as a warning.
 
 The migrations `zonai serve` and `zonai dev` generate when you save a schema file never pass `--allow-destructive`. A schema file renamed or deleted in development is refused there too, and it can't quietly become a `DROP TABLE` that ships with your next deploy.
 
