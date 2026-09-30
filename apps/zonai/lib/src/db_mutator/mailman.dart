@@ -937,7 +937,7 @@ class Mailman<S extends Request, R extends Response> {
       );
       return;
     }
-    _listenToMessages(coerceStringKeyedMap(raw));
+    _handleWorkerMessage(coerceStringKeyedMap(raw));
   }
 
   Future<void> _tearDownIsolate() async {
@@ -963,16 +963,21 @@ class Mailman<S extends Request, R extends Response> {
     // One message at a time, each on its own: a chunk can carry several, and
     // an error handling one used to abandon the rest -- including the reply a
     // caller was waiting on, which then timed out as a 503 (issue #41).
-    for (final map in maps) {
-      try {
-        _listenToMessages(map);
-      } on Object catch (e, stack) {
-        logger.error(
-          '$_prefix: Failed to handle a message from the worker',
-          e,
-          stack,
-        );
-      }
+    maps.forEach(_handleWorkerMessage);
+  }
+
+  /// Handles one message from the worker, over stdout or from an isolate, so
+  /// that an error handling it is logged here rather than escaping into the
+  /// zone or taking the rest of a chunk with it.
+  void _handleWorkerMessage(Map<String, dynamic> map) {
+    try {
+      _listenToMessages(map);
+    } on Object catch (e, stack) {
+      logger.error(
+        '$_prefix: Failed to handle a message from the worker',
+        e,
+        stack,
+      );
     }
   }
 

@@ -41,7 +41,7 @@ If a template file is missing (for example, a project created before that templa
 
 The expiry settings live on your [auth operations](/operations/auth-operations). OTP, magic-link and password-reset sends are limited to one per address per minute. See [Auth Rate Limits](/rate-limiting/auth-rate-limits).
 
-> **`login_notice` and `confirm_change_email` are templates only for now.** The server does not implement `email.send.loginNotice(...)`, `email.send.magicLink(...)` or `email.send.confirmEmailChange(...)`: each one sends nothing and raises an `UnimplementedError` on the server. The default `onSignIn` hook calls `loginNotice` for auth tables with an email column, so override `onSignIn` if you don't want that failure in your logs. To send either message today, call `email.send(Email(template: 'login_notice', ...))` yourself with the variables below.
+> **`login_notice` and `confirm_change_email` are templates only for now.** The server does not implement `email.send.loginNotice(...)`, `email.send.magicLink(...)` or `email.send.confirmEmailChange(...)`: each one sends nothing, and the server logs a warning once per process. The default `onSignIn` hook calls `loginNotice` for auth tables with an email column, so override `onSignIn` if you don't want that warning in your logs. To send either message today, call `email.send(Email(template: 'login_notice', ...))` yourself with the variables below.
 
 ## Variables
 

@@ -2069,7 +2069,7 @@
         {
           "h": "Default Emails",
           "a": "default-emails",
-          "b": "Two auth hooks send an email by default when the auth table has an email column (password, OTP, magic-link and OAuth tables all do): Hook Default email onSignUp Verify-email link onSignIn Login notice (not implemented yet: nothing is sent and the server logs an error) Overriding the hook replaces the default. Call super.onSignUp(user, jwt) from your override to keep the verify-email link. Override onSignIn to silence the login-notice error. All other hooks send nothing unless you call email.send."
+          "b": "Two auth hooks send an email by default when the auth table has an email column (password, OTP, magic-link and OAuth tables all do): Hook Default email onSignUp Verify-email link onSignIn Login notice (not implemented yet: nothing is sent and the server warns once per process) Overriding the hook replaces the default. Call super.onSignUp(user, jwt) from your override to keep the verify-email link. Override onSignIn to silence the login-notice error. All other hooks send nothing unless you call email.send."
         },
         {
           "h": "Side Effects API",
@@ -2224,7 +2224,7 @@
         {
           "h": "onSignIn(T user, Jwt? jwt)",
           "a": "onsignint-user-jwt-jwt",
-          "b": "Fires after credentials are validated and the new session is created, before the token is returned. Throwing here fails the request, so the client never receives the token. By default it calls the built-in loginNotice email, which is not implemented yet (see above). @override Future onSignIn(User user, Jwt? jwt) async { mutate.update.one( table: 'users', updates: [Update.column('last_signed_in_at', UpdateValue.literal(DateTime.now()))], where: Eq('id', user.id.value), ); } Use for: recording last-login timestamp, sending login-notification emails, triggering security alerts."
+          "b": "Fires after credentials are validated and the new session is created, before the token is returned. Throwing here fails the request, so the client never receives the token. By default it calls the built-in loginNotice email, which is not implemented yet and is skipped (see above). @override Future onSignIn(User user, Jwt? jwt) async { mutate.update.one( table: 'users', updates: [Update.column('last_signed_in_at', UpdateValue.literal(DateTime.now()))], where: Eq('id', user.id.value), ); } Use for: recording last-login timestamp, sending login-notification emails, triggering security alerts."
         },
         {
           "h": "onRefresh(T user, Jwt? jwt)",
@@ -2342,7 +2342,7 @@
         {
           "h": "Built-in Helpers",
           "a": "built-in-helpers",
-          "b": "Each method sends one of the built-in templates. The first argument is an EmailAddress, and table names the auth table the user belongs to: email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); email.send.passwordReset( EmailAddress(address: user.email), table: 'users', ); email.send.otpCode( EmailAddress(address: user.email), table: 'users', ); loginNotice, magicLink and confirmEmailChange also exist, but the server does not implement them yet. Calling one sends nothing and raises an UnimplementedError on the server. The default onSignIn hook calls loginNotice for auth tables with an email column, so override onSignIn to stop it. To send a sign-in notice today, use email.send(Email(template: 'login_notice', ...)), as shown below. All helpers accept an optional variables map to pass extra data to the template."
+          "b": "Each method sends one of the built-in templates. The first argument is an EmailAddress, and table names the auth table the user belongs to: email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); email.send.passwordReset( EmailAddress(address: user.email), table: 'users', ); email.send.otpCode( EmailAddress(address: user.email), table: 'users', ); loginNotice, magicLink and confirmEmailChange also exist, but the server does not implement them yet. Calling one sends nothing: the server skips it, logs a warning once per process, and the request carries on. The default onSignIn hook calls loginNotice for auth tables with an email column, so override onSignIn to stop the warning. To send a sign-in notice today, use email.send(Email(template: 'login_notice', ...)), as shown below. All helpers accept an optional variables map to pass extra data to the template."
         },
         {
           "h": "Sending Custom Emails",
@@ -2654,7 +2654,7 @@
         {
           "h": "What sends each template",
           "a": "what-sends-each-template",
-          "b": "Template Sent when Default expiry verify_email The default onSignUp hook on an auth table with an email column, POST /auth/verify-email, or email.send.verifyEmail(...) 24 hours (VerifyEmailConfig) otp_code POST /auth with type: \"sendOtp\", or email.send.otpCode(...) 10 minutes (fixed) magic_link POST /auth with type: \"sendMagicLink\" 10 minutes (MagicLinkConfig) password_reset POST /auth/reset-password, or email.send.passwordReset(...) 10 minutes (ResetPasswordConfig) admin_invite Inviting an admin (zonai db admin invite or the dashboard) 7 days confirm_change_email Nothing yet (see below) login_notice Nothing yet (see below) The expiry settings live on your auth operations. OTP, magic-link and password-reset sends are limited to one per address per minute. See Auth Rate Limits. login_notice and confirm_change_email are templates only for now. The server does not implement email.send.loginNotice(...), email.send.magicLink(...) or email.send.confirmEmailChange(...): each one sends nothing and raises an UnimplementedError on the server. The default onSignIn hook calls loginNotice for auth tables with an email column, so override onSignIn if you don't want that failure in your logs. To "
+          "b": "Template Sent when Default expiry verify_email The default onSignUp hook on an auth table with an email column, POST /auth/verify-email, or email.send.verifyEmail(...) 24 hours (VerifyEmailConfig) otp_code POST /auth with type: \"sendOtp\", or email.send.otpCode(...) 10 minutes (fixed) magic_link POST /auth with type: \"sendMagicLink\" 10 minutes (MagicLinkConfig) password_reset POST /auth/reset-password, or email.send.passwordReset(...) 10 minutes (ResetPasswordConfig) admin_invite Inviting an admin (zonai db admin invite or the dashboard) 7 days confirm_change_email Nothing yet (see below) login_notice Nothing yet (see below) The expiry settings live on your auth operations. OTP, magic-link and password-reset sends are limited to one per address per minute. See Auth Rate Limits. login_notice and confirm_change_email are templates only for now. The server does not implement email.send.loginNotice(...), email.send.magicLink(...) or email.send.confirmEmailChange(...): each one sends nothing, and the server logs a warning once per process. The default onSignIn hook calls loginNotice for auth tables with an email column, so override onSignIn if you don't want that warning in your logs. To"
         },
         {
           "h": "Variables",
