@@ -203,6 +203,68 @@ void main() {
     expect(await rules.canUpdate(_jwtFor('user-2'), before, after), isFalse);
   });
 
+  // The owner may edit their own row, but not the two columns the auth flows
+  // own. An app that opens `canUpdate` at the table level for profile edits
+  // used to let a user flip their own `is_verified` -- skipping the email it
+  // exists to prove -- or swap `email` to an address they never verified.
+  group('canUpdate on the columns auth owns', () {
+    const before = _User(
+      id: _UserId('user-1'),
+      email: 'a@b.com',
+      isVerified: false,
+      passwordHash: 'hash',
+      name: 'Ada',
+    );
+
+    test('the owner may not verify themselves', () async {
+      const after = _User(
+        id: _UserId('user-1'),
+        email: 'a@b.com',
+        isVerified: true,
+        passwordHash: 'hash',
+        name: 'Ada',
+      );
+
+      expect(await rules.canUpdate(_jwtFor('user-1'), before, after), isFalse);
+    });
+
+    test('the owner may not change their email', () async {
+      const after = _User(
+        id: _UserId('user-1'),
+        email: 'eve@b.com',
+        isVerified: false,
+        passwordHash: 'hash',
+        name: 'Ada',
+      );
+
+      expect(await rules.canUpdate(_jwtFor('user-1'), before, after), isFalse);
+    });
+
+    test('control: the owner may still change everything else', () async {
+      const after = _User(
+        id: _UserId('user-1'),
+        email: 'a@b.com',
+        isVerified: false,
+        passwordHash: 'hash',
+        name: 'Ada Lovelace',
+      );
+
+      expect(await rules.canUpdate(_jwtFor('user-1'), before, after), isTrue);
+    });
+
+    test('an admin still may', () async {
+      const after = _User(
+        id: _UserId('user-1'),
+        email: 'eve@b.com',
+        isVerified: true,
+        passwordHash: 'hash',
+        name: 'Ada',
+      );
+
+      expect(await rules.canUpdate(_adminJwt(), before, after), isTrue);
+    });
+  });
+
   // ---------------------------------------------------------------------
   // AsAdmin + open sign-up.
   //
