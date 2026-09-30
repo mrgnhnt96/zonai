@@ -38,8 +38,11 @@ email: EmailConfig(
   username: '',
   password: '',
   from: EmailAddress(address: 'dev@localhost', name: 'Dev'),
+  allowInsecure: true,
 ),
 ```
+
+`allowInsecure` is what lets the send go through. Mailhog speaks plain SMTP, with neither implicit TLS nor STARTTLS, and without it every email is refused with `connection is not secure` before anything is sent. The empty `username` sends without logging in. Never set `allowInsecure` in a config that points at a real provider.
 
 Every email the server sends then appears at `http://localhost:8025`. Also set `baseUrl` to the URL your browser uses, so the links in auth emails open your local server.
 
