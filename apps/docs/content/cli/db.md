@@ -15,9 +15,10 @@ Generate SQL migration files from schema changes:
 zonai db migrate generate --name add-status-column
 zonai db migrate gen -n add-status-column   # aliases: g, gen
 zonai db migrate generate --dry-run          # preview SQL without writing files
+zonai db migrate generate -n drop-archive --allow-destructive
 ```
 
-See [Generating Migrations](/database/generating-migrations).
+A migration that would drop a table or a column is refused unless you pass `--allow-destructive`. See [Generating Migrations](/database/generating-migrations#destructive-changes-are-refused).
 
 ### apply
 

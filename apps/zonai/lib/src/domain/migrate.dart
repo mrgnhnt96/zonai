@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:file/file.dart';
 import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
+import 'package:raindrop_cli/src/core/snapshot.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai/src/deps/args.dart';
 import '../deps/clean_up.dart';
@@ -13,6 +15,7 @@ import '../deps/logger.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
 import '../utils/canonical_path.dart';
+import 'destructive_migration.dart';
 import '../utils/dart_sdk.dart';
 import '../db_mutator/zonai_db/zonai_db.dart';
 import '../../zonai.dart';
@@ -151,7 +154,19 @@ class Migrate {
   }
 
   Completer<int>? _running;
-  Future<int> run({required String name, bool? dryRun}) async {
+
+  /// Generates a migration named [name] from the schemas.
+  ///
+  /// Refuses one that would destroy data -- drop a table, or rebuild one
+  /// without a column -- unless [allowDestructive]; see
+  /// [_refuseDestructive]. `serve`/`dev` generate on every schema save and
+  /// never pass it, so a schema file renamed or deleted in development cannot
+  /// quietly become a `DROP TABLE` that ships.
+  Future<int> run({
+    required String name,
+    bool? dryRun,
+    bool allowDestructive = false,
+  }) async {
     if (args.release) {
       logger.warn('Cannot generate migrations in release mode');
       return 0;
@@ -188,6 +203,7 @@ class Migrate {
       // Both need a decision about capturing stdout (IOOverrides) rather than
       // a wording tweak.
       final before = _migrationFileNames();
+      final backup = _captureMigrations();
 
       configureRaindropDartSdk();
 
@@ -231,6 +247,12 @@ class Migrate {
       }
 
       hasChanges |= !_setEquals(before, _migrationFileNames());
+
+      if (hasChanges && !allowDestructive) {
+        if (_refuseDestructive(backup, name: name) case final refused?) {
+          return result = refused;
+        }
+      }
 
       switch (hasChanges) {
         case true:
@@ -331,6 +353,87 @@ class Migrate {
             fs.path.extension(entity.path).toLowerCase() == '.sql')
           fs.path.basename(entity.path),
     };
+  }
+
+  /// Every file under [settings.migrationsPath], by path, with its bytes --
+  /// enough to put the directory back exactly as it was.
+  Map<String, List<int>> _captureMigrations() {
+    final dir = fs.directory(settings.migrationsPath);
+    if (!dir.existsSync()) return const {};
+    return {
+      for (final entity in dir.listSync(recursive: true))
+        if (entity is File) entity.path: entity.readAsBytesSync(),
+    };
+  }
+
+  /// The newest `meta/*_snapshot.json` among [paths], or null.
+  String? _newestSnapshot(Iterable<String> paths) {
+    final snapshots = [
+      for (final path in paths)
+        if (fs.path.basename(path).endsWith('_snapshot.json')) path,
+    ]..sort((a, b) => fs.path.basename(a).compareTo(fs.path.basename(b)));
+    return snapshots.isEmpty ? null : snapshots.last;
+  }
+
+  /// Undoes a generate that would destroy data, and says what it would have
+  /// destroyed. Returns the exit code to fail with, or null to let it stand.
+  ///
+  /// Compares the newest snapshot from before the run with the newest after
+  /// it. The generate has already written its files by the time anything can
+  /// be compared, so a refusal restores [backup]: new files removed, changed
+  /// ones (the journal) rewritten. A snapshot that cannot be read refuses
+  /// too -- "could not tell" is not "nothing is lost".
+  int? _refuseDestructive(
+    Map<String, List<int>> backup, {
+    required String name,
+  }) {
+    final after = _captureMigrations();
+    final newestAfter = _newestSnapshot(after.keys);
+    if (newestAfter == null) return null;
+
+    final newestBefore = _newestSnapshot(backup.keys);
+    List<String> losses;
+    try {
+      losses = destructiveChanges(switch (newestBefore) {
+        null => null,
+        final path => SchemaSnapshot.fromJson(utf8.decode(backup[path]!)),
+      }, SchemaSnapshot.fromJson(utf8.decode(after[newestAfter]!)));
+    } catch (e) {
+      losses = ['could not compare schema snapshots ($e)'];
+    }
+    if (losses.isEmpty) return null;
+
+    for (final path in after.keys) {
+      if (!backup.containsKey(path)) fs.file(path).deleteSync();
+    }
+    for (final MapEntry(key: path, value: bytes) in backup.entries) {
+      final file = fs.file(path);
+      if (!file.existsSync() || !_bytesEqual(file.readAsBytesSync(), bytes)) {
+        file.writeAsBytesSync(bytes);
+      }
+    }
+
+    logger.error(
+      [
+        'Refused to generate migration "$name": it would destroy data.',
+        for (final loss in losses) '  - it $loss',
+        '',
+        'A table renamed in its schema file is a new table plus a dropped '
+            'one, and its rows do not move.',
+        'If this is intended, run '
+            '`zonai db migrate generate --name <name> --allow-destructive`. '
+            'Nothing was written.',
+      ].join('\n'),
+    );
+    return 1;
+  }
+
+  static bool _bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   static bool _setEquals(Set<String> a, Set<String> b) =>

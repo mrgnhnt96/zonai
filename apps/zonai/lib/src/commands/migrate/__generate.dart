@@ -9,6 +9,9 @@ Options:
   -h, --help          Show help information
   -n, --name=<name>   Name for the migration (required)
       --dry-run       Show what would be generated without writing files
+      --allow-destructive
+                      Allow a migration that drops a table or a column
+                      (refused otherwise, and nothing is written)
   -c, --config=<path> Path to zonai.yml
 ''';
 
@@ -30,6 +33,7 @@ Future<int> _generate() async {
   final exitCode = deps.migrate.run(
     name: name,
     dryRun: args.getOrNull<bool>('dry-run'),
+    allowDestructive: args.getOrNull<bool>('allow-destructive') ?? false,
   );
   return exitCode;
 }
