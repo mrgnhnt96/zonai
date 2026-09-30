@@ -79,6 +79,7 @@ So, given an email that is already registered:
 Two consequences worth designing around:
 
 - **A retried sign-up is safe.** A client that resends after a network timeout gets the original account back rather than an error, so it needs no "already exists" special case.
+- **Concurrent sign-ups are safe too.** Two sign-ups for the same new address that arrive together create one account; the one that loses the race is answered as a sign-in of the account the other created.
 - **It will not tell you an email is taken.** If your UI needs that — to say "this address is registered, sign in instead" — check for the account yourself rather than relying on sign-up to fail. A wrong password returns the same `401` as a genuinely wrong sign-in, so the response alone cannot distinguish "taken" from "bad credentials".
 
 This does not let anyone into an account whose password they do not have: a caller without the real password gets a normal `401`.
