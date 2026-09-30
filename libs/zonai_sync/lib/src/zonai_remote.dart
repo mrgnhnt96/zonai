@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:revali_client/revali_client.dart' show ServerException;
 import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_sync/src/cursor.dart';
 import 'package:zonai_sync/src/remote.dart';
