@@ -36,6 +36,7 @@ final class SyncEngine {
     this.syncOnWrite = true,
     this.pullOverlap = const Duration(seconds: 2),
     this.claimUnownedData = true,
+    this.reownGuest,
   }) : _tables = orderTables(tables),
        _now = now ?? DateTime.now;
 
@@ -55,7 +56,19 @@ final class SyncEngine {
   /// keep the existing local rows and upload them to that account (the
   /// default), instead of erasing them. A store that already belongs to
   /// another account is always cleared.
+  ///
+  /// Only a NEVER-used store is claimed. Once any account has signed out,
+  /// the device never claims again: anything the app writes into the store
+  /// directly while signed out is erased at the next sign-in, like any other
+  /// leftover of a previous account.
   final bool claimUnownedData;
+
+  /// At a first-sign-in claim, rows whose owner column names someone else
+  /// are left alone (kept, unsynced, counted in [SyncStatus.unclaimed]) —
+  /// unless this recognises that owner as a pre-account guest id of this
+  /// same user (e.g. an anonymous session), in which case they are re-owned
+  /// and uploaded.
+  final bool Function(String owner)? reownGuest;
 
   /// How far behind its stored cursor each pull starts re-reading.
   ///
@@ -195,9 +208,12 @@ final class SyncEngine {
   /// all of it (rows, outbox, cursors) is erased first, atomically — one
   /// user's queued edits must never be pushed under another user's session.
   Future<void> _adoptAccount(String account) async {
-    final owner = await _local.account();
-    if (owner == account) return;
+    // Fast path only; the decision below re-reads the owner INSIDE the
+    // transaction, since it may change between this read and that one.
+    if (await _local.account() == account) return;
     await _local.transaction(() async {
+      final owner = await _local.account();
+      if (owner == account) return;
       // Only a device NO account has ever used may be claimed. After a
       // sign-out the store holds [signedOutMarker], not null, so whatever is
       // left over can never be handed to the next account.
@@ -214,6 +230,7 @@ final class SyncEngine {
   }
 
   Future<void> _claimLocalRows(String account) async {
+    var unclaimed = 0;
     for (final table in _tables.where((t) => t.pushes)) {
       for (final id in await _local.rowIds(table.name)) {
         if (await _local.pendingFor(table.name, id) != null) continue;
@@ -221,9 +238,12 @@ final class SyncEngine {
         if (existing == null) continue;
         final scope = table.scopeColumn;
         final named = scope == null ? null : existing.data[scope];
-        if (named != null && named != account) {
-          // It belongs to someone else: never re-own it, never upload it.
-          await _local.deleteRow(table.name, id);
+        if (named is String &&
+            named != account &&
+            !(reownGuest?.call(named) ?? false)) {
+          // It names someone else: never upload it under this account, and
+          // never delete it either — keep it, unsynced, for the app.
+          unclaimed++;
           continue;
         }
         // Rows made before there was an account have no owner yet.
@@ -247,6 +267,7 @@ final class SyncEngine {
         );
       }
     }
+    _status = _status.copyWith(unclaimed: unclaimed);
   }
 
   /// Stored as the account after [signOut]: "used before, owned by no one
@@ -393,14 +414,28 @@ final class SyncEngine {
             (e.notBefore != null && e.notBefore! > now))
           (e.table, e.rowId),
     };
-    final blocked = {for (final (table, _) in stuck) table};
+    // Table-level holds (tables without `references`) come only from
+    // TRANSIENT trouble; a dead parent row surfaces as its child's own
+    // failure instead of freezing the whole child table.
+    final blocked = {
+      for (final e in all)
+        if (e.state == OutboxState.pending &&
+            e.notBefore != null &&
+            e.notBefore! > now)
+          e.table,
+    };
     for (final entry in due) {
       final table = _table(entry.table);
       if (!table.pushes) {
         await _local.removeEntry(entry.id);
         continue;
       }
-      if (_isHeldBack(table, entry, stuck, blocked)) continue;
+      if (_isHeldBack(table, entry, stuck, blocked)) {
+        // Held rows hold THEIR children too (a grade waits for a student
+        // that waits for a dead course).
+        stuck.add((entry.table, entry.rowId));
+        continue;
+      }
       // Every entry is re-checked: an account switch mid-pass must stop the
       // rest of the OLD account's queue from going out under the new session.
       await _ensureOwner();
@@ -431,6 +466,7 @@ final class SyncEngine {
             return false;
           case FailureKind.forbidden || FailureKind.invalid:
             await _deadLetter(entry, e);
+            stuck.add((entry.table, entry.rowId));
           case FailureKind.exists ||
               FailureKind.revisionConflict ||
               FailureKind.notFound ||
@@ -479,14 +515,14 @@ final class SyncEngine {
       case OutboxOp.upsert when entry.isCreate:
         if (!entry.sent) await _markSent(entry);
         try {
-          final row = await _remote.create(table.name, entry.payload);
+          final row = await _net((r) => r.create(table.name, entry.payload));
           await _settle(entry, row);
         } on SyncRemoteException catch (e) {
           if (e.kind != FailureKind.exists) rethrow;
           // Same id already on the server: our own earlier create whose
           // response was lost, or a deterministic id another device created.
           final server =
-              e.current ?? await _remote.read(table.name, entry.rowId);
+              e.current ?? await _net((r) => r.read(table.name, entry.rowId));
           if (server == null) rethrow;
           await _reconcile(
             table,
@@ -501,11 +537,13 @@ final class SyncEngine {
             for (final f in entry.changedFields)
               if (entry.payload.containsKey(f)) f: entry.payload[f],
           };
-          final row = await _remote.update(
-            table.name,
-            entry.rowId,
-            changes.isEmpty ? entry.payload : changes,
-            ifRev: entry.baseRev!,
+          final row = await _net(
+            (r) => r.update(
+              table.name,
+              entry.rowId,
+              changes.isEmpty ? entry.payload : changes,
+              ifRev: entry.baseRev!,
+            ),
           );
           await _settle(entry, row);
         } on SyncRemoteException catch (e) {
@@ -514,7 +552,7 @@ final class SyncEngine {
             rethrow;
           }
           final server =
-              e.current ?? await _remote.read(table.name, entry.rowId);
+              e.current ?? await _net((r) => r.read(table.name, entry.rowId));
           if (server == null) {
             await _gone(entry);
             return;
@@ -525,21 +563,25 @@ final class SyncEngine {
         // A delete of a row whose create was SENT but never confirmed: the
         // server may hold it. Tombstone whatever is there.
         final server = entry.sent
-            ? await _remote.read(table.name, entry.rowId)
+            ? await _net((r) => r.read(table.name, entry.rowId))
             : null;
         if (server == null || server.isDeleted) {
           await _gone(entry);
           return;
         }
-        final row = await _remote.update(table.name, entry.rowId, {
-          SyncFields.deletedAt: _now().millisecondsSinceEpoch,
-        }, ifRev: server.rev);
+        final row = await _net(
+          (r) => r.update(table.name, entry.rowId, {
+            SyncFields.deletedAt: _now().millisecondsSinceEpoch,
+          }, ifRev: server.rev),
+        );
         await _settle(entry, row);
       case OutboxOp.delete:
         try {
-          final row = await _remote.update(table.name, entry.rowId, {
-            SyncFields.deletedAt: _now().millisecondsSinceEpoch,
-          }, ifRev: entry.baseRev!);
+          final row = await _net(
+            (r) => r.update(table.name, entry.rowId, {
+              SyncFields.deletedAt: _now().millisecondsSinceEpoch,
+            }, ifRev: entry.baseRev!),
+          );
           await _settle(entry, row);
         } on SyncRemoteException catch (e) {
           if (e.kind != FailureKind.revisionConflict &&
@@ -547,7 +589,7 @@ final class SyncEngine {
             rethrow;
           }
           final server =
-              e.current ?? await _remote.read(table.name, entry.rowId);
+              e.current ?? await _net((r) => r.read(table.name, entry.rowId));
           if (server == null || server.isDeleted) {
             await _gone(entry);
             return;
@@ -556,9 +598,11 @@ final class SyncEngine {
             // The server's newer edit beats our delete: the row comes back.
             await _acceptServer(entry, server);
           } else {
-            final row = await _remote.update(table.name, entry.rowId, {
-              SyncFields.deletedAt: _now().millisecondsSinceEpoch,
-            }, ifRev: server.rev);
+            final row = await _net(
+              (r) => r.update(table.name, entry.rowId, {
+                SyncFields.deletedAt: _now().millisecondsSinceEpoch,
+              }, ifRev: server.rev),
+            );
             await _settle(entry, row);
           }
         }
@@ -582,17 +626,16 @@ final class SyncEngine {
         return;
       }
       try {
-        final row = await _remote.update(
-          table.name,
-          entry.rowId,
-          resolution,
-          ifRev: current.rev,
+        final row = await _net(
+          (r) =>
+              r.update(table.name, entry.rowId, resolution, ifRev: current.rev),
         );
         await _settle(entry, row);
         return;
       } on SyncRemoteException catch (e) {
         if (e.kind != FailureKind.revisionConflict) rethrow;
-        final next = e.current ?? await _remote.read(table.name, entry.rowId);
+        final next =
+            e.current ?? await _net((r) => r.read(table.name, entry.rowId));
         if (next == null) {
           await _gone(entry);
           return;
@@ -639,9 +682,19 @@ final class SyncEngine {
   /// applies server data.
   Future<void> _ensureOwner() async {
     final owner = _passAccount;
-    if (owner == null || await _local.account() != owner) {
+    if (owner == null ||
+        _account() != owner ||
+        await _local.account() != owner) {
       throw const _AccountChanged();
     }
+  }
+
+  /// Every network call a pass makes goes through here, so the owner is
+  /// checked against the app's LIVE account immediately before the request
+  /// leaves — not only when the pass began, or when a result is applied.
+  Future<T> _net<T>(Future<T> Function(SyncRemote remote) call) async {
+    await _ensureOwner();
+    return call(_remote);
   }
 
   /// The server's row is authoritative: adopt it locally and drop the change,
@@ -826,11 +879,9 @@ final class SyncEngine {
             );
       try {
         while (true) {
-          final page = await _remote.pull(
-            table.name,
-            scope: scope,
-            after: after,
-            limit: pageSize,
+          final page = await _net(
+            (r) =>
+                r.pull(table.name, scope: scope, after: after, limit: pageSize),
           );
           if (page.rows.isEmpty) break;
           await _local.transaction(() async {

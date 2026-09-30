@@ -8,7 +8,7 @@ import 'package:zonai_sync/src/remote.dart';
 /// A [SyncLocalStore] in memory: the reference implementation of the port's
 /// contract, and the store used by tests. Transactions snapshot and restore
 /// everything, so a failure inside one leaves no partial state behind.
-final class MemorySyncStore implements SyncLocalStore {
+base class MemorySyncStore implements SyncLocalStore {
   var _rows = <String, Map<String, LocalRow>>{};
   var _outbox = <int, OutboxEntry>{};
   var _cursors = <String, SyncCursor>{};

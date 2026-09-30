@@ -708,7 +708,9 @@ void main() {
         phone.account = 'u1';
         await phone.engine.sync();
         expect(server.tables['notes']!.keys, ['mine']);
-        expect(phone.row('foreign'), isNull);
+        // N3 superseded the deletion: kept locally, unsynced, and counted.
+        expect(phone.row('foreign'), isNotNull);
+        expect(phone.engine.currentStatus.unclaimed, 1);
       },
     );
 
@@ -822,6 +824,181 @@ void main() {
     });
   });
 
+  group('third review (zonai-owner, 2026-09-29)', () {
+    test(
+      'R2 an account switch with no sign-out stops the old queue at once',
+      () async {
+        final phone = Device(
+          server,
+          tables: const [SyncTable('notes', scopeColumn: null)],
+        );
+        await phone.write({'id': 'n1'});
+        await phone.write({'id': 'n2'});
+        server.whileInFlight = (call) async {
+          if (call == 'create notes/n1') {
+            server.whileInFlight = null;
+            phone.account =
+                'u2'; // the app switched; nothing touched the store yet
+            server.user = 'u2';
+          }
+        };
+        await phone.engine.sync();
+        expect(server.calls, isNot(contains('create notes/n2')));
+        expect(
+          server.calls.where((c) => c.startsWith('pull')),
+          isEmpty,
+          reason: "u1's pass must not pull under u2's session either",
+        );
+      },
+    );
+
+    test(
+      'R4a a parent dead-lettered earlier in the SAME pass holds its child',
+      () async {
+        final phone = Device(
+          server,
+          tables: const [
+            SyncTable('courses'),
+            SyncTable(
+              'students',
+              parents: ['courses'],
+              references: {'course_id': 'courses'},
+            ),
+          ],
+        );
+        await phone.write({'id': 'c1'}, 'courses');
+        await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
+        server.failures.add(const SyncRemoteException(FailureKind.invalid));
+        await phone.engine.sync();
+        expect(server.calls, isNot(contains('create students/s1')));
+      },
+    );
+
+    test('R4c blocking propagates to grandchildren', () async {
+      final phone = Device(
+        server,
+        tables: const [
+          SyncTable('courses'),
+          SyncTable(
+            'students',
+            parents: ['courses'],
+            references: {'course_id': 'courses'},
+          ),
+          SyncTable(
+            'grades',
+            parents: ['students'],
+            references: {'student_id': 'students'},
+          ),
+        ],
+      );
+      await phone.write({'id': 'c1'}, 'courses');
+      server.failures.add(const SyncRemoteException(FailureKind.forbidden));
+      await phone.engine.sync(); // c1 dead
+      await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
+      await phone.write({'id': 'g1', 'student_id': 's1'}, 'grades');
+      await phone.engine.sync();
+      expect(server.calls, isNot(contains('create grades/g1')));
+    });
+
+    test(
+      'N1 the claim decision reads the owner inside its transaction',
+      () async {
+        // A slow read of the owner outside the transaction let u2 claim a store
+        // u1 had meanwhile written into.
+        final store = _SlowAccountStore();
+        var account = 'u2';
+        final engine = SyncEngine(
+          remote: server,
+          local: store,
+          tables: const [SyncTable('notes')],
+          account: () => account,
+          syncOnWrite: false,
+        );
+        store.onAccountRead = () async {
+          store.onAccountRead = null;
+          // While u2's adopt is reading the owner, u1 takes the store.
+          await store.setAccount('u1');
+          await store.writeRow('notes', {'id': 'u1-secret', 'owner_id': 'u1'});
+          // What u1's engine.write() commits: the row AND its outbox entry.
+          await store.putEntry(
+            OutboxEntry(
+              id: await store.nextOutboxId(),
+              table: 'notes',
+              rowId: 'u1-secret',
+              op: OutboxOp.upsert,
+              payload: const {'id': 'u1-secret', 'owner_id': 'u1'},
+              changedFields: const {'id', 'owner_id'},
+              baseRev: null,
+              version: 1,
+            ),
+          );
+        };
+        server.user = 'u2';
+        await engine.sync();
+        expect(server.calls, isNot(contains('create notes/u1-secret')));
+        expect(store.rows('notes'), isNot(contains('u1-secret')));
+        account = 'u2';
+      },
+    );
+
+    test(
+      "N2 without references, a dead parent row doesn't freeze the child table",
+      () async {
+        final phone = Device(
+          server,
+          tables: const [
+            SyncTable('courses'),
+            SyncTable('students', parents: ['courses']),
+          ],
+        );
+        await phone.write({'id': 'c1'}, 'courses');
+        server.failures.add(const SyncRemoteException(FailureKind.forbidden));
+        await phone.engine.sync(); // c1 dead
+        await phone.write({'id': 'c2'}, 'courses');
+        await phone.write({'id': 's2', 'course_id': 'c2'}, 'students');
+        await phone.engine.sync();
+        expect(server.calls, contains('create students/s2'));
+      },
+    );
+
+    test(
+      'N3 the claim never deletes: foreign rows stay local, unsynced, counted',
+      () async {
+        final phone = Device(server, account: null);
+        await phone.store.writeRow('notes', {'id': 'mine'});
+        await phone.store.writeRow('notes', {
+          'id': 'guest-note',
+          'owner_id': 'guest-7',
+        });
+        phone.account = 'u1';
+        await phone.engine.sync();
+        expect(server.tables['notes']!.keys, ['mine']);
+        expect(phone.row('guest-note'), isNotNull, reason: 'not deleted');
+        expect(phone.engine.currentStatus.unclaimed, 1);
+      },
+    );
+
+    test('N3b a known guest id is re-owned and uploaded', () async {
+      final phone = Device(server, account: null);
+      phone.engine; // built lazily below with the hook
+      final store = phone.store;
+      await store.writeRow('notes', {
+        'id': 'guest-note',
+        'owner_id': 'guest-7',
+      });
+      final engine = SyncEngine(
+        remote: server,
+        local: store,
+        tables: const [SyncTable('notes')],
+        account: () => 'u1',
+        syncOnWrite: false,
+        reownGuest: (owner) => owner.startsWith('guest-'),
+      );
+      await engine.sync();
+      expect(server.tables['notes']!['guest-note']!['owner_id'], 'u1');
+    });
+  });
+
   group('ordering and scheduling', () {
     const courses = SyncTable('courses');
     const students = SyncTable('students', parents: ['courses']);
@@ -909,4 +1086,19 @@ void main() {
       expect(phone.engine.currentStatus.phase, SyncPhase.signedOut);
     });
   });
+}
+
+/// A store whose owner lookup can be delayed, to open the race in N1.
+final class _SlowAccountStore extends MemorySyncStore {
+  Future<void> Function()? onAccountRead;
+
+  /// Reads the owner, THEN lets [onAccountRead] run, then returns the value
+  /// read — which the hook has just made stale.
+  @override
+  Future<String?> account() async {
+    final value = await super.account();
+    final hook = onAccountRead;
+    if (hook != null) await hook();
+    return value;
+  }
 }

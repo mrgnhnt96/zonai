@@ -25,6 +25,7 @@ final class SyncStatus {
     required this.deadLetters,
     this.lastSyncedAt,
     this.lastError,
+    this.unclaimed = 0,
   });
 
   static const initial = SyncStatus(
@@ -47,6 +48,11 @@ final class SyncStatus {
   final DateTime? lastSyncedAt;
   final String? lastError;
 
+  /// Local rows the first sign-in did NOT upload because they name another
+  /// owner (and [SyncEngine.reownGuest] did not recognise it). They are kept
+  /// on the device, unsynced — never deleted — for the app to resolve.
+  final int unclaimed;
+
   bool get isSynced =>
       pending == 0 && deadLetters.isEmpty && phase == SyncPhase.idle;
 
@@ -57,12 +63,14 @@ final class SyncStatus {
     DateTime? lastSyncedAt,
     String? lastError,
     bool clearError = false,
+    int? unclaimed,
   }) => SyncStatus(
     phase: phase ?? this.phase,
     pending: pending ?? this.pending,
     deadLetters: deadLetters ?? this.deadLetters,
     lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
     lastError: clearError ? null : lastError ?? this.lastError,
+    unclaimed: unclaimed ?? this.unclaimed,
   );
 
   @override
