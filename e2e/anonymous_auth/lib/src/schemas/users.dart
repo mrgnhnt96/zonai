@@ -63,8 +63,7 @@ final class UserTable extends AuthTable<User>
   Set<String> get anonymousSignUpColumns => const {'display_name'};
 }
 
-final users = authTable('users', UserTable.new, (table) {
-  // One account per address, as a real table declares it. NULLs (anonymous
-  // accounts) never collide under a SQLite unique index.
-  uniqueIndex('users_email_unique').on(table.email);
-});
+// A password table without OAuth, so `authTable` declares the unique email
+// index itself. The upgrade race test relies on it; NULLs (anonymous
+// accounts) never collide under it.
+final users = authTable('users', UserTable.new);
