@@ -146,6 +146,55 @@ extension _AuthUtilsX on ZonaiDb {
     return await _sanitizeRow(table, user);
   }
 
+  /// Runs [insert] -- a sign-up's account INSERT -- on the single-writer
+  /// chain, unless the address [probe] names has an account by then. Returns
+  /// the inserted row's result, or `null` when the address was taken: the
+  /// caller then answers as a sign-in of that account, which is what a
+  /// sign-up arriving second gets anyway (the password flow does the same
+  /// since #56).
+  ///
+  /// The account check each flow makes before its code or password is
+  /// verified cannot stand in for this: two sign-ups for one new address --
+  /// two verifies of one code, say -- both pass it. The check here and the
+  /// INSERT share one chain callback, so they are atomic on the writer.
+  Future<OperationResult?> _insertAccountUnlessTaken({
+    required String table,
+    required PerformOperationResponse insert,
+    required AuthOperationPayload probe,
+    required Jwt? jwt,
+  }) async {
+    final taken = await _dispatchOperation<PerformOperationResponse>(
+      ViewAuthOperationRequest(table: table, jwt: jwt, payload: probe),
+    );
+
+    var takenByNow = false;
+    final Object? error;
+    final OperationResult? result;
+    final slot = await _admitWrite();
+    try {
+      (error, result) = await _chainWrite(() async {
+        final (takenError, existing) = await _execute((
+          taken.query,
+          taken.values,
+        ));
+        if (takenError != null) return (takenError, null);
+        if (existing?.rows.isNotEmpty ?? false) {
+          takenByNow = true;
+          return (null, null);
+        }
+        return _execute((insert.query, insert.values));
+      });
+    } finally {
+      slot.release();
+    }
+
+    if (takenByNow) return null;
+    if (error != null || result == null) {
+      throw error ?? AuthFailedException(cause: 'Failed to create user');
+    }
+    return result;
+  }
+
   Future<bool> _hasAuthRecord({
     required String table,
     required AuthPayload payload,

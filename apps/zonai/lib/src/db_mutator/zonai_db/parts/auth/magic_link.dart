@@ -225,10 +225,21 @@ extension _MagicLinkX on ZonaiDb {
       ),
     );
 
-    final (error, result) = await _execute((operation.query, operation.values));
-
-    if (error != null || result == null) {
-      throw error ?? AuthFailedException(cause: 'Failed to create user');
+    final result = await _insertAccountUnlessTaken(
+      table: table,
+      insert: operation,
+      probe: MagicLinkAuthOperationPayload.get(email: email),
+      jwt: appJwt,
+    );
+    if (result == null) {
+      // Another sign-up for this address committed first (two verifies of
+      // one code, say). Answer as the sign-in a later request would get.
+      return await _signIntoCollection(
+        table: table,
+        email: email,
+        jwt: jwt,
+        extensionStep: .onSignIn,
+      );
     }
 
     final user = await _sanitizeRow(table, result.rows.single.toMap());

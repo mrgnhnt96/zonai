@@ -74,12 +74,16 @@ editable, and an admin is unaffected.
 override `canUpdate` in your `AuthRowRules`. A hook that sets `is_verified`
 through `mutate` under the user's token is refused too.
 
-**A password auth table now gets the unique email index it always claimed.**
+**Auth tables now get the unique email index the docs always claimed.**
 `authTable` meant to declare `<table>.email_unique` for every `PasswordAuth`
 table, and the docs say the column is `TEXT UNIQUE`, but the check tested the
 table's type rather than the table, never matched, and the index was never
-declared. Your next `zonai db migrate generate` emits
-`CREATE UNIQUE INDEX "<table>.email_unique"`.
+declared. It is now declared on every auth table with an email: password,
+OTP, magic link and anonymous alike. Without it, two sign-ups racing for one
+address on a passwordless table both inserted. An anonymous row's email is
+`NULL` until it upgrades, and `NULL`s never collide in a unique index, so any
+number of anonymous rows still coexist. Your next `zonai db migrate generate`
+emits `CREATE UNIQUE INDEX "<table>.email_unique"`.
 
 **Before you apply that migration**, look for addresses that differ only by
 case. The same release lowercases stored emails, so `Ann@x.com` and

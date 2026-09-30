@@ -77,6 +77,56 @@ final class _MixedUserTable extends _UserTable with OAuth {
 
 final _mixedUsers = authTable('mixed_users', _MixedUserTable.new);
 
+/// The passwordless shapes. None of them provisions a row per external
+/// identity the way OAuth does, so each address is one account and the index
+/// holds -- without it, two sign-ups racing for one address end as two rows.
+final class _CodeRow {
+  const _CodeRow({
+    required this.id,
+    required this.email,
+    required this.isVerified,
+  });
+
+  final UnknownId id;
+  final String? email;
+  final bool isVerified;
+}
+
+final class _OtpTable extends AuthTable<_CodeRow> with OtpAuth {
+  _OtpTable(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: UnknownId.new,
+        generate: () => UnknownId(Id.generate('row')),
+      ),
+      email = $.email('email', (s) => s.email),
+      isVerified = $.isVerified('is_verified', (s) => s.isVerified);
+
+  final IdColumn<UnknownId> id;
+  @override
+  final NullableEmailColumn email;
+  final IsVerifiedColumn isVerified;
+
+  @override
+  _CodeRow fromRow(RowReader read) =>
+      _CodeRow(id: read(id), email: read(email), isVerified: read(isVerified));
+}
+
+final class _MagicLinkTable extends _OtpTable with MagicLinkAuth {
+  _MagicLinkTable(super.$);
+}
+
+/// Anonymous rows carry a NULL email until they upgrade. NULLs never collide
+/// in a unique index, so any number of them coexist.
+final class _AnonymousTable extends _OtpTable with AnonymousAuth {
+  _AnonymousTable(super.$);
+}
+
+final _otpUsers = authTable('otp_users', _OtpTable.new);
+final _linkUsers = authTable('link_users', _MagicLinkTable.new);
+final _anonUsers = authTable('anon_users', _AnonymousTable.new);
+
 // An `extra` callback replaces the default indexes; it must not also drop the
 // email declaration.
 final _customUsers = authTable('custom_users', _UserTable.new, (table) {
@@ -87,6 +137,9 @@ Map<String, Object?> _snapshot() => buildSnapshot([
   _users,
   _customUsers,
   _mixedUsers,
+  _otpUsers,
+  _linkUsers,
+  _anonUsers,
 ], dialect: const SQLiteDialect());
 
 Map<String, Object?> _tableSnapshot(String name) =>
@@ -173,6 +226,17 @@ void main() {
         'isUnique': true,
       });
     });
+
+    for (final table in ['otp_users', 'link_users', 'anon_users']) {
+      test('declares a unique index on email for $table (no OAuth)', () {
+        expect(indexOn('$table.email_unique'), {
+          'name': '$table.email_unique',
+          'tableName': table,
+          'columns': ['email'],
+          'isUnique': true,
+        });
+      });
+    }
 
     test('declares no unique email index when the table also has OAuth', () {
       expect(indexOn('mixed_users.id_unique'), isNotEmpty);
