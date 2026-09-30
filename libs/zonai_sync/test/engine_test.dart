@@ -1349,6 +1349,21 @@ void main() {
       );
     });
 
+    test('a self-referencing table is accepted and held per row', () async {
+      // Folders, comment threads: parent_id points into the same table. Rows
+      // of one table go out in outbox order, so no table ordering applies.
+      const cats = SyncTable('cats', references: {'parent_id': 'cats'});
+      expect(orderTables(const [cats]).map((t) => t.name), ['cats']);
+      final phone = Device(server, tables: const [cats]);
+      await phone.write({'id': 'c1'}, 'cats');
+      await phone.write({'id': 'c2', 'parent_id': 'c1'}, 'cats');
+      await phone.write({'id': 'c3'}, 'cats');
+      server.failures.add(const SyncRemoteException(FailureKind.server));
+      await phone.engine.sync(); // c1 backs off
+      expect(server.calls, isNot(contains('create cats/c2')));
+      expect(server.calls, contains('create cats/c3'), reason: 'control');
+    });
+
     test(
       'with partial references, an uncovered parent still holds the table',
       () async {
