@@ -12,6 +12,44 @@ decoded the row and set a nullable `updated_at` to `null`. A rule like
 between. `safeCreate(data, stored: true)` now keeps stored timestamps; creates
 and `beforeCreate` still stamp them, and never trust a client-sent value.
 
+**A user can no longer verify themselves or change their own email.** The
+default `AuthRowRules.canUpdate` allowed the row's owner any change. An app
+that opens `canUpdate` at the table level, usually for profile edits, let a
+user set their own `is_verified` (skipping the email verification it
+records) or change `email` to an address they never proved. The owner is now
+refused a change to either column; everything else on their row stays
+editable, and an admin is unaffected.
+
+**Behaviour change.** If your app relies on users PATCHing their own `email`,
+override `canUpdate` in your `AuthRowRules`. A hook that sets `is_verified`
+through `mutate` under the user's token is refused too.
+
+**A password auth table now gets the unique email index it always claimed.**
+`authTable` meant to declare `<table>.email_unique` for every `PasswordAuth`
+table, and the docs say the column is `TEXT UNIQUE`, but the check tested the
+table's type rather than the table, never matched, and the index was never
+declared. Your next `zonai db migrate generate` emits
+`CREATE UNIQUE INDEX "<table>.email_unique"`.
+
+**Before you apply that migration**, look for addresses that differ only by
+case. The same release lowercases stored emails, so `Ann@x.com` and
+`ann@x.com` become one address, and a table holding both will fail the
+migration:
+
+```sql
+SELECT lower(email), count(*) FROM users GROUP BY lower(email) HAVING count(*) > 1;
+```
+
+Resolve any rows it returns, then migrate.
+
+Two kinds of table are unaffected:
+
+- A table that also mixes in `OAuth`. OAuth provisions a second row for an
+  address it declines to link (`OAuthLinking.never`, or `byVerifiedEmail` with
+  an unverified email), so there an email is not unique by design.
+- A table that passes its own `extra` callback to `authTable`. That callback
+  replaces the default indexes, as before.
+
 ## 0.5.0
 
 **One server, development and production iOS builds.** An APNs token belongs

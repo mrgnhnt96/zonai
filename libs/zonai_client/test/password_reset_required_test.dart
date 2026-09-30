@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:revali_client/revali_client.dart' show ServerException;
 import 'package:test/test.dart';
 import 'package:zonai_client/zonai_client.dart';
 

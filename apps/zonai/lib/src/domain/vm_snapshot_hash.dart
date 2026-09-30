@@ -209,13 +209,25 @@ String? _sdkHash(String dartExecutablePath) {
 /// the version can never be read off two different ones -- that would attach
 /// the message this file exists to make trustworthy ("requires Dart 3.12.0")
 /// to a hash from somewhere else.
+///
+/// Two layouts per candidate, in order. A Dart SDK keeps the runtime beside
+/// `bin/dart`. A Flutter SDK -- which is what FVM installs -- puts a bash
+/// wrapper at `bin/dart` and the real Dart SDK at `bin/cache/dart-sdk`, so
+/// there the runtime is `bin/cache/dart-sdk/bin/dartaotruntime`. Looking only
+/// beside the wrapper found nothing, so every snapshot compiled under a
+/// Flutter `dart` went unstamped and was refused at serve (issue #33). The
+/// version is then read from `bin/cache/dart-sdk/version`, the DART version --
+/// never Flutter's own root `version`, which names Flutter's.
 String? _dartaotruntimeFor(String dartExecutablePath) {
   for (final dart in _dartExecutableCandidates(dartExecutablePath)) {
-    final sibling = fs.path.join(
-      fs.path.dirname(dart),
-      _dartaotruntimeNameBeside(dart),
-    );
-    if (fs.file(sibling).existsSync()) return sibling;
+    final bin = fs.path.dirname(dart);
+    final name = _dartaotruntimeNameBeside(dart);
+    for (final runtime in [
+      fs.path.join(bin, name),
+      fs.path.join(bin, 'cache', 'dart-sdk', 'bin', name),
+    ]) {
+      if (fs.file(runtime).existsSync()) return runtime;
+    }
   }
   return null;
 }

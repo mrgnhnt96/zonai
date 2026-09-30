@@ -52,14 +52,42 @@ final class _UserTable extends AuthTable<_Row> with PasswordAuth {
 
 final _users = authTable('users', _UserTable.new);
 
+/// Password AND OAuth. OAuth provisions a second row for an address it will
+/// not link (`OAuthLinking.never`, or `byVerifiedEmail` with an unverified
+/// email), so an email here is deliberately not unique.
+final class _MixedUserTable extends _UserTable with OAuth {
+  _MixedUserTable(super.$);
+
+  @override
+  List<OAuthProvider> get oauthProviders => [
+    OAuthProvider.custom(
+      id: 'idp',
+      displayName: 'idp',
+      endpoints: const OAuthEndpoints(
+        authorization: 'https://idp.example/authorize',
+        token: 'https://idp.example/token',
+      ),
+      scopes: const ['openid'],
+      claims: const OAuthClaimMap(subject: 'sub', email: 'email'),
+      clientId: 'cid',
+      clientSecret: 'secret',
+    ),
+  ];
+}
+
+final _mixedUsers = authTable('mixed_users', _MixedUserTable.new);
+
 // An `extra` callback replaces the default indexes; it must not also drop the
 // email declaration.
 final _customUsers = authTable('custom_users', _UserTable.new, (table) {
   uniqueIndex('custom_users.id_unique').on(table.id);
 });
 
-Map<String, Object?> _snapshot() =>
-    buildSnapshot([_users, _customUsers], dialect: const SQLiteDialect());
+Map<String, Object?> _snapshot() => buildSnapshot([
+  _users,
+  _customUsers,
+  _mixedUsers,
+], dialect: const SQLiteDialect());
 
 Map<String, Object?> _tableSnapshot(String name) =>
     (_snapshot()['tables']! as Map)[name] as Map<String, Object?>;
@@ -114,6 +142,46 @@ void main() {
 
       expect(response.values, contains('ann@example.com'));
       expect(response.values, isNot(contains('Ann@Example.COM')));
+    });
+  });
+
+  // The default indexes used to test `S case PasswordAuth(...)` -- a pattern
+  // matched against the table's TYPE, which is a `Type` object and never a
+  // `PasswordAuth` -- so the email index was never declared, while the docs
+  // promise `TEXT UNIQUE`.
+  group('auth table default indexes', () {
+    Map<String, Object?> indexOn(String name) {
+      final indexes = _snapshot()['indexes']! as Map;
+      return indexes[name] as Map<String, Object?>? ?? const {};
+    }
+
+    test('declares the unique id index', () {
+      // Positive control: the same code path's unconditional half.
+      expect(indexOn('users.id_unique'), {
+        'name': 'users.id_unique',
+        'tableName': 'users',
+        'columns': ['id'],
+        'isUnique': true,
+      });
+    });
+
+    test('declares a unique index on email for a PasswordAuth table', () {
+      expect(indexOn('users.email_unique'), {
+        'name': 'users.email_unique',
+        'tableName': 'users',
+        'columns': ['email'],
+        'isUnique': true,
+      });
+    });
+
+    test('declares no unique email index when the table also has OAuth', () {
+      expect(indexOn('mixed_users.id_unique'), isNotEmpty);
+      expect(indexOn('mixed_users.email_unique'), isEmpty);
+    });
+
+    test('an `extra` callback replaces the default indexes', () {
+      expect(indexOn('custom_users.id_unique'), isNotEmpty);
+      expect(indexOn('custom_users.email_unique'), isEmpty);
     });
   });
 }
