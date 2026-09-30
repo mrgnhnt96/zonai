@@ -15,6 +15,7 @@ import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
 import '../message_contract_stamp.dart';
 import 'rate_limit_generator.dart';
+import '../../utils/compile_coalescer.dart';
 
 final class RateLimitsCompiler {
   RateLimitsCompiler();
@@ -27,6 +28,12 @@ final class RateLimitsCompiler {
 
   String get executablePath => fs.path.join(settings.compiledRateLimitPath);
 
+  /// One compile per burst of events, never two at once: see
+  /// [CompileCoalescer]. Created by [watch] and cancelled by [stop].
+  CompileCoalescer? __recompile;
+  CompileCoalescer get _recompile =>
+      __recompile ??= CompileCoalescer(compile, label: 'rate limits');
+
   void watch() {
     if (args.release) return;
 
@@ -35,14 +42,15 @@ final class RateLimitsCompiler {
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Rate limits changed: ${event.path}');
-      logger.info('Detected changes in rate limits, recompiling...');
-      compile();
+      _recompile.trigger();
     });
 
     cleanUp.add(stop);
   }
 
   void stop() {
+    __recompile?.cancel();
+    __recompile = null;
     __subscription?.cancel();
     __subscription = null;
   }

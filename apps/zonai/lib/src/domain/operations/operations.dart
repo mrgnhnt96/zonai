@@ -19,6 +19,7 @@ import '../project/project_generator.dart';
 import '../snapshot_sdk_stamp.dart';
 import '../vm_snapshot_hash.dart';
 import 'operation_generator.dart';
+import '../../utils/compile_coalescer.dart';
 
 class Operations {
   Operations();
@@ -34,6 +35,12 @@ class Operations {
   StreamSubscription<WatchEvent>? __subscription;
   StreamSubscription<WatchEvent>? __schemaSubscription;
 
+  /// One compile per burst of events, never two at once: see
+  /// [CompileCoalescer]. Created by [watch] and cancelled by [stop].
+  CompileCoalescer? __recompile;
+  CompileCoalescer get _recompile =>
+      __recompile ??= CompileCoalescer(compile, label: 'operations');
+
   void watch() {
     if (args.release) return;
 
@@ -45,8 +52,7 @@ class Operations {
     if (__subscription == null) {
       __subscription = _watcher.events.listen((event) {
         logger.debug('Operations changed: ${event.path}');
-        logger.info('Detected changes in operations, recompiling...');
-        compile();
+        _recompile.trigger();
       });
       subscribed = true;
     }
@@ -54,8 +60,7 @@ class Operations {
     if (__schemaSubscription == null) {
       __schemaSubscription = _schemasWatcher.events.listen((event) {
         logger.debug('Schema changed: ${event.path}');
-        logger.info('Detected changes in schemas, recompiling operations...');
-        compile();
+        _recompile.trigger();
       });
       subscribed = true;
     }
@@ -66,6 +71,8 @@ class Operations {
   }
 
   void stop() {
+    __recompile?.cancel();
+    __recompile = null;
     __subscription?.cancel();
     __subscription = null;
     __schemaSubscription?.cancel();
