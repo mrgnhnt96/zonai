@@ -1,6 +1,29 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+**Re-run `zonai compile` after upgrading.** Workers now send and parse new
+vocabulary (a rule's `viewScope`, `count_requires_view_scope`,
+`precondition_failed`, `ServerManagedColumnWriteException`), and a stale
+`.zonai/executables/*.exe` keeps the old code. Serve with zonai CLI 0.10.0 or
+later, which requires this version.
+
+**Anonymous auth.** Mix `AnonymousAuth` into an auth table to create accounts
+before their owner gives an address. The row's email stays `NULL` until the
+account is upgraded, so the column must be a `NullableEmailColumn`
+(`$.email<String?>(...)`); `anonymousSignUpColumns` names the app columns an
+anonymous sign-up may set. `Jwt.isAnonymous` tells the two kinds of session
+apart. See the new "Anonymous auth" docs page.
+
+**Breaking:** tables are now checked when they register. A nullable email column
+on a table without `AnonymousAuth` is refused at boot, because `NULL` there
+means "anonymous account". So is `AnonymousAuth` together with `AsAdmin`.
+
+**Auth emails are stored lowercased.** `authTable` declares `.lowercase()` on
+the email column, and your next `zonai db migrate generate` emits a migration
+that lowercases existing rows. `Ann@x.com` and `ann@x.com` are one account,
+matching how addresses were already compared everywhere else. See "Before you
+apply that migration" below if a table might hold both.
 
 **A malformed request body is a `400 invalid_body`, not a `500`.** A body the
 server could not read -- a missing field, a wrong type, a `where` that is not

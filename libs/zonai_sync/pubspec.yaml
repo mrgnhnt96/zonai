@@ -22,7 +22,7 @@ environment:
 dependencies:
   http: ^1.6.0
   meta: ^1.16.0
-  zonai_client: ^0.2.4
+  zonai_client: ^0.3.0
 
 dev_dependencies:
   test: ^1.26.2

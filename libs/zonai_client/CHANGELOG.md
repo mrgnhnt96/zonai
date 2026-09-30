@@ -1,5 +1,14 @@
-## Unreleased
+## 0.3.0
 
+- **Requires `zonai_schema` 0.6.0** (`>=0.6.0 <0.7.0`). `Db.update`'s `expect`
+  and the new exceptions come from it, and so does `Paginated.total` becoming
+  `int?`. A list whose caller may not count every row now arrives without a
+  total, so code that reads `total` as an `int` needs a null check.
+- **Anonymous auth.** `signInAnonymously` creates an account with no address
+  and returns its session plus a `credential` to keep in secure storage.
+  `resumeAnonymous` trades that credential for a new session.
+  `requestUpgrade` and `confirmUpgrade` give the account a verified address
+  and keep its id.
 - **`ServerException` is exported.** Every non-2xx response is thrown as one, so catching it used to need a direct dependency on `revali_client`, a transport detail. Now `package:zonai_client/zonai_client.dart` is enough. Additive.
 - **`PreconditionFailedException`.** `Db.update` and `Db.updateMany` throw it
   when the server refuses an update on its `expect` (`412`,
