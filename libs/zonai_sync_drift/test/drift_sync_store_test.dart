@@ -8,7 +8,7 @@ import 'package:zonai_sync_drift/zonai_sync_drift.dart';
 
 // The in-memory zonai fake lives with the engine's own tests.
 // ignore: avoid_relative_lib_imports
-import '../../zonai_sync/test/support/fake_zonai.dart';
+import 'package:zonai_sync/testing.dart';
 
 /// A database with no generated tables: the app's synced table is plain SQL
 /// here so the store is tested without codegen.
