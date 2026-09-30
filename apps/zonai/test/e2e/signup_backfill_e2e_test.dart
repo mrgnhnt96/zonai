@@ -352,6 +352,10 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
     loggerProvider.overrideWith(() => Logger(level: .error)),
     settingsProvider.overrideWith(() => settings),
     processProvider,
+    // The OTP and magic-link requests end in `courier.send`. The fixture's
+    // AppConfig carries no `email`, so the send warns and returns without
+    // opening an SMTP connection.
+    courierProvider,
     migrateProvider,
     mutationsProvider,
     cleanUpProvider,
