@@ -172,6 +172,108 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );
+
+    // A `before*` hook queues its writes ahead of the main write, and the main
+    // write's own query used to drain the queue and drop what it drained:
+    // `_execute` filtered a `List<_SideEffect>` by `PerformOperationResponse`,
+    // a type none of its elements has. Every query extracted the queue, reads
+    // included, so the loss did not depend on which query ran first.
+    group('a write queued by a before-hook is persisted', () {
+      Future<List<Map<String, Object?>>> auditRows(
+        ZonaiDb db,
+        String hook,
+        String email,
+      ) async {
+        final rows = await db.list(
+          'invites',
+          ListPayload(where: Eq('email', 'audit:$hook:$email')),
+        );
+        return rows.items;
+      }
+
+      Future<void> withDb(Future<void> Function(ZonaiDb db) body) async {
+        late ZonaiDb db;
+        await runMergedScopedFuture(
+          () async {
+            db = ZonaiDb();
+            try {
+              await body(db);
+            } finally {
+              await db.dispose();
+            }
+          },
+          override: {
+            ..._e2eScopeOverrides(settings, appConfig: appConfig),
+            zonaiDbProvider.overrideWith(
+              () =>
+                  () => db,
+            ),
+          },
+        );
+      }
+
+      test('beforeCreate', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          const email = 'create@example.com';
+          await db.create(
+            'invites',
+            const CreatePayload(object: {'email': email}),
+          );
+
+          expect(
+            await auditRows(db, 'before-create', email),
+            hasLength(1),
+            reason: 'beforeCreate queued a mutate.create.one',
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 2)));
+
+      test('beforeUpdate', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          const email = 'update@example.com';
+          await db.create(
+            'invites',
+            const CreatePayload(object: {'email': email}),
+          );
+          await db.update(
+            'invites',
+            UpdatePayload(
+              where: Eq('email', email),
+              updates: [Update.column('user_id', .literal('u1'))],
+            ),
+          );
+
+          expect(
+            await auditRows(db, 'before-update', email),
+            hasLength(1),
+            reason: 'beforeUpdate queued a mutate.create.one',
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 2)));
+
+      test('beforeDelete', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          const email = 'delete@example.com';
+          await db.create(
+            'invites',
+            const CreatePayload(object: {'email': email}),
+          );
+          await db.delete('invites', DeletePayload(where: Eq('email', email)));
+
+          expect(
+            await auditRows(db, 'before-delete', email),
+            hasLength(1),
+            reason: 'beforeDelete queued a mutate.create.one',
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 2)));
+    });
   });
 }
 
