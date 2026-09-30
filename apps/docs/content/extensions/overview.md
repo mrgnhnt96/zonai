@@ -113,7 +113,7 @@ Two auth hooks send an email by default when the auth table has an email column 
 | Hook       | Default email     |
 | ---------- | ----------------- |
 | `onSignUp` | Verify-email link |
-| `onSignIn` | Login notice (not implemented yet: nothing is sent and the server logs an error) |
+| `onSignIn` | Login notice (not implemented yet: nothing is sent and the server warns once per process) |
 
 Overriding the hook replaces the default. Call `super.onSignUp(user, jwt)` from your override to keep the verify-email link. Override `onSignIn` to silence the login-notice error. All other hooks send nothing unless you call [`email.send`](/extensions/side-effects-email).
 

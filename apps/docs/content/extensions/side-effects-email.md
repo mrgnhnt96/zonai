@@ -26,7 +26,7 @@ email.send.otpCode(
 );
 ```
 
-> **`loginNotice`, `magicLink` and `confirmEmailChange` also exist, but the server does not implement them yet.** Calling one sends nothing and raises an `UnimplementedError` on the server. The default `onSignIn` hook calls `loginNotice` for auth tables with an email column, so override `onSignIn` to stop it. To send a sign-in notice today, use `email.send(Email(template: 'login_notice', ...))`, as shown below.
+> **`loginNotice`, `magicLink` and `confirmEmailChange` also exist, but the server does not implement them yet.** Calling one sends nothing: the server skips it, logs a warning once per process, and the request carries on. The default `onSignIn` hook calls `loginNotice` for auth tables with an email column, so override `onSignIn` to stop the warning. To send a sign-in notice today, use `email.send(Email(template: 'login_notice', ...))`, as shown below.
 
 All helpers accept an optional `variables` map to pass extra data to the template.
 

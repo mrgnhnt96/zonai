@@ -585,8 +585,8 @@ hooks are `beforeSignUp(SignUpCandidate candidate, Jwt? jwt)` (throw
 exists), `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`, `onLogout`,
 `onPasswordReset` and `onExternalAuthFirstSeen(Map<String, Object?> claims)`.
 By default `onSignUp` sends the verify-email link and `onSignIn` calls
-`loginNotice`, which is unimplemented and logs an error — override `onSignIn`
-to silence it.
+`loginNotice`, which is not implemented yet: the server skips it and warns
+once per process. Override `onSignIn` to stop the warning.
 
 Throwing from a `before*` hook aborts the request (nothing is written). Hooks
 run once per row. One extension class per table; a project with no extension
@@ -608,9 +608,10 @@ files still compiles.
 | `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
-`email.send.loginNotice`, `magicLink` and `confirmEmailChange` exist but throw
-`UnimplementedError` on the server — don't call them; send a custom template
-(e.g. `template: 'login_notice'`) instead. Email is fire-and-forget.
+`email.send.loginNotice`, `magicLink` and `confirmEmailChange` exist but are
+not implemented yet: the server sends nothing and warns once per process. Send
+a custom template (e.g. `template: 'login_notice'`) instead. Email is
+fire-and-forget.
 
 `get` is awaited and acts as the hook's `jwt` (rules apply; pass `jwt:` to read
 as someone else). Writes via `mutate` are queued and committed after the main
@@ -1761,10 +1762,10 @@ UserExtensions main() => UserExtensions();
 | `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
-`email.send.loginNotice`, `magicLink` and `confirmEmailChange` exist but throw
-`UnimplementedError` on the server — don't call them; send a custom template
-(e.g. `template: 'login_notice'`) instead. The default `onSignIn` calls
-`loginNotice` (logs an error), so override `onSignIn` to silence it; the
+`email.send.loginNotice`, `magicLink` and `confirmEmailChange` exist but are
+not implemented yet: the server sends nothing and warns once per process. Send
+a custom template (e.g. `template: 'login_notice'`) instead. The default
+`onSignIn` calls `loginNotice`, so override `onSignIn` to stop the warning; the
 default `onSignUp` sends the verify-email link. Email is fire-and-forget.
 
 `get` is awaited and acts as the hook's `jwt` (rules apply; pass `jwt:` to

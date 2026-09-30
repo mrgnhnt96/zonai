@@ -40,7 +40,7 @@ UserExtensions main() => UserExtensions();
 
 The defaults only apply when the table has an email column. Overriding `onSignUp` or `onSignIn` replaces its default email; call `super.onSignUp(user, jwt)` from your override to keep the verify-email link.
 
-The server does not implement the built-in `loginNotice` email yet, so the default `onSignIn` sends nothing and the server logs an error on each sign-in. Override `onSignIn` to stop that, and send your own notice with a [custom template](/extensions/side-effects-email#sending-custom-emails) if you want one.
+The server does not implement the built-in `loginNotice` email yet, so the default `onSignIn` sends nothing, and the server logs a warning the first time it is asked for one in each process. Override `onSignIn` to stop that, and send your own notice with a [custom template](/extensions/side-effects-email#sending-custom-emails) if you want one.
 
 **What `jwt` holds.** In `onSignUp`, `onSignIn` and `onRefresh` it is the **new** session just minted for `user`, so `get` and `mutate` in those hooks act as that user. In `onLogout` it is the session being revoked. In `beforeSignUp` it is the caller's token, usually `null`.
 
@@ -111,7 +111,7 @@ Future<void> onSignUp(User user, Jwt? jwt) async {
 
 ## onSignIn(T user, Jwt? jwt)
 
-Fires after credentials are validated and the new session is created, before the token is returned. Throwing here fails the request, so the client never receives the token. By default it calls the built-in `loginNotice` email, which is not implemented yet (see above).
+Fires after credentials are validated and the new session is created, before the token is returned. Throwing here fails the request, so the client never receives the token. By default it calls the built-in `loginNotice` email, which is not implemented yet and is skipped (see above).
 
 ```dart in:extension-user
 @override
