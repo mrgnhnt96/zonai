@@ -43,10 +43,11 @@ AppConfig(
 | ---------- | -------------- | -------- | ------------------------------------------------------------------------------------ |
 | `host`     | `String`       | Yes      | SMTP server hostname or IP                                                           |
 | `port`     | `int`          | Yes      | SMTP port. It must match `ssl`; see [Port and TLS](#port-and-tls-must-agree)         |
-| `username` | `String`       | Yes      | SMTP auth username. Some providers use a fixed string here, not your address         |
+| `username` | `String`       | Yes      | SMTP auth username. Some providers use a fixed string here, not your address. `''` sends without logging in |
 | `password` | `String`       | Yes      | SMTP auth password or API key                                                        |
 | `from`     | `EmailAddress` | Yes      | Default sender. An `Email` can override it per message                               |
 | `ssl`      | `bool`         | No       | `true` = implicit TLS (port 465). `false` (the default) = STARTTLS (port 587)        |
+| `allowInsecure` | `bool`    | No       | Send over a connection with no TLS at all. Only for a local catcher; see [Testing Locally](/email/testing-locally) |
 
 If `from.name` is null, the sender name falls back to `AppConfig.appName`.
 
@@ -110,7 +111,7 @@ Sending is a relay, so you don't need a mailbox or a mail server. You need a tra
 | Brevo | `smtp-relay.brevo.com` | 587 / `false` | your Brevo login | Free tier: 300/day |
 | Amazon SES | `email-smtp.<region>.amazonaws.com` | 587 / `false` | SMTP credential (not your IAM key) | Cheapest at scale; starts in a sandbox until you request production access |
 | Mailgun | `smtp.mailgun.org` | 587 / `false` | domain SMTP login | |
-| Mailhog (local) | `localhost` | 1025 / `false` | `''` | Catches mail, delivers nothing. See [Testing Locally](/email/testing-locally) |
+| Mailhog (local) | `localhost` | 1025 / `false` | `''` | Also needs `allowInsecure: true`. Catches mail, delivers nothing. See [Testing Locally](/email/testing-locally) |
 
 Check your provider's dashboard for the exact values. The table above is a starting point.
 
