@@ -294,14 +294,14 @@ class ZonaiDb {
     onRefused: () => const WriteBackpressureException(),
   );
 
-  /// The write gate, reachable from a test so it can be filled without a
-  /// database: proving that a refused write never reached the hasher needs
-  /// every slot held, and there is deliberately no other way to hold one.
   /// How many table-rule verdicts are cached, so a test can see expired ones
   /// leave.
   @visibleForTesting
   int get debugTableAccessCacheSize => _tableAccessCache.length;
 
+  /// The write gate, reachable from a test so it can be filled without a
+  /// database: proving that a refused write never reached the hasher needs
+  /// every slot held, and there is deliberately no other way to hold one.
   @visibleForTesting
   WriteAdmission get writeAdmission => _writeAdmission;
 

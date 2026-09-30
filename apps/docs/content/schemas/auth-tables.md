@@ -38,7 +38,7 @@ All auth tables automatically get these columns — you declare them in the clas
 
 | Column | Method | Type | Notes |
 |--------|--------|------|-------|
-| `email` | `$.email(...)` | TEXT UNIQUE NOT NULL | The user's identity |
+| `email` | `$.email(...)` | TEXT UNIQUE NOT NULL | The user's identity. Stored lowercased. Unique on every auth table except one that also has `OAuth`, which can provision a second row for an address it declines to link. Nullable on an `AnonymousAuth` table (`$.email<String?>(...)`), where rows have no address until they upgrade. |
 | `isVerified` | `$.isVerified(...)` | BOOL NOT NULL | `false` after sign-up |
 
 `PasswordAuth` adds:

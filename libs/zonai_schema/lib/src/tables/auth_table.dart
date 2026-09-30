@@ -76,11 +76,16 @@ S authTable<S extends AuthTable<T>, T>(
         // which tests the type parameter -- a `Type` object, never a
         // `PasswordAuth` -- so the email index was silently never declared.
         //
+        // Every table with an email, not only a password one: on OTP, magic
+        // link and anonymous tables too, two sign-ups racing for one address
+        // would otherwise both insert. An anonymous row's email is NULL until
+        // it upgrades, and NULLs never collide in a unique index.
+        //
         // Not on a table that also has OAuth: OAuth provisions a second row
         // for an address it declines to link (`OAuthLinking.never`, or
         // `byVerifiedEmail` with an unverified email), so there an email is
         // unique by design only per identity, not per table.
-        if (table case PasswordAuth(:final email) when table is! OAuth) {
+        if (table case HasEmail(:final email) when table is! OAuth) {
           uniqueIndex('${name}.email_unique').on(email);
         }
       }
