@@ -1,0 +1,29 @@
+name: zonai_sync
+description: >-
+  Offline-first sync for Dart and Flutter apps on a Zonai backend: a local
+  source of truth, a transactional outbox, scoped cursor pulls and
+  revision-based conflict resolution.
+version: 0.1.0-dev.1
+publish_to: none
+repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_sync
+homepage: https://zonai.dev
+issue_tracker: https://github.com/mrgnhnt96/zonai/issues
+topics:
+  - backend
+  - sync
+  - offline
+  - sqlite
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  http: ^1.6.0
+  meta: ^1.16.0
+  revali_client: ^3.0.0
+  zonai_client: ^0.2.4
+
+dev_dependencies:
+  test: ^1.26.2

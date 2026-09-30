@@ -423,6 +423,7 @@ test:
       - cd libs/zonai_schema && dart test
       - cd libs/zonai_client && dart test
       - cd libs/zonai_logger && dart test
+      - cd libs/zonai_sync && dart test
       - cd apps/server && dart test
       - cd apps/web && dart test
       - cd apps/playground && dart test

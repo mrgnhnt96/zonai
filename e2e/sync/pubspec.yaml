@@ -1,0 +1,12 @@
+name: zonai_sync_e2e
+publish_to: none
+description: >-
+  Fixture for libs/zonai_sync's integration test: a synced, owner-scoped table
+  served by a real zonai binary.
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  zonai_schema:
+    path: ../../libs/zonai_schema

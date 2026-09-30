@@ -89,6 +89,7 @@ served_fixtures=(
 # and NOT by this layer.
 skipped_fixtures=(
   "external_auth: needs an externalIdps entry in the fixture config and an HMAC-SHA256 signer in drive.dart"
+  "sync: driven by libs/zonai_sync/test/e2e_test.dart (ZONAI_E2E_BINARY=<zonai> dart test --tags e2e), which runs two sync engines against it -- not by drive.dart"
 )
 
 modes=(process isolate)
