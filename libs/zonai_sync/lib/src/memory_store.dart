@@ -72,6 +72,10 @@ final class MemorySyncStore implements SyncLocalStore {
       _rows[table]?.remove(id);
 
   @override
+  Future<List<String>> rowIds(String table) async =>
+      (_rows[table]?.keys ?? const <String>[]).toList();
+
+  @override
   Future<void> applyRemote(String table, RemoteRow row) async {
     if (row.isDeleted) {
       _rows[table]?.remove(row.id);

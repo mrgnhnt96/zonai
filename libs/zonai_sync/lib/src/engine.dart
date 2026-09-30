@@ -35,6 +35,7 @@ final class SyncEngine {
     this.minInterval = const Duration(seconds: 20),
     this.syncOnWrite = true,
     this.pullOverlap = const Duration(seconds: 2),
+    this.claimUnownedData = true,
   }) : _tables = orderTables(tables),
        _now = now ?? DateTime.now;
 
@@ -49,6 +50,12 @@ final class SyncEngine {
   /// Whether [write] and [delete] start a sync immediately (the default: a
   /// change reaches the server as soon as there is a connection).
   final bool syncOnWrite;
+
+  /// When the first account signs in on a device that was used without one,
+  /// keep the existing local rows and upload them to that account (the
+  /// default), instead of erasing them. A store that already belongs to
+  /// another account is always cleared.
+  final bool claimUnownedData;
 
   /// How far behind its stored cursor each pull starts re-reading.
   ///
@@ -184,11 +191,48 @@ final class SyncEngine {
   /// all of it (rows, outbox, cursors) is erased first, atomically — one
   /// user's queued edits must never be pushed under another user's session.
   Future<void> _adoptAccount(String account) async {
-    if (await _local.account() == account) return;
+    final owner = await _local.account();
+    if (owner == account) return;
     await _local.transaction(() async {
-      await _local.clearAll();
+      if (owner == null && claimUnownedData) {
+        // Nobody has signed in on this device before: whatever exists was
+        // made by this user before they had an account. Keep it, and queue
+        // every row so it reaches their account.
+        await _claimLocalRows(account);
+      } else {
+        await _local.clearAll();
+      }
       await _local.setAccount(account);
     });
+  }
+
+  Future<void> _claimLocalRows(String account) async {
+    for (final table in _tables.where((t) => t.pushes)) {
+      for (final id in await _local.rowIds(table.name)) {
+        if (await _local.pendingFor(table.name, id) != null) continue;
+        final existing = await _local.readRow(table.name, id);
+        if (existing == null) continue;
+        // Rows made before there was an account have no owner yet.
+        final data = {
+          ...existing.data,
+          if (table.scopeColumn != null) table.scopeColumn!: account,
+        };
+        await _local.writeRow(table.name, data);
+        final row = LocalRow(data: data, baseRev: existing.baseRev);
+        await _queue(
+          Outbox.coalesce(
+            pending: null,
+            newId: await _local.nextOutboxId(),
+            table: table.name,
+            rowId: id,
+            op: OutboxOp.upsert,
+            payload: _clientFields(row.data),
+            changedFields: row.data.keys.toSet()..removeAll(_serverOwned),
+            baseRev: row.baseRev,
+          ),
+        );
+      }
+    }
   }
 
   /// Erases everything this device holds for the signed-in account.

@@ -622,6 +622,35 @@ void main() {
     );
   });
 
+  group('first sign-in', () {
+    test(
+      'data made before any account is claimed by the first account, not erased',
+      () async {
+        final phone = Device(server, account: null);
+        // Used offline with no account: rows written straight to the store.
+        await phone.store.writeRow('notes', {'id': 'draft1', 'body': 'one'});
+        await phone.store.writeRow('notes', {'id': 'draft2', 'body': 'two'});
+
+        phone.account = 'u1';
+        await phone.engine.sync();
+
+        expect(phone.row('draft1'), isNotNull, reason: 'nothing is erased');
+        expect(server.tables['notes']!.keys, containsAll(['draft1', 'draft2']));
+        expect(await phone.store.account(), 'u1');
+      },
+    );
+
+    test('a store owned by one account is still cleared for another', () async {
+      final phone = Device(server);
+      await phone.write({'id': 'u1-note'});
+      await phone.engine.sync();
+      phone.account = 'u2';
+      server.user = 'u2';
+      await phone.engine.sync();
+      expect(phone.row('u1-note'), isNull);
+    });
+  });
+
   group('ordering and scheduling', () {
     const courses = SyncTable('courses');
     const students = SyncTable('students', parents: ['courses']);

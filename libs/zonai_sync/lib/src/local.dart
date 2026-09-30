@@ -32,6 +32,9 @@ abstract interface class SyncLocalStore {
   /// Removes a row locally.
   Future<void> deleteRow(String table, String id);
 
+  /// Ids of every row held locally in [table].
+  Future<List<String>> rowIds(String table);
+
   /// Stores what the server has: data plus its revision as the new base.
   /// A tombstone ([RemoteRow.isDeleted]) removes the row locally.
   Future<void> applyRemote(String table, RemoteRow row);
