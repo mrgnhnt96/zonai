@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:zonai_sync/src/cursor.dart';
 import 'package:zonai_sync/src/local.dart';
 import 'package:zonai_sync/src/outbox.dart';
 import 'package:zonai_sync/src/remote.dart';
@@ -33,6 +34,7 @@ final class SyncEngine {
     this.pageSize = 200,
     this.minInterval = const Duration(seconds: 20),
     this.syncOnWrite = true,
+    this.pullOverlap = const Duration(seconds: 2),
   }) : _tables = orderTables(tables),
        _now = now ?? DateTime.now;
 
@@ -48,6 +50,16 @@ final class SyncEngine {
   /// change reaches the server as soon as there is a connection).
   final bool syncOnWrite;
 
+  /// How far behind its stored cursor each pull starts re-reading.
+  ///
+  /// `updated_at` is stamped by the server when it builds a write, so rows can
+  /// commit out of stamp order — with several HTTP isolates, or when the
+  /// server clock steps back — and a strict "after the cursor" pull would
+  /// skip them forever. Re-reading a short window catches them; re-applying a
+  /// row already held is harmless. A server-assigned sequence column removes
+  /// the need (set this to zero then).
+  final Duration pullOverlap;
+
   /// Non-forced [requestSync] calls closer together than this are coalesced.
   final Duration minInterval;
 
@@ -57,6 +69,11 @@ final class SyncEngine {
   Completer<void>? _rerun;
   DateTime? _lastRunStarted;
   Timer? _periodic;
+
+  /// The account the running pass works for. Every step that applies server
+  /// data checks the store still belongs to it: a sign-out or account switch
+  /// mid-pass must not let the old account's rows back in.
+  String? _passAccount;
 
   Stream<SyncStatus> get status => _statusController.stream;
   SyncStatus get currentStatus => _status;
@@ -218,8 +235,18 @@ final class SyncEngine {
         final rerun = _rerun;
         _rerun = null;
         _lastRunStarted = _now();
-        await _syncOnce();
-        rerun?.complete();
+        try {
+          await _syncOnce();
+        } on _AccountChanged {
+          // The account changed mid-pass; its work was abandoned on purpose.
+        } on Object catch (e) {
+          // A bug-shaped failure (a store error, a malformed row) ends this
+          // pass, is reported, and must not strand callers waiting on it.
+          _emit(_status.copyWith(phase: SyncPhase.idle, lastError: '$e'));
+        } finally {
+          _passAccount = null;
+          rerun?.complete();
+        }
       } while (_rerun != null);
     } finally {
       _running = null;
@@ -251,6 +278,7 @@ final class SyncEngine {
     }
     if (_status.phase == SyncPhase.needsAuth) return;
     await _adoptAccount(account);
+    _passAccount = account;
 
     _emit(_status.copyWith(phase: SyncPhase.pushing, clearError: true));
     final pushed = await _push();
@@ -279,9 +307,18 @@ final class SyncEngine {
             return byTable != 0 ? byTable : a.id.compareTo(b.id);
           });
 
-    // A table whose push failed (retryably) blocks its descendants for this
-    // pass, so a child is never sent before the parent row exists.
-    final blocked = <String>{};
+    // A table with a change still waiting to reach the server blocks its
+    // descendants, so a child is never sent before its parent row exists
+    // (zonai answers a missing FK parent with 422, which would dead-letter
+    // the child for good). That covers parents backing off from an earlier
+    // pass as well as ones failing in this pass.
+    final blocked = {
+      for (final e in await _local.entries())
+        if (e.state == OutboxState.pending &&
+            e.notBefore != null &&
+            e.notBefore! > now)
+          e.table,
+    };
     for (final entry in due) {
       final table = _table(entry.table);
       if (!table.pushes) {
@@ -486,22 +523,52 @@ final class SyncEngine {
     return server.isDeleted ? {...base, SyncFields.deletedAt: null} : base;
   }
 
+  /// Throws [_AccountChanged] when the store no longer belongs to the account
+  /// this pass started for. Called first inside every transaction that
+  /// applies server data.
+  Future<void> _ensureOwner() async {
+    final owner = _passAccount;
+    if (owner == null || await _local.account() != owner) {
+      throw const _AccountChanged();
+    }
+  }
+
   /// The server's row is authoritative: adopt it locally and drop the change,
   /// unless a newer local write arrived meanwhile (then rebase that onto it).
   Future<void> _acceptServer(OutboxEntry entry, RemoteRow server) =>
       _local.transaction(() async {
+        await _ensureOwner();
         final latest = await _local.entry(entry.id);
         if (latest != null && latest.version != entry.version) {
-          await _local.putEntry(latest.copyWith(baseRev: server.rev));
-          await _local.setBaseRev(entry.table, entry.rowId, server.rev);
+          await _rebase(latest, server);
           return;
         }
         await _local.removeEntry(entry.id);
         await _local.applyRemote(entry.table, server);
       });
 
+  /// Keeps a newer local change, now based on the server's [row]. An upsert
+  /// rebased onto a TOMBSTONED row must also clear the tombstone, or the
+  /// user's later write would land on a row that stays deleted.
+  Future<void> _rebase(OutboxEntry latest, RemoteRow row) async {
+    final revive = row.isDeleted && latest.op == OutboxOp.upsert;
+    await _local.putEntry(
+      latest.copyWith(
+        baseRev: row.rev,
+        payload: revive
+            ? {...latest.payload, SyncFields.deletedAt: null}
+            : null,
+        changedFields: revive
+            ? {...latest.changedFields, SyncFields.deletedAt}
+            : null,
+      ),
+    );
+    await _local.setBaseRev(latest.table, latest.rowId, row.rev);
+  }
+
   /// The row no longer exists (or is no longer visible) on the server.
   Future<void> _gone(OutboxEntry entry) => _local.transaction(() async {
+    await _ensureOwner();
     await _local.removeEntry(entry.id);
     await _local.deleteRow(entry.table, entry.rowId);
   });
@@ -509,12 +576,32 @@ final class SyncEngine {
   /// A push succeeded with [row] as the server's result.
   Future<void> _settle(OutboxEntry entry, RemoteRow row) =>
       _local.transaction(() async {
+        await _ensureOwner();
         final latest = await _local.entry(entry.id);
         if (latest != null && latest.version != entry.version) {
           // The user edited again while this push was in flight: keep the
           // newer change, now based on the revision we just created.
-          await _local.putEntry(latest.copyWith(baseRev: row.rev));
-          await _local.setBaseRev(entry.table, entry.rowId, row.rev);
+          await _rebase(latest, row);
+          return;
+        }
+        if (latest == null &&
+            !row.isDeleted &&
+            await _local.readRow(entry.table, entry.rowId) == null) {
+          // The row was deleted locally while its create was on the wire:
+          // the create cancelled out locally but landed on the server, so the
+          // delete must follow it there.
+          await _local.putEntry(
+            OutboxEntry(
+              id: await _local.nextOutboxId(),
+              table: entry.table,
+              rowId: entry.rowId,
+              op: OutboxOp.delete,
+              payload: const {},
+              changedFields: const {},
+              baseRev: row.rev,
+              version: 1,
+            ),
+          );
           return;
         }
         await _local.removeEntry(entry.id);
@@ -571,8 +658,18 @@ final class SyncEngine {
   Future<void> discardDeadLetter(int entryId) async {
     final e = await _local.entry(entryId);
     if (e == null) return;
+    final owner = await _local.account();
     final server = await _remote.read(e.table, e.rowId);
     await _local.transaction(() async {
+      // Anything may have happened while we read the server: a newer edit
+      // (which replaced the dead letter) or a different account.
+      final latest = await _local.entry(entryId);
+      if (latest == null ||
+          latest.version != e.version ||
+          latest.state != OutboxState.dead ||
+          await _local.account() != owner) {
+        return;
+      }
       await _local.removeEntry(entryId);
       if (server == null || server.isDeleted) {
         await _local.deleteRow(e.table, e.rowId);
@@ -590,26 +687,39 @@ final class SyncEngine {
       final scope = table.scopeColumn == null
           ? null
           : SyncScope(table.scopeColumn!, account);
-      var cursor = await _local.cursor(table.name);
+      final stored = await _local.cursor(table.name);
+      var after = stored == null || pullOverlap == Duration.zero
+          ? stored
+          : SyncCursor(
+              updatedAt: stored.updatedAt - pullOverlap.inMilliseconds,
+              id: '',
+            );
       try {
         while (true) {
           final page = await _remote.pull(
             table.name,
             scope: scope,
-            after: cursor,
+            after: after,
             limit: pageSize,
           );
           if (page.rows.isEmpty) break;
           await _local.transaction(() async {
+            await _ensureOwner();
             for (final row in page.rows) {
               // A row with a local change still queued is left alone: the
               // push resolves it against the server by revision.
               if (await _local.pendingFor(table.name, row.id) != null) continue;
               await _local.applyRemote(table.name, row);
             }
-            cursor = page.rows.last.cursor;
-            await _local.setCursor(table.name, cursor!);
+            // The stored cursor only moves forward; the overlap re-read
+            // never drags it back.
+            final last = page.rows.last.cursor;
+            final current = await _local.cursor(table.name);
+            if (current == null || _after(last, current)) {
+              await _local.setCursor(table.name, last);
+            }
           });
+          after = page.rows.last.cursor;
           if (!page.hasMore) break;
         }
       } on SyncRemoteException catch (e) {
@@ -636,6 +746,10 @@ final class SyncEngine {
     return true;
   }
 
+  static bool _after(SyncCursor a, SyncCursor b) =>
+      a.updatedAt > b.updatedAt ||
+      (a.updatedAt == b.updatedAt && a.id.compareTo(b.id) > 0);
+
   // ---------------------------------------------------------------- status
 
   Future<void> _publishCounts() async {
@@ -652,4 +766,9 @@ final class SyncEngine {
     _status = next;
     if (!_statusController.isClosed) _statusController.add(next);
   }
+}
+
+/// The store changed hands mid-pass (sign-out, or another account signed in).
+final class _AccountChanged implements Exception {
+  const _AccountChanged();
 }

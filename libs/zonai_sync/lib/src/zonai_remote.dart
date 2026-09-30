@@ -93,7 +93,7 @@ final class ZonaiSyncRemote implements SyncRemote {
       );
       return _row(table, data);
     } on SyncRemoteException catch (e) {
-      if (e.kind != FailureKind.notFound) rethrow;
+      if (e.kind != FailureKind.notFound) throw forUpdate(e);
       // Today's zonai answers a failed `rev = N` condition with 404, the same
       // as a missing row. Read it to tell the two apart.
       final current = await read(table, id);
@@ -216,6 +216,17 @@ final class ZonaiSyncRemote implements SyncRemote {
       );
     }
   }
+
+  /// Re-reads a failure in the context of an UPDATE. A 409 there cannot mean
+  /// "id already exists" (that is a create's conflict): it is a unique
+  /// constraint the new values violate, which no retry will fix.
+  static SyncRemoteException forUpdate(SyncRemoteException e) =>
+      e.kind == FailureKind.exists
+      ? SyncRemoteException(
+          FailureKind.invalid,
+          message: 'update violates a unique constraint: ${e.message}',
+        )
+      : e;
 
   /// Maps an HTTP failure to what the engine should do about it.
   static SyncRemoteException classify(

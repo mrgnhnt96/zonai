@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zonai_sync/src/cursor.dart';
 import 'package:zonai_sync/src/local.dart';
 import 'package:zonai_sync/src/outbox.dart';
@@ -12,23 +14,31 @@ final class MemorySyncStore implements SyncLocalStore {
   var _cursors = <String, SyncCursor>{};
   String? _account;
   var _nextId = 1;
-  var _depth = 0;
 
   /// Read-only view of a table, for assertions.
   Map<String, LocalRow> rows(String table) =>
       Map.unmodifiable(_rows[table] ?? {});
 
+  /// Transactions are SERIALIZED (like SQLite's single writer) and nesting is
+  /// tracked per zone: a transaction opened inside another joins it, while an
+  /// unrelated one that starts concurrently waits its turn. A shared depth
+  /// counter would make the concurrent one run "inside" the first and roll
+  /// back with it.
   @override
   Future<T> transaction<T>(Future<T> Function() body) async {
-    if (_depth > 0) return await body();
+    if (Zone.current[_zoneKey] == this) return body();
+
+    final previous = _lock;
+    final done = Completer<void>();
+    _lock = done.future;
+    await previous;
     final rows = {for (final e in _rows.entries) e.key: Map.of(e.value)};
     final outbox = Map.of(_outbox);
     final cursors = Map.of(_cursors);
     final account = _account;
     final nextId = _nextId;
-    _depth++;
     try {
-      return await body();
+      return await runZoned(body, zoneValues: {_zoneKey: this});
     } on Object {
       _rows = rows;
       _outbox = outbox;
@@ -37,9 +47,12 @@ final class MemorySyncStore implements SyncLocalStore {
       _nextId = nextId;
       rethrow;
     } finally {
-      _depth--;
+      done.complete();
     }
   }
+
+  static final _zoneKey = Object();
+  Future<void> _lock = Future.value();
 
   @override
   Future<LocalRow?> readRow(String table, String id) async => _rows[table]?[id];

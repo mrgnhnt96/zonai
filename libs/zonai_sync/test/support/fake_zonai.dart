@@ -24,20 +24,27 @@ final class FakeZonai implements SyncRemote {
   int clock = 1000;
   bool offline = false;
 
-  /// Failures to throw from the next calls, in order.
-  final failures = <SyncRemoteException>[];
+  /// Failures to throw from the next calls, in order (any error, not only
+  /// SyncRemoteException — engines must survive a bug-shaped throw too).
+  final failures = <Object>[];
+
+  /// Runs while a call is "on the wire", before the server acts on it, so a
+  /// test can interleave local work with an in-flight request.
+  Future<void> Function(String call)? whileInFlight;
 
   /// Every call that reached the server, for asserting on what the engine did.
   final calls = <String>[];
 
-  void _gate(String call) {
+  Future<void> _gate(String call) async {
+    await whileInFlight?.call(call);
     if (offline) {
       throw const SyncRemoteException(FailureKind.offline, message: 'offline');
     }
     if (user == null) {
       throw const SyncRemoteException(FailureKind.unauthorized);
     }
-    if (failures.isNotEmpty) throw failures.removeAt(0);
+    if (failures.isNotEmpty)
+      throw failures.removeAt(0); // ignore: only_throw_errors
     // Recorded only once the request would have reached the server.
     calls.add(call);
   }
@@ -64,7 +71,7 @@ final class FakeZonai implements SyncRemote {
 
   @override
   Future<RemoteRow> create(String table, Map<String, Object?> row) async {
-    _gate('create $table/${row['id']}');
+    await _gate('create $table/${row['id']}');
     final id = row['id']! as String;
     final existing = _t(table)[id];
     if (existing != null) {
@@ -91,7 +98,7 @@ final class FakeZonai implements SyncRemote {
     Map<String, Object?> changes, {
     required int ifRev,
   }) async {
-    _gate('update $table/$id @$ifRev');
+    await _gate('update $table/$id @$ifRev');
     final existing = _t(table)[id];
     if (existing == null) {
       throw SyncRemoteException(
@@ -120,7 +127,7 @@ final class FakeZonai implements SyncRemote {
 
   @override
   Future<RemoteRow?> read(String table, String id) async {
-    _gate('read $table/$id');
+    await _gate('read $table/$id');
     final row = _t(table)[id];
     if (row == null || !_visible(row)) return null;
     return RemoteRow(Map.of(row));
@@ -136,7 +143,7 @@ final class FakeZonai implements SyncRemote {
     required SyncCursor? after,
     required int limit,
   }) async {
-    _gate('pull $table');
+    await _gate('pull $table');
     if (scope == null) unscopedPulls++;
     final rows =
         _t(table).values

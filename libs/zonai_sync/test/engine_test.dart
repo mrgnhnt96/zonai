@@ -201,12 +201,15 @@ void main() {
       () async {
         final phone = Device(server);
         await phone.write({'id': 'n1', 'body': 'first'});
-        // Simulate the edit landing between the push request and its settle.
-        final original = server.failures;
-        expect(original, isEmpty);
-        final push = phone.engine.sync();
-        await phone.write({...phone.row('n1')!, 'body': 'second'});
-        await push;
+        // The edit lands while the create is on the wire.
+        server.whileInFlight = (call) async {
+          if (call == 'create notes/n1') {
+            server.whileInFlight = null;
+            await phone.write({...phone.row('n1')!, 'body': 'second'});
+          }
+        };
+        await phone.engine.sync();
+        expect(server.tables['notes']!['n1']!['body'], 'first');
         await phone.engine.sync();
         expect(server.tables['notes']!['n1']!['body'], 'second');
         expect(phone.engine.currentStatus.pending, 0);
@@ -458,6 +461,163 @@ void main() {
         expect(row['score'], 90);
         expect(row['comment'], 'nice');
         expect(b.engine.currentStatus.deadLetters, isEmpty);
+      },
+    );
+  });
+
+  group('review findings (zonai-owner, 2026-09-29)', () {
+    test(
+      '#1 a delete made while its create is in flight is not lost',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'n1'});
+        server.whileInFlight = (call) async {
+          if (call == 'create notes/n1') {
+            server.whileInFlight = null;
+            await phone.engine.delete('notes', 'n1');
+          }
+        };
+        await phone.engine.sync();
+        await phone.engine.sync();
+        expect(phone.row('n1'), isNull, reason: 'the row must not come back');
+        expect(
+          server.tables['notes']!['n1']!['deleted_at'],
+          isNotNull,
+          reason: 'the create landed, so the delete must reach the server',
+        );
+        expect(phone.engine.currentStatus.pending, 0);
+      },
+    );
+
+    test(
+      '#1b a write made while its delete is in flight revives the row',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'n1', 'body': 'v1'});
+        await phone.engine.sync();
+        await phone.engine.delete('notes', 'n1');
+        server.whileInFlight = (call) async {
+          if (call.startsWith('update notes/n1')) {
+            server.whileInFlight = null;
+            // An app writes its own fields; it doesn't know about deleted_at.
+            await phone.write({'id': 'n1', 'body': 'back'});
+          }
+        };
+        await phone.engine.sync();
+        await phone.engine.sync();
+        final row = server.tables['notes']!['n1']!;
+        expect(row['deleted_at'], isNull, reason: 'the later write must win');
+        expect(row['body'], 'back');
+      },
+    );
+
+    test('#2 signing out mid-pull lets nothing back in', () async {
+      server.serverWrite('notes', {'id': 'n1', 'owner_id': 'u1'});
+      final phone = Device(server);
+      server.whileInFlight = (call) async {
+        if (call == 'pull notes') {
+          server.whileInFlight = null;
+          await phone.engine.signOut();
+          phone.account = null;
+        }
+      };
+      await phone.engine.sync();
+      expect(phone.store.rows('notes'), isEmpty);
+      expect(await phone.store.account(), isNull);
+      expect(await phone.store.cursor('notes'), isNull);
+    });
+
+    test(
+      "#2b another account signing in mid-pull never receives the first account's rows",
+      () async {
+        server.serverWrite('notes', {'id': 'mine', 'owner_id': 'u1'});
+        final phone = Device(server);
+        server.whileInFlight = (call) async {
+          if (call == 'pull notes') {
+            server.whileInFlight = null;
+            phone.account = 'u2';
+            await phone.write({'id': 'theirs'}); // adopts u2's account
+          }
+        };
+        await phone.engine.sync();
+        expect(await phone.store.account(), 'u2');
+        expect(phone.row('mine'), isNull);
+        expect(phone.row('theirs'), isNotNull);
+        expect(
+          await phone.store.cursor('notes'),
+          isNull,
+          reason: "u1's cursor would make u2 skip rows",
+        );
+      },
+    );
+
+    test('#3 a child waits while its parent is backing off', () async {
+      const courses = SyncTable('courses');
+      const students = SyncTable('students', parents: ['courses']);
+      final phone = Device(server, tables: const [courses, students]);
+      await phone.write({'id': 'c1'}, 'courses');
+      server.failures.add(const SyncRemoteException(FailureKind.server));
+      await phone.engine.sync(); // parent fails, backs off
+      await phone.write({'id': 's1', 'course': 'c1'}, 'students');
+      await phone.engine.sync(); // parent not due yet
+      expect(server.calls.where((c) => c == 'create students/s1'), isEmpty);
+      phone.now = phone.now.add(const Duration(hours: 1));
+      await phone.engine.sync();
+      expect(server.calls.where((c) => c.startsWith('create')).toList(), [
+        'create courses/c1',
+        'create students/s1',
+      ]);
+    });
+
+    test(
+      '#4 an unexpected error ends the pass cleanly and never hangs callers',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'n1'});
+        server.failures.add(StateError('bug-shaped failure'));
+        await phone.engine.sync().timeout(const Duration(seconds: 2));
+        expect(phone.engine.currentStatus.lastError, contains('bug-shaped'));
+        await phone.engine.sync().timeout(const Duration(seconds: 2));
+        expect(
+          server.tables['notes'],
+          contains('n1'),
+          reason: 'next pass recovers',
+        );
+      },
+    );
+
+    test('#5 discarding a dead letter keeps an edit made meanwhile', () async {
+      final phone = Device(server);
+      await phone.write({'id': 'n1', 'body': 'v1'});
+      await phone.engine.sync();
+      server.failures.add(const SyncRemoteException(FailureKind.invalid));
+      await phone.write({...phone.row('n1')!, 'body': 'rejected'});
+      await phone.engine.sync();
+      final dead = phone.engine.currentStatus.deadLetters.single;
+      server.whileInFlight = (call) async {
+        if (call == 'read notes/n1') {
+          server.whileInFlight = null;
+          await phone.write({...phone.row('n1')!, 'body': 'newer'});
+        }
+      };
+      await phone.engine.discardDeadLetter(dead.id);
+      expect(phone.row('n1')?['body'], 'newer');
+      expect((await phone.store.entries()).single.state, OutboxState.pending);
+    });
+
+    test(
+      'pulls re-read an overlap window, so a late-committed row is not skipped',
+      () async {
+        final phone = Device(server);
+        server.serverWrite('notes', {'id': 'a', 'owner_id': 'u1'});
+        await phone.engine.sync();
+        // A row whose stamp is OLDER than the cursor commits afterwards (several
+        // HTTP isolates, or the server clock stepping back).
+        server.clock -= 5;
+        server.serverWrite('notes', {'id': 'late', 'owner_id': 'u1'});
+        server.clock += 10;
+        await phone.engine.sync();
+        expect(phone.row('late'), isNotNull);
       },
     );
   });
