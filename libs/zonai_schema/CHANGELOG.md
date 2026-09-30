@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**Rules and hooks see a row's stored `created_at` / `updated_at`** (#40). Rows
+handed to `canView`, `canUpdate(before, after)`, `canDelete`, custom-operation
+rules, and the update, delete, after-create and auth hooks were rebuilt with the
+create-time `safeCreate`, which stamped `created_at` with the moment the worker
+decoded the row and set a nullable `updated_at` to `null`. A rule like
+"editable for 24h after creation" always passed, and one comparing
+`before.createdAt` with `after.createdAt` failed whenever the clock ticked in
+between. `safeCreate(data, stored: true)` now keeps stored timestamps; creates
+and `beforeCreate` still stamp them, and never trust a client-sent value.
+
 **A user can no longer verify themselves or change their own email.** The
 default `AuthRowRules.canUpdate` allowed the row's owner any change. An app
 that opens `canUpdate` at the table level, usually for profile edits, let a

@@ -455,7 +455,12 @@ class DbRules {
       throw StateError('Cannot create auth rows, use the auth API instead');
     }
 
-    final object = rowRules.table.safeCreate(request.data);
+    // A create's row is about to be inserted; every other operation's row
+    // already exists and must keep its stored timestamps (issue #40).
+    final object = rowRules.table.safeCreate(
+      request.data,
+      stored: op != .create,
+    );
 
     if (op == null) {
       _warnUndeclaredWrites(
@@ -472,6 +477,7 @@ class DbRules {
         object,
         rowRules.table.safeCreate(
           rowRules.table.simulateUpdate(request.data, request.updates),
+          stored: true,
         ),
       ),
       .delete => rowRules.canDelete(request.jwt, object),
@@ -483,6 +489,7 @@ class DbRules {
               object,
               rowRules.table.safeCreate(
                 rowRules.table.simulateUpdate(request.data, request.updates),
+                stored: true,
               ),
             ) ??
             Future.value(
@@ -534,7 +541,7 @@ class DbRules {
 
     final canPerform = <bool>[];
     for (final data in request.rows) {
-      final object = rowRules.table.safeCreate(data);
+      final object = rowRules.table.safeCreate(data, stored: op != .create);
       canPerform.add(await switch (op) {
         .view => rowRules.canView(request.jwt, object),
         .update => rowRules.canUpdate(
@@ -542,6 +549,7 @@ class DbRules {
           object,
           rowRules.table.safeCreate(
             rowRules.table.simulateUpdate(data, request.updates),
+            stored: true,
           ),
         ),
         .delete => rowRules.canDelete(request.jwt, object),
@@ -553,6 +561,7 @@ class DbRules {
                 object,
                 rowRules.table.safeCreate(
                   rowRules.table.simulateUpdate(data, request.updates),
+                  stored: true,
                 ),
               ) ??
               Future.value(
