@@ -17,6 +17,7 @@ Flags:
 | --------------- | ----- | ------------------------------------------------------------------------------ |
 | `--name <name>` | `-n`  | Adds a human-readable suffix to the filename (e.g. `--name add_avatar_column`) |
 | `--dry-run`     |       | Prints the SQL that would be generated without writing a file                  |
+| `--allow-destructive` | | Allows a migration that drops a table or a column (refused otherwise) |
 
 ## When to Generate
 
@@ -51,15 +52,31 @@ CREATE TABLE IF NOT EXISTS "posts" (
 
 Press `m` while `zonai serve` is running to trigger generation without leaving the server. The migration file is created and immediately applied — no restart needed.
 
-## What Zonai Does NOT Generate
+## Destructive Changes Are Refused
 
-Zonai does not generate destructive DDL to prevent accidental data loss:
+A schema change can lose data without looking destructive:
 
-- **DROP TABLE** — removing a table from the schema does not generate a drop migration
-- **DROP COLUMN** — SQLite's limited `ALTER TABLE` support makes this non-trivial; Zonai skips it
+- **A table that leaves the schema** generates `DROP TABLE`, and every row in it goes.
+- **A table renamed in its schema file** is a new, empty table plus a dropped old one. Its rows do not move.
+- **A column that leaves a table** rebuilds the table without it, because SQLite's `ALTER TABLE` can't drop most columns. The column's data goes.
 
-If you need to drop a table or column, write the migration SQL by hand and place it in `migrationsPath` with a higher timestamp than the most recent migration.
+`zonai db migrate generate` refuses all three. It prints what would be lost, writes nothing, and exits non-zero:
+
+```text
+Refused to generate migration "cleanup": it would destroy data.
+  - it drops table "archive" and every row in it
+```
+
+When the loss is what you want, say so:
+
+```bash
+zonai db migrate generate --name drop_archive --allow-destructive
+```
+
+The migrations `zonai serve` and `zonai dev` generate when you save a schema file never pass `--allow-destructive`. A schema file renamed or deleted in development is refused there too, and it can't quietly become a `DROP TABLE` that ships with your next deploy.
+
+A column that raindrop recognises as **renamed** is not refused. A column that disappears while another with an identical definition appears (same type, nullability, key and default) is treated as a rename, and it keeps its data.
 
 ## Always Review Before Production
 
-The generated SQL is plain `CREATE TABLE`, `ALTER TABLE`, and `CREATE INDEX`. Review it before applying to a production database. The `--dry-run` flag is useful for a quick sanity check before committing.
+Review the generated SQL before applying to a production database. The `--dry-run` flag is useful for a quick sanity check before committing.
