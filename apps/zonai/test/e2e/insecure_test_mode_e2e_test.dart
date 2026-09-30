@@ -240,6 +240,76 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
+
+    // Two verifies of one code for a new address can both reach sign-up: the
+    // account check runs before the code is verified, and neither sees the
+    // other's row. Like a racing password sign-up (#56), the loser must be
+    // answered as a sign-in of the account the winner created -- never a
+    // second row, and never a constraint error. The fixed insecure-mode code
+    // is what makes both verifies valid.
+    for (final flow in ['OTP', 'magic link']) {
+      test(
+        'two racing $flow verifies for a new address make one account',
+        () async {
+          if (!_runningOnDartVm) return;
+
+          debugInsecureTestMode = true;
+          await _withDb(settings, appConfig, (db) async {
+            final email =
+                'race-${flow.replaceAll(' ', '-')}-'
+                '${DateTime.now().microsecondsSinceEpoch}@example.com';
+            final VerifyAuthPayload verify;
+            if (flow == 'OTP') {
+              await db.authenticate('users', SendOtpAuthPayload(email: email));
+              verify = VerifyOtpAuthPayload(
+                email: email,
+                code: kInsecureTestOtp,
+              );
+            } else {
+              await db.authenticate(
+                'users',
+                SendMagicLinkAuthPayload(email: email),
+              );
+              verify = VerifyMagicLinkAuthPayload(
+                secret: _linkToken(kInsecureTestMagicLinkSecret, email),
+              );
+            }
+
+            Future<Object?> confirm() async {
+              try {
+                return await db.confirmAuth(verify);
+              } on Object catch (e) {
+                return e;
+              }
+            }
+
+            final outcomes = await Future.wait([confirm(), confirm()]);
+
+            // One challenge may be spent by the other verify first; that answer
+            // is fine. Anything else -- a constraint error above all -- is not.
+            final unexpected = [
+              for (final o in outcomes)
+                if (o is! ({String jwt, Map<String, Object?> user}) &&
+                    o is! InvalidOrExpiredCodeException)
+                  o,
+            ];
+            expect(unexpected, isEmpty, reason: 'outcomes: $outcomes');
+
+            final ids = {
+              for (final o in outcomes)
+                if (o case (jwt: String _, :final Map<String, Object?> user))
+                  user['id'],
+            };
+            expect(
+              ids,
+              hasLength(1),
+              reason: 'one account, not two: $outcomes',
+            );
+          });
+        },
+        timeout: const Timeout(Duration(minutes: 3)),
+      );
+    }
   });
 
   group('insecureTestModeFromEnvironment', () {
