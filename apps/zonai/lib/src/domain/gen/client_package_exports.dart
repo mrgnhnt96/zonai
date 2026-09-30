@@ -85,6 +85,7 @@ const kZonaiClientExports = <String>[
   'SendOtpEmail',
   'SendResetPasswordEmail',
   'SendVerifyEmailEmail',
+  'ServerException',
   'SignInAuthBody',
   'SignUpAuthBody',
   'SortDirection',
