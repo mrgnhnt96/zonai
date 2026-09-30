@@ -80,7 +80,7 @@ class DbExtensions {
     }
 
     await extension.onPushRejected(
-      extension.table.safeCreate(request.object),
+      extension.table.safeCreate(request.object, stored: true),
       request.token,
       request.reason,
       request.jwt,
@@ -93,7 +93,7 @@ class DbExtensions {
       return;
     }
     dynamic object(Map<String, dynamic> object) {
-      return extension.table.safeCreate(object);
+      return extension.table.safeCreate(object, stored: true);
     }
 
     switch (request.step) {
@@ -121,7 +121,7 @@ class DbExtensions {
     }
 
     dynamic object(Map<String, dynamic> object) {
-      return extension.table.safeCreate(object);
+      return extension.table.safeCreate(object, stored: true);
     }
 
     if (extension case Extension(:final beforeUpdate)) {
@@ -138,7 +138,7 @@ class DbExtensions {
     }
 
     dynamic object(Map<String, dynamic> object) {
-      return extension.table.safeCreate(object);
+      return extension.table.safeCreate(object, stored: true);
     }
 
     if (extension case Extension(:final afterUpdateSuccess)) {
@@ -156,16 +156,20 @@ class DbExtensions {
     if (extension == null) {
       return;
     }
-    dynamic object() => extension.table.safeCreate(request.object);
+    // `before` is the client's payload, about to be inserted: stamp it, and
+    // never trust a created_at it sent. `afterSuccess` is the row as stored,
+    // and keeps its real timestamps (issue #40).
+    dynamic object({required bool stored}) =>
+        extension.table.safeCreate(request.object, stored: stored);
 
     switch (request.step) {
       case .before:
         if (extension case Extension(:final beforeCreate)) {
-          await beforeCreate(object(), request.jwt);
+          await beforeCreate(object(stored: false), request.jwt);
         }
       case .afterSuccess:
         if (extension case Extension(:final afterCreateSuccess)) {
-          await afterCreateSuccess(object(), request.jwt);
+          await afterCreateSuccess(object(stored: true), request.jwt);
         }
       case .afterError:
         throw StateError('After error step should not be handled here');
@@ -225,35 +229,35 @@ class DbExtensions {
       case .onSignUp:
         if (extension case AuthExtension(:final onSignUp)) {
           await onSignUp(
-            extension.table.safeCreate(request.object),
+            extension.table.safeCreate(request.object, stored: true),
             request.jwt,
           );
         }
       case .onSignIn:
         if (extension case AuthExtension(:final onSignIn)) {
           await onSignIn(
-            extension.table.safeCreate(request.object),
+            extension.table.safeCreate(request.object, stored: true),
             request.jwt,
           );
         }
       case .onRefresh:
         if (extension case AuthExtension(:final onRefresh)) {
           await onRefresh(
-            extension.table.safeCreate(request.object),
+            extension.table.safeCreate(request.object, stored: true),
             request.jwt,
           );
         }
       case .onLogout:
         if (extension case AuthExtension(:final onLogout)) {
           await onLogout(
-            extension.table.safeCreate(request.object),
+            extension.table.safeCreate(request.object, stored: true),
             request.jwt,
           );
         }
       case .onPasswordReset:
         if (extension case AuthExtension(:final onPasswordReset)) {
           await onPasswordReset(
-            extension.table.safeCreate(request.object),
+            extension.table.safeCreate(request.object, stored: true),
             request.jwt,
           );
         }

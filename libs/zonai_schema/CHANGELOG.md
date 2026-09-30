@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Rules and hooks see a row's stored `created_at` / `updated_at`** (#40). Rows
+handed to `canView`, `canUpdate(before, after)`, `canDelete`, custom-operation
+rules, and the update, delete, after-create and auth hooks were rebuilt with the
+create-time `safeCreate`, which stamped `created_at` with the moment the worker
+decoded the row and set a nullable `updated_at` to `null`. A rule like
+"editable for 24h after creation" always passed, and one comparing
+`before.createdAt` with `after.createdAt` failed whenever the clock ticked in
+between. `safeCreate(data, stored: true)` now keeps stored timestamps; creates
+and `beforeCreate` still stamp them, and never trust a client-sent value.
+
 ## 0.5.0
 
 **One server, development and production iOS builds.** An APNs token belongs
