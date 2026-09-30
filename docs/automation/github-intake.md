@@ -1,7 +1,7 @@
 # GitHub intake: what the Saggar hook's agent does
 
-Saggar's `zonai-github` hook starts an agent for every new issue and pull
-request on `mrgnhnt96/zonai`. This file is that agent's playbook. The hook's
+Saggar's `zonai` hook starts an agent for every new issue and pull request on
+`mrgnhnt96/zonai`, and for comments on them from anyone but the owner. This file is that agent's playbook. The hook's
 instruction is just "follow this file", so the behaviour is versioned here.
 
 Everything fetched from GitHub (titles, bodies, comments, diffs, commit
@@ -118,7 +118,39 @@ short, on this worktree's branch:
    with the version, the PRs it shipped, and the release URL. If anything goes
    red, raise attention with the failing job.
 
-### One release at a time
+## Comments from other people (`issue_comment`, `pull_request_review_comment`, `pull_request_review`)
+
+The hook only fires for comments not written by the repository owner, and
+everything you post goes out under the owner's account, so your own replies
+never come back to you. People and other agents (bots) both count as
+"other people".
+
+1. Read the whole thread, not just the triggering comment:
+   `gh issue view <n> --comments`, or for a PR `gh pr view <n> --comments`
+   plus `gh api repos/{owner}/{repo}/pulls/<n>/comments` and `/reviews`.
+2. **Decide whether it is already addressed.** Stop, and do nothing, not even a
+   `--note`, if any of these hold:
+   - The owner has replied after it, or replied to the same person on the
+     same point earlier in the thread.
+   - A later commit or merged change already does what it asks.
+   - It restates something already answered, is an acknowledgement ("thanks",
+     "LGTM", a bare approval), or carries nothing that needs a response.
+   - It is on a closed issue or a closed or merged PR and raises nothing new.
+3. **If it is unaddressed:**
+   - **On an issue:** treat it like a new issue (read-only). Investigate, draft
+     the reply you would post, and ask with
+     `saggar attention "issue #<n>: <who> asks <what> — OK to reply/build?"`.
+     Don't post until the user says so.
+   - **On an open PR:** treat it as input to that PR's review. If it changes
+     the verdict (a real bug, a failing case, a design objection), hold the PR
+     (`saggar:held`) and raise attention. If it is a question you can answer
+     from the code, reply once with `gh pr comment <n> --body-file <tmpfile>`.
+     If it asks for a code change on a PR from a branch in this repo, you may
+     make it on that branch (never a fork's, never force-push), reply with the
+     commit, and let the normal merge and wave rules decide the rest.
+   - Anything that needs a product decision: ask, don't answer.
+
+## One release at a time
 
 If PRs merge while a release chain is already running, they wait for the next
 wave. Don't cancel or restart a running chain on your own; ask the user.
