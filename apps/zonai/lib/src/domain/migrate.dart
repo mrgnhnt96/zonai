@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' as io;
 
 import 'package:file/file.dart';
 import 'package:meta/meta.dart';
@@ -440,8 +441,9 @@ class Migrate {
   }) {
     final root = settings.migrationsPath;
     for (final path in _captureMigrations().keys) {
-      if (!backup.containsKey(path))
+      if (!backup.containsKey(path)) {
         fs.file(fs.path.join(root, path)).deleteSync();
+      }
     }
     for (final MapEntry(key: path, value: bytes) in backup.entries) {
       final file = fs.file(fs.path.join(root, path));
@@ -485,7 +487,17 @@ class Migrate {
           ..writeAsBytesSync(bytes);
       }
       final argv = generateArgs(name: name, dryRun: false, out: scratch.path);
-      if (await (runRaindropCli ?? _invokeRaindropCli)(argv) != 0) return;
+      // raindrop reports with `stdout.writeln`, which the `print` hook in
+      // [run] never sees. Left alone, this scratch run would print
+      // "Generated migration:" and a temp-directory path after the dry run's
+      // own preview, which reads as the dry run having written one. Its
+      // output goes to debug instead.
+      final exit = await io.IOOverrides.runZoned(
+        () => (runRaindropCli ?? _invokeRaindropCli)(argv),
+        stdout: () => _DebugLines('dry-run scratch'),
+        stderr: () => _DebugLines('dry-run scratch (stderr)'),
+      );
+      if (exit != 0) return;
 
       final losses = _losses(backup, _captureMigrations(scratch.path));
       if (losses.isEmpty) return;
@@ -564,4 +576,31 @@ class Migrate {
 
     return migrations;
   }
+}
+
+/// A stand-in for `stdout`/`stderr` that sends each line to `logger.debug`.
+///
+/// For the dry run's scratch generate: its output describes a throwaway
+/// directory, not the user's project. Only the members raindrop_cli uses are
+/// real; anything else fails loudly rather than silently doing nothing.
+final class _DebugLines implements io.Stdout {
+  _DebugLines(this._label);
+
+  final String _label;
+
+  @override
+  void writeln([Object? object = '']) => logger.debug('$_label: $object');
+
+  @override
+  void write(Object? object) => logger.debug('$_label: $object');
+
+  @override
+  bool get hasTerminal => false;
+
+  @override
+  bool get supportsAnsiEscapes => false;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName} on $_label output');
 }

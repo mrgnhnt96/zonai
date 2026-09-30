@@ -74,15 +74,19 @@ void main() {
   });
 
   /// A stand-in generate that produces migration 0001 with [next] as its
-  /// snapshot, under `--out` as the real one does, and writes nothing on a
-  /// `--dry-run`.
+  /// snapshot, under `--out`, and reports it on stdout the way raindrop_cli
+  /// does (`stdout.writeln`, not `print`). A `--dry-run` writes nothing.
   Future<int> Function(List<String>) generating(String next) => (argv) async {
-    if (argv.contains('--dry-run')) return 0;
     final out = argv[argv.indexOf('--out') + 1];
+    if (argv.contains('--dry-run')) {
+      stdout.writeln('Would generate migration: 0001_change.sql');
+      return 0;
+    }
     File at(String relative) => File(p.join(out, relative));
     at('0001_change.sql').writeAsStringSync('-- generated');
     at('meta/0001_snapshot.json').writeAsStringSync(next);
     at('meta/_journal.json').writeAsStringSync(journal([0, 1]));
+    stdout.writeln('Generated migration: ${at('0001_change.sql').path}');
     return 0;
   };
 
@@ -234,6 +238,27 @@ void main() {
     expect(errors.join('\n'), isNot(contains('drops')));
   });
 
+  // The scratch generate behind a dry run's loss check is a REAL generate,
+  // and raindrop reports it on stdout. Printed, it reads as "the dry run wrote
+  // a migration", the one thing a dry run must not look like.
+  test('a dry run prints no "Generated migration" line', () async {
+    final printed = _CapturedStdout();
+    final migrate = Migrate()
+      ..runRaindropCli = generating(
+        snapshot({
+          'notes': [id, title],
+        }),
+      );
+
+    await IOOverrides.runZoned(
+      () => run(migrate, dryRun: true),
+      stdout: () => printed,
+    );
+
+    expect(printed.lines, contains(startsWith('Would generate migration:')));
+    expect(printed.lines, isNot(contains(startsWith('Generated migration:'))));
+  });
+
   test(
     'finds the newest snapshot through the journal, not by file name',
     () async {
@@ -266,10 +291,7 @@ void main() {
 
     expect(await run(migrate), 0);
     expect(file('0001_change.sql').existsSync(), isTrue);
-    expect(
-      file('meta/_journal.json').readAsStringSync(),
-      journal([0, 1]),
-    );
+    expect(file('meta/_journal.json').readAsStringSync(), journal([0, 1]));
   });
 
   test('refuses when the new snapshot cannot be read', () async {
@@ -279,4 +301,26 @@ void main() {
     expect(errors.join('\n'), contains('could not compare schema snapshots'));
     expect(file('0001_change.sql').existsSync(), isFalse);
   });
+}
+
+/// Collects what is written to stdout. Only the members the code under test
+/// uses are real; anything else is a test bug and fails loudly.
+final class _CapturedStdout implements Stdout {
+  final lines = <String>[];
+
+  @override
+  void writeln([Object? object = '']) => lines.add('$object');
+
+  @override
+  void write(Object? object) => lines.add('$object');
+
+  @override
+  bool get hasTerminal => false;
+
+  @override
+  bool get supportsAnsiEscapes => false;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('stdout.${invocation.memberName}');
 }
