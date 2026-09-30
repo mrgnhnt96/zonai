@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**A malformed request body is a `400 invalid_body`, not a `500`.** A body the
+server could not read -- a missing field, a wrong type, a `where` that is not
+a where -- failed inside its `fromJson` with an `ArgumentError` or a
+`TypeError` from a cast, and both reached the client as an internal error.
+Every route body now parses through `parseBody`, which turns any of those
+into an `InvalidBodyException`, and the server answers it with `400` and the
+structured envelope `{"error": {"code": "invalid_body", "message": ...}}`. The
+message names the body and the field. `InvalidBodyException` is an
+`ArgumentError`, so code that already catches one while parsing a body keeps
+working.
+
 **`BaseRowRules.viewScope`: say which rows a caller may see as a filter.** The
 server ANDs it into every read (`GET /db`, `/db/list`, `/db/count` and the
 three streams), so a row outside it is invisible rather than a `403`: a list

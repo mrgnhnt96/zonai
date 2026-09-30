@@ -1,4 +1,5 @@
 import '../types/where.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class GetBody {
   const GetBody({
@@ -11,7 +12,10 @@ class GetBody {
   final Where where;
   final List<String> expand;
 
-  factory GetBody.fromJson(Map<String, dynamic> json) {
+  factory GetBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('GetBody', () => GetBody._fromJson(json));
+
+  factory GetBody._fromJson(Map<String, dynamic> json) {
     return GetBody(
       table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map),

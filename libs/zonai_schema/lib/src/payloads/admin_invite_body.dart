@@ -1,3 +1,5 @@
+import 'package:zonai_schema/src/payloads/parse_body.dart';
+
 /// Request body for `POST /admin/invites` (`docs/design/admin-invite-design.md`
 /// §3.1).
 ///
@@ -14,7 +16,10 @@
 class AdminInviteBody {
   const AdminInviteBody({required this.email});
 
-  factory AdminInviteBody.fromJson(Map<String, dynamic> json) {
+  factory AdminInviteBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('AdminInviteBody', () => AdminInviteBody._fromJson(json));
+
+  factory AdminInviteBody._fromJson(Map<String, dynamic> json) {
     final email = json['email'];
     if (email is! String || email.trim().isEmpty) {
       throw ArgumentError.value(
@@ -57,7 +62,13 @@ class AdminInviteAcceptBody {
     this.object,
   });
 
-  factory AdminInviteAcceptBody.fromJson(Map<String, dynamic> json) {
+  factory AdminInviteAcceptBody.fromJson(Map<String, dynamic> json) =>
+      parseBody(
+        'AdminInviteAcceptBody',
+        () => AdminInviteAcceptBody._fromJson(json),
+      );
+
+  factory AdminInviteAcceptBody._fromJson(Map<String, dynamic> json) {
     final token = json['token'];
     if (token is! String || token.isEmpty) {
       throw ArgumentError.value(

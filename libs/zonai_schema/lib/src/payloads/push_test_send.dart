@@ -26,6 +26,7 @@ library;
 
 import 'package:zonai_schema/src/config/apns_config.dart';
 import 'package:zonai_schema/src/types/push_outcome.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 /// One test notification, and where to send it.
 class PushTestSendBody {
@@ -66,7 +67,10 @@ class PushTestSendBody {
   /// to clear up.
   final DevicePlatform? platform;
 
-  factory PushTestSendBody.fromJson(Map<String, dynamic> json) {
+  factory PushTestSendBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('PushTestSendBody', () => PushTestSendBody._fromJson(json));
+
+  factory PushTestSendBody._fromJson(Map<String, dynamic> json) {
     return PushTestSendBody(
       table: json['table'] as String,
       column: json['column'] as String,

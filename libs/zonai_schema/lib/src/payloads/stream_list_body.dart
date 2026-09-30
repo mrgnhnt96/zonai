@@ -1,5 +1,6 @@
 import '../types/order_by.dart';
 import '../types/where.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class StreamListBody {
   const StreamListBody({
@@ -20,7 +21,10 @@ class StreamListBody {
   final String? groupBy;
   final List<String> expand;
 
-  factory StreamListBody.fromJson(Map<String, dynamic> json) {
+  factory StreamListBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('StreamListBody', () => StreamListBody._fromJson(json));
+
+  factory StreamListBody._fromJson(Map<String, dynamic> json) {
     return StreamListBody(
       table: json['table'] as String,
       where: switch (json['where']) {

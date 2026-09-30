@@ -1,4 +1,5 @@
 import '../types/where.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class StreamBody {
   const StreamBody({
@@ -11,7 +12,10 @@ class StreamBody {
   final Where where;
   final List<String> expand;
 
-  factory StreamBody.fromJson(Map<String, dynamic> json) {
+  factory StreamBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('StreamBody', () => StreamBody._fromJson(json));
+
+  factory StreamBody._fromJson(Map<String, dynamic> json) {
     return StreamBody(
       table: json['table'] as String,
       where: Where.fromJson(Map<String, dynamic>.from(json['where'] as Map)),

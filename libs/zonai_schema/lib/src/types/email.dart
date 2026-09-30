@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:zonai_schema/src/types/email_address.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class Email {
   const Email({
@@ -20,7 +21,10 @@ class Email {
 
   static const String continueThreadSuffix = ':continue';
 
-  factory Email.fromJson(Map<String, dynamic> json) => Email(
+  factory Email.fromJson(Map<String, dynamic> json) =>
+      parseBody('Email', () => Email._fromJson(json));
+
+  factory Email._fromJson(Map<String, dynamic> json) => Email(
     to: EmailAddress.fromJson(json['to'] as Map<String, dynamic>),
     from: json['from'] != null
         ? EmailAddress.fromJson(json['from'] as Map<String, dynamic>)

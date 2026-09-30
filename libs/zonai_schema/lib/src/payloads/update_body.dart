@@ -2,6 +2,7 @@ import 'package:revali_core/revali_core.dart' show HttpError;
 
 import '../types/where.dart';
 import '../update/update.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class UpdateBody {
   const UpdateBody({
@@ -28,7 +29,10 @@ class UpdateBody {
   /// unconditionally, so a client that depends on it must know its server.
   final Where? expect;
 
-  factory UpdateBody.fromJson(Map<String, dynamic> json) {
+  factory UpdateBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('UpdateBody', () => UpdateBody._fromJson(json));
+
+  factory UpdateBody._fromJson(Map<String, dynamic> json) {
     return UpdateBody(
       table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
@@ -77,7 +81,10 @@ class UpdateOneBody extends UpdateBody {
     super.expect,
   }) : super(limit: 1);
 
-  factory UpdateOneBody.fromJson(Map<String, dynamic> json) {
+  factory UpdateOneBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('UpdateOneBody', () => UpdateOneBody._fromJson(json));
+
+  factory UpdateOneBody._fromJson(Map<String, dynamic> json) {
     return UpdateOneBody(
       table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),

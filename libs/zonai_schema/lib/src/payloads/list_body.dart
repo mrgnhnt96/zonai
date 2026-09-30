@@ -1,5 +1,6 @@
 import '../types/order_by.dart';
 import '../types/where.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 class ListBody {
   const ListBody({
@@ -20,7 +21,10 @@ class ListBody {
   final List<OrderByTerm>? orderBy;
   final String? groupBy;
 
-  factory ListBody.fromJson(Map json) {
+  factory ListBody.fromJson(Map json) =>
+      parseBody('ListBody', () => ListBody._fromJson(json));
+
+  factory ListBody._fromJson(Map json) {
     return ListBody(
       table: json['table'] as String,
       where: switch (json['where']) {

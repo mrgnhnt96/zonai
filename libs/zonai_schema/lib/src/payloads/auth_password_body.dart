@@ -1,11 +1,15 @@
 import 'dart:convert';
 
 import 'package:meta/meta.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 sealed class AuthBody {
   const AuthBody({required this.table, required this.type});
 
-  factory AuthBody.fromJson(Map<String, dynamic> json) {
+  factory AuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('AuthBody', () => AuthBody._fromJson(json));
+
+  factory AuthBody._fromJson(Map<String, dynamic> json) {
     // Tolerate clients that omit `type` but send email+password — previously
     // that fell through to ArgumentError / Null casts and surfaced as HTTP 500.
     final rawType = json['type'];
@@ -82,7 +86,10 @@ sealed class AuthBody {
 abstract class AdminAuthBody {
   const AdminAuthBody({required this.type});
 
-  factory AdminAuthBody.fromJson(Map<String, dynamic> json) {
+  factory AdminAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('AdminAuthBody', () => AdminAuthBody._fromJson(json));
+
+  factory AdminAuthBody._fromJson(Map<String, dynamic> json) {
     return switch (json['type']) {
       AdminSignInAuthBody._type => AdminSignInAuthBody.fromJson(json),
       AdminSendOtpAuthBody._type => AdminSendOtpAuthBody.fromJson(json),
@@ -264,7 +271,10 @@ class AdminSendMagicLinkAuthBody extends AdminAuthBody
 sealed class VerifyAuthBody {
   const VerifyAuthBody({required this.type});
 
-  factory VerifyAuthBody.fromJson(Map<String, dynamic> json) {
+  factory VerifyAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('VerifyAuthBody', () => VerifyAuthBody._fromJson(json));
+
+  factory VerifyAuthBody._fromJson(Map<String, dynamic> json) {
     return switch (json['type']) {
       VerifyOtpAuthBody._type => VerifyOtpAuthBody.fromJson(json),
       VerifyMagicLinkAuthBody._type => VerifyMagicLinkAuthBody.fromJson(json),
@@ -349,7 +359,13 @@ class AdminVerifyMagicLinkAuthBody extends AdminAuthBody
 sealed class ResetPasswordAuthBody {
   const ResetPasswordAuthBody({required this.type, required this.email});
 
-  factory ResetPasswordAuthBody.fromJson(Map<String, dynamic> json) {
+  factory ResetPasswordAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody(
+        'ResetPasswordAuthBody',
+        () => ResetPasswordAuthBody._fromJson(json),
+      );
+
+  factory ResetPasswordAuthBody._fromJson(Map<String, dynamic> json) {
     return switch (json['type']) {
       SendResetPasswordAuthBody._type => SendResetPasswordAuthBody.fromJson(
         json,
@@ -428,7 +444,12 @@ class ConfirmResetPasswordAuthBody extends VerifyAuthBody {
 class VerifyEmailAuthBody {
   const VerifyEmailAuthBody({required this.email, required this.table});
 
-  factory VerifyEmailAuthBody.fromJson(Map<String, dynamic> json) {
+  factory VerifyEmailAuthBody.fromJson(Map<String, dynamic> json) => parseBody(
+    'VerifyEmailAuthBody',
+    () => VerifyEmailAuthBody._fromJson(json),
+  );
+
+  factory VerifyEmailAuthBody._fromJson(Map<String, dynamic> json) {
     return VerifyEmailAuthBody(
       email: json['email'] as String,
       table: json['table'] as String,
@@ -490,7 +511,10 @@ class SignInAuthBody extends AuthBody {
   final String email;
   final String password;
 
-  factory SignInAuthBody.fromJson(Map<String, dynamic> json) {
+  factory SignInAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('SignInAuthBody', () => SignInAuthBody._fromJson(json));
+
+  factory SignInAuthBody._fromJson(Map<String, dynamic> json) {
     final email = json['email'];
     final password = json['password'];
     if (email is! String || password is! String) {
@@ -529,7 +553,10 @@ class SignUpAuthBody extends AuthBody {
   final String password;
   final Map<String, dynamic>? object;
 
-  factory SignUpAuthBody.fromJson(Map<String, dynamic> json) {
+  factory SignUpAuthBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('SignUpAuthBody', () => SignUpAuthBody._fromJson(json));
+
+  factory SignUpAuthBody._fromJson(Map<String, dynamic> json) {
     final email = json['email'];
     final password = json['password'];
     if (email is! String || password is! String) {

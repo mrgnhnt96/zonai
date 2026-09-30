@@ -1,10 +1,15 @@
+import 'package:zonai_schema/src/payloads/parse_body.dart';
+
 class CreateBody {
   const CreateBody({required this.table, required this.object});
 
   final String table;
   final Map<String, dynamic> object;
 
-  factory CreateBody.fromJson(Map<String, dynamic> json) {
+  factory CreateBody.fromJson(Map<String, dynamic> json) =>
+      parseBody('CreateBody', () => CreateBody._fromJson(json));
+
+  factory CreateBody._fromJson(Map<String, dynamic> json) {
     return CreateBody(
       table: json['table'] as String,
       object: json['object'] as Map<String, dynamic>,
