@@ -102,6 +102,16 @@ List<SyncTable> orderTables(List<SyncTable> tables) {
       );
     }
     state[t.name] = 1;
+    for (final MapEntry(key: column, value: target) in t.references.entries) {
+      // A referenced table must also be a parent, or nothing orders it
+      // first and the child is pushed ahead of the row it points at.
+      if (!t.parents.contains(target)) {
+        throw StateError(
+          '${t.name}.$column references "$target", which is not in its '
+          'parents',
+        );
+      }
+    }
     for (final p in t.parents) {
       final parent = byName[p];
       if (parent == null) {

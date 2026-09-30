@@ -554,25 +554,32 @@ final class SyncEngine {
     return true;
   }
 
-  /// Whether [entry] must wait for a parent. With declared [SyncTable.references]
-  /// that is decided per row (only its own parent row being stuck holds it);
-  /// otherwise any stuck row in an ancestor table holds the whole table.
+  /// Whether [entry] must wait for a parent. A parent named in
+  /// [SyncTable.references] holds it per row (only its own parent row being
+  /// stuck); any other parent holds it table-level (a waiting row anywhere in
+  /// that ancestor table).
   bool _isHeldBack(
     SyncTable table,
     OutboxEntry entry,
     Set<(String, String)> stuck,
     Set<String> blocked,
   ) {
-    if (table.references.isNotEmpty) {
-      for (final MapEntry(key: column, value: parent)
-          in table.references.entries) {
-        final parentId = entry.payload[column];
-        if (parentId is String && stuck.contains((parent, parentId)))
-          return true;
+    for (final MapEntry(key: column, value: parent)
+        in table.references.entries) {
+      final parentId = entry.payload[column];
+      if (parentId is String && stuck.contains((parent, parentId))) {
+        return true;
       }
-      return false;
     }
-    return _hasBlockedAncestor(table, blocked);
+    // Parents no reference covers are held table-level, as without any.
+    final covered = table.references.values.toSet();
+    for (final p in table.parents) {
+      if (covered.contains(p)) continue;
+      if (blocked.contains(p) || _hasBlockedAncestor(_table(p), blocked)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   bool _hasBlockedAncestor(SyncTable table, Set<String> blocked) {

@@ -1319,6 +1319,63 @@ void main() {
       );
     });
 
+    test('a reference to a table that is not a parent is rejected', () {
+      // It would not be ordered after that table, so the child would be
+      // pushed first and earn a 422 (#48 review).
+      expect(
+        () => orderTables(const [
+          SyncTable('courses'),
+          SyncTable('students', references: {'course_id': 'courses'}),
+        ]),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('courses'),
+          ),
+        ),
+      );
+      expect(
+        orderTables(const [
+          SyncTable('courses'),
+          SyncTable(
+            'students',
+            parents: ['courses'],
+            references: {'course_id': 'courses'},
+          ),
+        ]).map((t) => t.name),
+        ['courses', 'students'],
+        reason: 'control: declared as a parent, it is accepted',
+      );
+    });
+
+    test(
+      'with partial references, an uncovered parent still holds the table',
+      () async {
+        // grades references students row by row, but also has terms as a
+        // parent with no reference; a backing-off term must hold grades.
+        final phone = Device(
+          server,
+          tables: const [
+            SyncTable('terms'),
+            SyncTable('students'),
+            SyncTable(
+              'grades',
+              parents: ['students', 'terms'],
+              references: {'student_id': 'students'},
+            ),
+          ],
+        );
+        await phone.write({'id': 't1'}, 'terms');
+        await phone.write({'id': 's1'}, 'students');
+        await phone.write({'id': 'g1', 'student_id': 's1'}, 'grades');
+        server.failures.add(const SyncRemoteException(FailureKind.server));
+        await phone.engine.sync(); // terms/t1 backs off (terms sorts first)
+        expect(server.calls, contains('create students/s1'), reason: 'control');
+        expect(server.calls, isNot(contains('create grades/g1')));
+      },
+    );
+
     test('a sync requested while one runs is not dropped', () async {
       final phone = Device(server);
       await phone.write({'id': 'n1'});
