@@ -96,6 +96,13 @@ extension _MagicLinkX on ZonaiDb {
       ),
     ]);
 
+    // What the sign-up gate queued (`mutate.*` from `beforeSignUp`) commits
+    // here, after the challenge row, as a before-hook's writes commit after
+    // the main write. Nothing later in this request drains the queue, so
+    // without this they were dropped. Before the email: a write that fails
+    // fails the request, and the code should not go out for it.
+    await _executeEffects();
+
     final domain = switch (magicLink.path) {
       final path when path.startsWith('/') => '${appConfig.baseUrl}$path',
       final path when !path.startsWith('http') => '${appConfig.baseUrl}/$path',

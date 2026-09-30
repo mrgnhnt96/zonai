@@ -19,7 +19,10 @@ final class User {
   final DateTime? updatedAt;
 }
 
-final class UserTable extends AuthTable<User> with PasswordAuth {
+/// `OtpAuth` and `MagicLinkAuth` add no column; they are here so the code
+/// flows' `beforeSignUp` can be driven too.
+final class UserTable extends AuthTable<User>
+    with PasswordAuth, OtpAuth, MagicLinkAuth {
   UserTable(super.$)
     : id = $.id(
         'id',

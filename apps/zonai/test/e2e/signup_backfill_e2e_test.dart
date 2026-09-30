@@ -273,6 +273,69 @@ void main() {
           );
         });
       }, timeout: const Timeout(Duration(minutes: 2)));
+
+      // On the code flows the gate runs when the code is requested, and that
+      // request ends with a challenge row, not an account: nothing drained
+      // the queue after it, so what the hook wrote was dropped.
+      for (final (flow, request) in [
+        ('OTP', (String email) => SendOtpAuthPayload(email: email)),
+        (
+          'magic link',
+          (String email) => SendMagicLinkAuthPayload(email: email),
+        ),
+      ]) {
+        test('beforeSignUp, when a $flow code is requested', () async {
+          if (!_runningOnDartVm) return;
+
+          await withDb((db) async {
+            final email = '${flow.replaceAll(' ', '-')}@example.com';
+            await db.authenticate('users', request(email));
+
+            expect(
+              await auditRows(db, 'before-signup', email),
+              hasLength(1),
+              reason: 'beforeSignUp queued a mutate.create.one',
+            );
+          });
+        }, timeout: const Timeout(Duration(minutes: 2)));
+      }
+
+      // The other side of the same contract: a before-hook's write commits
+      // AFTER the main write, so a main write that fails takes it down too --
+      // and must not leave it queued for the next request to flush.
+      test('is dropped when the main write fails', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final first = await db.create(
+            'invites',
+            const CreatePayload(object: {'email': 'first@example.com'}),
+          );
+
+          // The same id again: the main INSERT fails on the primary key,
+          // after beforeCreate has queued its audit row.
+          const email = 'collides@example.com';
+          await expectLater(
+            db.create(
+              'invites',
+              CreatePayload(object: {'id': first['id'], 'email': email}),
+            ),
+            throwsA(anything),
+          );
+
+          // A later request that succeeds runs its own effects.
+          await db.create(
+            'invites',
+            const CreatePayload(object: {'email': 'later@example.com'}),
+          );
+
+          expect(
+            await auditRows(db, 'before-create', email),
+            isEmpty,
+            reason: 'the main write failed, so its hook write must not land',
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 2)));
     });
   });
 }

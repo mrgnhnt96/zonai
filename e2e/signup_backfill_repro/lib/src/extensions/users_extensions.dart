@@ -9,6 +9,17 @@ UsersExtensions main() => UsersExtensions();
 final class UsersExtensions extends Extension<User> with AuthExtension<User> {
   UsersExtensions() : super(users);
 
+  /// Queues an audit row, so a test can tell whether a write queued by the
+  /// sign-up gate is persisted -- on the code flows the gate runs when the
+  /// code is REQUESTED, a request with no account insert after it.
+  @override
+  Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {
+    mutate.create.one(
+      tableName: 'invites',
+      object: {'email': 'audit:before-signup:${candidate.email}'},
+    );
+  }
+
   @override
   Future<void> onSignUp(User user, Jwt? jwt) async {
     final invite = await get.one(
