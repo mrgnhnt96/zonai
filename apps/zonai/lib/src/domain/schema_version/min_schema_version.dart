@@ -34,8 +34,16 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.5.0` -- the first published `zonai_schema` whose DDL
-/// generator answers `replay`.
+/// Currently `0.6.0`. The security fixes of CLI 0.10.0 live in the schema a
+/// project resolves, not in this binary: `AuthRowRules.canUpdate` refusing a
+/// user's own `is_verified` / `email` change, the unique email index on auth
+/// tables, and the default `AuthRowRules.viewScope` that keeps counts from
+/// revealing other users' rows. A project left on `0.5.0` would run this CLI
+/// without any of them. `0.6.0` is also the first schema whose workers send a
+/// `viewScope` and know `ServerManagedColumnWriteException`.
+///
+/// **`replay`.** The floor before that, `0.5.0`, was the first published
+/// `zonai_schema` whose DDL generator answers `replay`.
 ///
 /// **Migration drift check.** Since 0.9.0, `zonai db migrate generate` replays
 /// the migrations it just wrote through the project's own entry point to check
@@ -96,4 +104,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.5.0';
+const kMinSchemaVersion = '0.6.0';

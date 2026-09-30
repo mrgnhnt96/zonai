@@ -8,6 +8,58 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.10.0
+
+**Upgrade `zonai_schema` to 0.6.0 and re-run `zonai compile`.** This CLI
+requires it, and the security fixes below live in the schema your project
+resolves. Then read the behaviour changes before you migrate.
+
+- **Security: users can no longer verify themselves or change their own
+  email.** The default user row rules let an owner change any column, so an
+  app that allowed profile edits let a user set their own `is_verified` or
+  swap in an address they never proved.
+- **Security: counts no longer reveal rows the caller cannot see.**
+  `/db/count`, a list's `total` and the count stream checked only the table
+  rule. A count now covers only the rows the caller can view. A table whose
+  row rules check each row must declare the new `viewScope` for counts to
+  work at all, even if those rules allow every row. Otherwise `/db/count`
+  answers `400 count_requires_view_scope`. If every row is visible, say so
+  with `requiresPerRowCheck => false`, or scope to `NotNull('id')`.
+- **Security: one account per address.** Auth tables now get the unique
+  email index the docs always promised, emails are stored lowercased, and
+  racing sign-ups (password, OTP or magic link) create one account.
+- **Anonymous auth.** Create an account before its owner gives an address
+  with `AnonymousAuth`, then upgrade it later and keep its id and data.
+- **Safer updates.** `expect` makes an update apply only if the row is still
+  what you read, and answers `412` otherwise. `$.revision(...)` adds a
+  counter the server bumps on every write.
+- **`zonai db migrate generate` refuses migrations that destroy data** unless
+  you pass `--allow-destructive`. `--dry-run` warns about the loss too.
+- **Fixes.**
+  - Writes queued by `before*` hooks are saved instead of silently
+    dropped.
+  - Rules and hooks see a row's stored `created_at` / `updated_at`.
+  - An unimplemented built-in email logs a warning instead of failing the
+    request.
+  - Email reaches a local SMTP catcher.
+  - A malformed request body is a `400 invalid_body` instead of a `500`.
+- **Behaviour changes.**
+  - Before applying the migration that adds the unique email index, find
+    addresses that differ only by case:
+    `SELECT lower(email), count(*) FROM users GROUP BY lower(email) HAVING count(*) > 1;`
+  - Signed-in users now see only their own user row by default. If your
+    user row rules let users see each other, widen `viewScope` to match.
+  - `Paginated.total` is `int?`: a list comes back without a total when the
+    caller may not count every row.
+  - Writes queued in `beforeSignUp` commit twice on OTP and magic-link
+    sign-ups, so make them idempotent.
+  - `beforeUpdate` now runs after the password-column check.
+  - A table with a nullable email that isn't `AnonymousAuth` is refused at
+    boot.
+  - Flutter/FVM SDKs now get the Dart SDK check, so `zonai compile` and
+    `zonai build` fail on a mismatched Dart. Switch SDKs, set `dartSdkPath`,
+    or pass `--no-dart-sdk-check`.
+
 ## 0.9.4
 
 - **Refreshing a session now only works for sessions zonai issued.** A token
