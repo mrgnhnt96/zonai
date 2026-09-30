@@ -1,3 +1,7 @@
+## Unreleased
+
+- **`ServerException` is exported.** Every non-2xx response is thrown as one, so catching it used to need a direct dependency on `revali_client`, a transport detail. Now `package:zonai_client/zonai_client.dart` is enough. Additive.
+
 ## 0.2.4
 
 - **The `zonai_schema` lower bound moves to `>=0.5.0`** (0.2.3 declared `>=0.4.1`, which was wrong). The generated client uses `SpaceReclamationResult`, first published in `zonai_schema` 0.5.0, and imports `api_token_body.dart`, first published in 0.4.2 — so 0.2.3 against a locked 0.4.x failed to compile with `Error when reading '…/zonai_schema-0.4.1/lib/src/payloads/api_token_body.dart'`. If you hit that, `dart pub upgrade zonai_schema` fixes it without this release. No API change.

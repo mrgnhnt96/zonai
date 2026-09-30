@@ -95,7 +95,30 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
 
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
-    return _rowIdMatches(before, jwtUserId);
+    if (!_rowIdMatches(before, jwtUserId)) return false;
+
+    // The owner may edit their row, but not the columns the auth flows own.
+    // `is_verified` is what email verification proves, and `email` is what it
+    // proved it FOR; letting a user write either directly skips the proof.
+    // An app that opens `canUpdate` at the table level for profile edits used
+    // to hand both out with it. There is no self-service email change yet --
+    // an admin, or an override of this method, is the way to change one.
+    return !_changesAuthOwnedColumns(before, after);
+  }
+
+  bool _changesAuthOwnedColumns(R before, R after) {
+    if (schema case final HasEmail auth) {
+      final emailBefore = auth.email.readValueOf(before);
+      final emailAfter = auth.email.readValueOf(after);
+      if ('$emailBefore'.toLowerCase() != '$emailAfter'.toLowerCase()) {
+        return true;
+      }
+      if (auth.isVerified.readValueOf(before) !=
+          auth.isVerified.readValueOf(after)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Future<bool> canDelete(Jwt? jwt, R row) async {

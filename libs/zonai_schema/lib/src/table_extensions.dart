@@ -7,10 +7,23 @@ import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 import 'package:zonai_schema/src/transformers/server_generated_transformer.dart';
 
 extension TableExtensions<S extends rd.Schema<R>, R> on rd.TableMeta<S, R> {
-  R safeCreate(Map<String, dynamic> data) {
+  /// Builds a row from [data] that is safe to hand to rules and hooks.
+  ///
+  /// For a row about to be **inserted** (the default), the server's own
+  /// columns are stamped: `createdAt` is now, a nullable `updatedAt` is null.
+  ///
+  /// For a row that already exists -- [stored] -- those columns keep the values
+  /// [data] carries. Stamping them there fabricated history: a rule reading
+  /// `created_at` saw the moment the worker decoded the row, and a nullable
+  /// `updated_at` was always null (issue #40). A timestamp [data] does not
+  /// carry is still filled in as for an insert, so a partial row can build.
+  R safeCreate(Map<String, dynamic> data, {bool stored = false}) {
     final mutable = {...data};
     for (final column in columns) {
       switch (column.transformer) {
+        case CreatedAtTransformer() || UpdatedAtTransformer()
+            when stored && mutable[column.name] != null:
+          break;
         case final CreatedAtTransformer transformer:
           mutable[column.name] = transformer.encode(.now());
         case final UpdatedAtTransformer transformer:

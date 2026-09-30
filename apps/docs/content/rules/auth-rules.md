@@ -154,6 +154,8 @@ Defaults to `true` for `AuthType.password` when the table mixes in `PasswordAuth
 
 `AuthRowRules` also inherits the row-level `canView`, `canCreate`, `canUpdate` and `canDelete`. Their defaults let an admin through, and otherwise allow only the account whose row ID matches `Jwt.userId` — which is what stops one signed-in user reading another's account row.
 
+`canUpdate` has one more condition: even on their own row, a user may not change `email` or `is_verified`. Those columns belong to the auth flows. `is_verified` is what email verification proves, and a user who could set it, or swap in an address they never verified, would skip the proof. This matters once your table rules allow updates, which is how an app usually lets users edit their profile. An admin can still change either column. Zonai has no self-service email change yet; to allow one, override `canUpdate`.
+
 Accounts are created through the auth API (`POST /auth/sign-up` and friends), not `POST /db`: a non-admin `create` on an auth table through `/db` is refused regardless of your rules.
 
 ## Common Patterns
