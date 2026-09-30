@@ -2069,7 +2069,7 @@
         {
           "h": "Default Emails",
           "a": "default-emails",
-          "b": "Two auth hooks send an email by default when the auth table has an email column (password, OTP, magic-link and OAuth tables all do): Hook Default email onSignUp Verify-email link onSignIn Login notice (not implemented yet: nothing is sent and the server warns once per process) Overriding the hook replaces the default. Call super.onSignUp(user, jwt) from your override to keep the verify-email link. Override onSignIn to silence the login-notice error. All other hooks send nothing unless you call email.send."
+          "b": "Two auth hooks send an email by default when the auth table has an email column (password, OTP, magic-link and OAuth tables all do): Hook Default email onSignUp Verify-email link onSignIn Login notice (not implemented yet: nothing is sent and the server warns once per process) Overriding the hook replaces the default. Call super.onSignUp(user, jwt) from your override to keep the verify-email link. Override onSignIn to silence the login-notice warning. All other hooks send nothing unless you call email.send."
         },
         {
           "h": "Side Effects API",
@@ -2214,7 +2214,7 @@
         {
           "h": "Which flows run it",
           "a": "which-flows-run-it",
-          "b": "It runs on the three flows that insert an auth row directly: password, OTP and magic-link sign-up. For OTP and magic link, the account is created when the code or link is verified, not when it is requested. The hook runs at both points: once when the code is requested, before any email is sent, and again at verification, just before the insert. A hook with side effects must tolerate running twice for one sign-up. The password flow requests and inserts in one call, so it runs once there. It does not run for a first-seen OAuth or external-IdP identity. Those are provisioned by onExternalAuthFirstSeen, which declines by returning without inserting a row. That path answers 401, not 403. See External Identity Providers."
+          "b": "It runs on the three flows that insert an auth row directly: password, OTP and magic-link sign-up. For OTP and magic link, the account is created when the code or link is verified, not when it is requested. The hook runs at both points: once when the code is requested, before any email is sent, and again at verification, just before the insert. A hook with side effects must tolerate running twice for one sign-up, and so must its queued writes: a mutate. call in beforeSignUp commits at the code request and again at verify, and at the request it commits even if the code is never used. Make those writes idempotent, for example keyed on the address, rather than appending a row per run. The password flow requests and inserts in one call, so it runs once there. It does not run for a first-seen OAuth or external-IdP identity. Those are provisioned by onExternalAuthFirstSeen, which declines by returning without inserting a row. That path answers 401, not 403. See External Identity Providers."
         },
         {
           "h": "onSignUp(T user, Jwt? jwt)",

@@ -85,7 +85,7 @@ The reason reaches the caller **verbatim**, unlike the generic `Forbidden` most 
 
 It runs on the three flows that insert an auth row directly: **password**, **OTP** and **magic-link** sign-up.
 
-For OTP and magic link, the account is created when the code or link is **verified**, not when it is requested. The hook runs at both points: once when the code is requested, before any email is sent, and again at verification, just before the insert. A hook with side effects must tolerate running twice for one sign-up. The password flow requests and inserts in one call, so it runs once there.
+For OTP and magic link, the account is created when the code or link is **verified**, not when it is requested. The hook runs at both points: once when the code is requested, before any email is sent, and again at verification, just before the insert. A hook with side effects must tolerate running twice for one sign-up, and so must its queued writes: a `mutate.*` call in `beforeSignUp` commits at the code request *and* again at verify, and at the request it commits even if the code is never used. Make those writes idempotent, for example keyed on the address, rather than appending a row per run. The password flow requests and inserts in one call, so it runs once there.
 
 It does **not** run for a first-seen OAuth or external-IdP identity. Those are provisioned by `onExternalAuthFirstSeen`, which declines by returning without inserting a row. That path answers `401`, not 403. See [External Identity Providers](/authentication/external-idp#provisioning-users).
 
