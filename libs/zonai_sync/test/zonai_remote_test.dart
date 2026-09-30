@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:test/test.dart';
 import 'package:zonai_sync/zonai_sync.dart';
 
@@ -50,5 +52,30 @@ void main() {
     );
     expect(e.kind, FailureKind.invalid);
     expect(e.message, contains('UNIQUE failed'));
+  });
+
+  test('server revision can be switched on per table', () {
+    // #51 lands $.revision per table; a table on it refuses a client rev
+    // with 400, so the flag cannot be all-or-nothing.
+    const caps = ZonaiSyncCapabilities(serverRevisionTables: {'notes'});
+    expect(caps.serverOwnsRevision('notes'), isTrue);
+    expect(caps.serverOwnsRevision('tags'), isFalse);
+    const all = ZonaiSyncCapabilities(serverRevision: true);
+    expect(all.serverOwnsRevision('tags'), isTrue);
+  });
+
+  test('the library never imports dart:io, so it builds for the web', () {
+    final offenders = [
+      for (final f in Directory('lib').listSync(recursive: true))
+        if (f is File &&
+            f.path.endsWith('.dart') &&
+            f.readAsStringSync().contains("import 'dart:io'"))
+          f.path,
+    ];
+    final scanned = Directory(
+      'lib',
+    ).listSync(recursive: true).where((f) => f.path.endsWith('.dart')).length;
+    expect(scanned, greaterThan(5), reason: 'the scan saw the library');
+    expect(offenders, isEmpty);
   });
 }

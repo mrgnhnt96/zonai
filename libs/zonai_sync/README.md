@@ -47,15 +47,26 @@ await sync.signOut();                      // erases everything for this account
 
 Call `sync.requestSync()` on connectivity changes, on app resume and on live-query
 pokes. A request that arrives mid-sync schedules another pass; it is never
-dropped.
+dropped. Every request times out after `requestTimeout` (30s by default) and
+counts as offline.
+
+Synced rows travel through the outbox as JSON, so their values must be
+JSON-encodable: send dates as epoch milliseconds and bytes as base64, not
+`DateTime` or `Uint8List`.
+
+The library imports no `dart:io`, so it builds for Flutter web.
 
 ## Server table requirements
 
-Until `zonai_sync_schema` ships, declare these columns yourself:
+Declare these columns on every synced table:
 
 - `updated_at`: `$.updatedAt(...)` with a **non-nullable** `DateTime` field, so
   zonai stamps it on insert as well as on update.
-- `rev`: an `int` column. The client conditions every update on it.
+- `rev`: an `int` column. The client conditions every update on it. On a
+  server with `$.revision()`, move tables to it one by one: deploy the server
+  change for a table first, then ship a client that lists the table in
+  `ZonaiSyncCapabilities(serverRevisionTables: {...})`. A migrated table
+  refuses a client-sent `rev` with a 400.
 - `deleted_at`: a nullable `DateTime`, the tombstone. Deny hard deletes in the
   row rules.
 - An owner column (default `owner_id`). Row rules check it on `canView`,
@@ -63,6 +74,10 @@ Until `zonai_sync_schema` ships, declare these columns yourself:
 - Table rules allow `canUpdate` for signed-in users, so the row rules decide.
 
 `e2e/sync` in this repo is a complete, working example.
+
+Until `$.revision()` is deployed, `rev` only moves when a write goes through
+zonai_sync. A write that bypasses it (the dashboard, another client) leaves
+`rev` alone, and the next synced update of that row silently overwrites it.
 
 ## Conflict policies
 
@@ -77,13 +92,13 @@ Until `zonai_sync_schema` ships, declare these columns yourself:
 
 | Server says | Engine does |
 |---|---|
-| offline, timeout | keeps the change queued without spending a retry attempt |
-| 401 | pauses (`SyncPhase.needsAuth`) until `resume()` |
+| offline, timeout | keeps the change queued without spending a retry attempt, and tries again after `offlineRetry` (30s) |
+| 401 | pauses (`SyncPhase.needsAuth`). Nothing retries it: sign the user in again, then call `resume()` |
 | 403, 400, 422 | dead-letters it: visible in `status.deadLetters`, with `retryDeadLetter`/`discardDeadLetter` |
 | 409 on create | reconciles with the existing row |
 | 412 / revision mismatch | applies the table's conflict policy |
-| 429 | waits for `retryAfter` |
-| 5xx | backs off exponentially, dead-letters after `RetryPolicy.maxAttempts` |
+| 429 | waits for `retryAfter`, then retries on its own |
+| 5xx | backs off exponentially and retries on its own when the delay ends; dead-letters after `RetryPolicy.maxAttempts` |
 
 ### Parents and children
 

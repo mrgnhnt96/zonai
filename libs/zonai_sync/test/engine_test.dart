@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:test/test.dart';
 import 'package:zonai_sync/testing.dart';
 import 'package:zonai_sync/zonai_sync.dart';
@@ -1269,6 +1271,100 @@ void main() {
       await phone.engine.discardDeadLetter(dead.id);
       expect(server.calls, isEmpty);
       expect(await phone.store.entries(), hasLength(1));
+    });
+  });
+
+  group('Morgan review of #48 (2026-09-30)', () {
+    test('a request that never answers ends the pass as offline', () async {
+      // A half-open connection: neither zonai_client nor revali_client sets
+      // a timeout, so without one the pass, every later requestSync and
+      // dispose() would hang forever.
+      final never = Completer<void>();
+      server.whileInFlight = (call) => never.future;
+      final store = MemorySyncStore();
+      final engine = SyncEngine(
+        remote: server,
+        local: store,
+        tables: const [notes],
+        account: () => 'u1',
+        syncOnWrite: false,
+        requestTimeout: const Duration(milliseconds: 50),
+      );
+      await engine.write('notes', {'id': 'n1', 'owner_id': 'u1'});
+      await engine.sync().timeout(const Duration(seconds: 5));
+      expect(engine.currentStatus.phase, SyncPhase.offline);
+      expect(engine.currentStatus.pending, 1);
+      expect(
+        (await store.entries()).single.attempts,
+        0,
+        reason: 'offline never spends an attempt',
+      );
+      await engine.dispose().timeout(const Duration(seconds: 5));
+    });
+
+    test(
+      'a rate-limited pass retries on its own once retryAfter passes',
+      () async {
+        var now = DateTime.utc(2026, 9, 30);
+        final engine = SyncEngine(
+          remote: server,
+          local: MemorySyncStore(),
+          tables: const [notes],
+          account: () => 'u1',
+          now: () => now,
+          syncOnWrite: false,
+        );
+        await engine.write('notes', {'id': 'n1', 'owner_id': 'u1'});
+        server.failures.add(
+          const SyncRemoteException(
+            FailureKind.rateLimited,
+            retryAfter: Duration(milliseconds: 50),
+          ),
+        );
+        await engine.sync();
+        expect(server.calls, isNot(contains('create notes/n1')));
+        now = now.add(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        expect(server.calls, contains('create notes/n1'));
+        await engine.dispose();
+      },
+    );
+
+    test('an offline pass retries on its own', () async {
+      final engine = SyncEngine(
+        remote: server,
+        local: MemorySyncStore(),
+        tables: const [notes],
+        account: () => 'u1',
+        syncOnWrite: false,
+        offlineRetry: const Duration(milliseconds: 50),
+      );
+      await engine.write('notes', {'id': 'n1', 'owner_id': 'u1'});
+      server.offline = true;
+      await engine.sync();
+      expect(engine.currentStatus.phase, SyncPhase.offline);
+      server.offline = false;
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      expect(server.calls, contains('create notes/n1'));
+      await engine.dispose();
+    });
+
+    test('dispose cancels a scheduled retry', () async {
+      final engine = SyncEngine(
+        remote: server,
+        local: MemorySyncStore(),
+        tables: const [notes],
+        account: () => 'u1',
+        syncOnWrite: false,
+        offlineRetry: const Duration(milliseconds: 50),
+      );
+      await engine.write('notes', {'id': 'n1', 'owner_id': 'u1'});
+      server.offline = true;
+      await engine.sync();
+      await engine.dispose();
+      server.offline = false;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(server.calls, isEmpty);
     });
   });
 

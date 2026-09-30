@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:revali_client/revali_client.dart' show ServerException;
@@ -12,13 +11,27 @@ import 'package:zonai_sync/src/remote.dart';
 /// v0.9.4 does, so the adapter works today; flip a flag once the server
 /// release that adds the feature is deployed.
 final class ZonaiSyncCapabilities {
-  const ZonaiSyncCapabilities({this.serverRevision = false});
+  const ZonaiSyncCapabilities({
+    this.serverRevision = false,
+    this.serverRevisionTables = const {},
+  });
 
-  /// The server maintains `rev` itself (a `$.revision()` column) and refuses
-  /// client writes to it. When false, the client increments `rev` inside the
-  /// same conditional update, which is equally atomic on a single-writer
-  /// SQLite server.
+  /// Every table's `rev` is a server-maintained `$.revision()` column, which
+  /// refuses client writes with a 400. When false (and the table is not in
+  /// [serverRevisionTables]), the client increments `rev` inside the same
+  /// conditional update, which is equally atomic on a single-writer SQLite
+  /// server.
   final bool serverRevision;
+
+  /// The tables already migrated to `$.revision()`, for a server moving
+  /// table by table. Migration order: deploy the server change for a table,
+  /// then ship a client that lists it here. A client that still sends `rev`
+  /// to a migrated table gets a 400 on every write and dead-letters it.
+  final Set<String> serverRevisionTables;
+
+  /// Whether the server, not this client, maintains [table]'s `rev`.
+  bool serverOwnsRevision(String table) =>
+      serverRevision || serverRevisionTables.contains(table);
 }
 
 /// [SyncRemote] over zonai's `/db` API.
@@ -40,7 +53,7 @@ final class ZonaiSyncRemote implements SyncRemote {
   Future<RemoteRow> create(String table, Map<String, Object?> row) async {
     final object = {
       ...row,
-      if (!capabilities.serverRevision) SyncFields.rev: 0,
+      if (!capabilities.serverOwnsRevision(table)) SyncFields.rev: 0,
     };
     try {
       final data = await _guard(
@@ -84,7 +97,7 @@ final class ZonaiSyncRemote implements SyncRemote {
             where: And([Eq(SyncFields.id, id), Eq(SyncFields.rev, ifRev)]),
             updates: [
               Update.object(writable),
-              if (!capabilities.serverRevision)
+              if (!capabilities.serverOwnsRevision(table))
                 Update.column(SyncFields.rev, UpdateValue.increment()),
             ],
           ),
@@ -184,8 +197,8 @@ final class ZonaiSyncRemote implements SyncRemote {
     if (normalised[SyncFields.updatedAt] == null) {
       throw StateError(
         '$table/${data[SyncFields.id]} has no updated_at. Synced tables need a '
-        'NON-NULL, server-maintained updated_at (zonai_sync_schema\'s '
-        '\$.syncColumns()): a nullable one is NULL on insert, and rows that '
+        'NON-NULL, server-maintained updated_at (a non-nullable '
+        '\$.updatedAt() column): a nullable one is NULL on insert, and rows that '
         'are never updated would never be pulled.',
       );
     }
@@ -205,9 +218,10 @@ final class ZonaiSyncRemote implements SyncRemote {
       return await call();
     } on ServerException catch (e) {
       throw classify(e.statusCode, message: e.message, body: e.body);
-    } on SocketException catch (e) {
-      throw SyncRemoteException(FailureKind.offline, message: e.message);
     } on http.ClientException catch (e) {
+      // package:http (revali_client's transport) wraps socket failures in
+      // ClientException on every platform, so this also covers them without
+      // dart:io, which would break web builds.
       throw SyncRemoteException(FailureKind.offline, message: e.message);
     } on TimeoutException catch (e) {
       throw SyncRemoteException(

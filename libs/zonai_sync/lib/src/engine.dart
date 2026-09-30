@@ -37,6 +37,8 @@ final class SyncEngine {
     this.pullOverlap = const Duration(seconds: 2),
     this.claimUnownedData = true,
     this.guestIds,
+    this.requestTimeout = const Duration(seconds: 30),
+    this.offlineRetry = const Duration(seconds: 30),
   }) : _tables = orderTables(tables),
        _now = now ?? DateTime.now;
 
@@ -92,6 +94,22 @@ final class SyncEngine {
 
   /// Non-forced [requestSync] calls closer together than this are coalesced.
   final Duration minInterval;
+
+  /// How long one request may go unanswered before it counts as offline.
+  /// Neither zonai_client nor revali_client sets a timeout, and a half-open
+  /// connection would otherwise hang the pass, every sync queued behind it,
+  /// and [dispose].
+  final Duration requestTimeout;
+
+  /// After a pass ends offline, the next attempt starts on its own after
+  /// this long (connectivity and resume pokes via [requestSync] still help
+  /// sooner). Backed-off and rate-limited changes are retried on their own
+  /// when their delay ends. Nothing retries [SyncPhase.needsAuth]: that needs
+  /// the user to sign in again, then [resume].
+  final Duration offlineRetry;
+
+  Timer? _retryTimer;
+  bool _disposed = false;
 
   final _statusController = StreamController<SyncStatus>.broadcast();
   SyncStatus _status = SyncStatus.initial;
@@ -413,6 +431,34 @@ final class SyncEngine {
     } finally {
       _running = null;
     }
+    await _scheduleRetry();
+  }
+
+  /// Arms one timer for the next moment work can make progress without the
+  /// app's help: the end of the soonest backoff, or [offlineRetry] after a
+  /// pass that ended offline.
+  Future<void> _scheduleRetry() async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    if (_disposed || _account() == null) return;
+    Duration? wait;
+    if (_status.phase == SyncPhase.offline) {
+      wait = offlineRetry;
+    } else if (_status.phase != SyncPhase.needsAuth) {
+      final now = _now().millisecondsSinceEpoch;
+      int? soonest;
+      for (final e in await _local.entries()) {
+        final at = e.notBefore;
+        if (e.state == OutboxState.pending && at != null && at > now) {
+          soonest = soonest == null || at < soonest ? at : soonest;
+        }
+      }
+      if (soonest != null) wait = Duration(milliseconds: soonest - now);
+    }
+    if (wait == null || _disposed) return;
+    _retryTimer = Timer(wait, () {
+      if (!_disposed) unawaited(requestSync(force: true));
+    });
   }
 
   /// Starts periodic reconciliation (connectivity, resume and live pokes
@@ -424,7 +470,9 @@ final class SyncEngine {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     _periodic?.cancel();
+    _retryTimer?.cancel();
     await _running;
     await _statusController.close();
   }
@@ -536,7 +584,10 @@ final class SyncEngine {
               e.retryAfter ?? _retry.delayAfter(1),
               spend: false,
             );
-            _emit(_status.copyWith(lastError: e.message));
+            // Not left on `pushing`: the pass is over until retryAfter ends.
+            _emit(
+              _status.copyWith(phase: SyncPhase.idle, lastError: e.message),
+            );
             return false;
           case FailureKind.forbidden || FailureKind.invalid:
             await _deadLetter(entry, e);
@@ -780,8 +831,16 @@ final class SyncEngine {
   /// leaves — not only when the pass began, or when a result is applied.
   Future<T> _net<T>(Future<T> Function(SyncRemote remote) call) async {
     await _ensureOwner();
-    return call(_remote);
+    return _timed(call(_remote));
   }
+
+  Future<T> _timed<T>(Future<T> request) => request.timeout(
+    requestTimeout,
+    onTimeout: () => throw SyncRemoteException(
+      FailureKind.offline,
+      message: 'no answer within ${requestTimeout.inSeconds}s',
+    ),
+  );
 
   /// The server's row is authoritative: adopt it locally and drop the change,
   /// unless a newer local write arrived meanwhile (then rebase that onto it).
@@ -932,7 +991,7 @@ final class SyncEngine {
     try {
       // Outside a pass, so it checks the owner itself, exactly as _net does.
       await _ensureOwnerIs(owner);
-      server = await _remote.read(e.table, e.rowId);
+      server = await _timed(_remote.read(e.table, e.rowId));
     } on _AccountChanged {
       return;
     }
