@@ -147,6 +147,26 @@ void main() {
     _memoryTest('returns null for an empty executable path', () {
       expect(sdkVmSnapshotHash(''), isNull);
     });
+
+    // Issue #33. A Flutter SDK -- and so every FVM install -- puts a bash
+    // WRAPPER at `bin/dart` and the real Dart SDK under `bin/cache/dart-sdk`.
+    // There is no runtime beside the wrapper, so the hash came back null and
+    // no `.aot` was ever stamped: every serve warned the snapshot was
+    // unstamped and refused it, under the dart most Flutter developers have
+    // on PATH. The real-SDK tests below never saw it: they start from
+    // `Platform.resolvedExecutable`, which is already inside `cache/dart-sdk`.
+    _memoryTest(
+      'finds the runtime in a Flutter SDK behind its dart wrapper',
+      () {
+        _writeBinary('/flutter/bin/dart', '#!/usr/bin/env bash');
+        _writeBinary(
+          '/flutter/bin/cache/dart-sdk/bin/dartaotruntime',
+          _runtimeBytes(_hashA),
+        );
+
+        expect(sdkVmSnapshotHash('/flutter/bin/dart'), _hashA);
+      },
+    );
   });
 
   group('against a real SDK', () {
@@ -189,6 +209,20 @@ void main() {
       _writeBinary('/sdk/version', '3.12.0\n');
 
       expect(sdkDartVersion('/sdk/bin/dart'), '3.12.0');
+    });
+
+    _memoryTest('reads it from a Flutter SDK\'s embedded Dart SDK', () {
+      _writeBinary('/flutter/bin/dart', '#!/usr/bin/env bash');
+      _writeBinary(
+        '/flutter/bin/cache/dart-sdk/bin/dartaotruntime',
+        _runtimeBytes(_hashA),
+      );
+      _writeBinary('/flutter/bin/cache/dart-sdk/version', '3.13.4\n');
+      // Flutter's own root `version` names FLUTTER's version -- the one that
+      // must NOT be read.
+      _writeBinary('/flutter/version', '3.47.5\n');
+
+      expect(sdkDartVersion('/flutter/bin/dart'), '3.13.4');
     });
 
     _memoryTest('is null when the SDK ships no version file', () {
