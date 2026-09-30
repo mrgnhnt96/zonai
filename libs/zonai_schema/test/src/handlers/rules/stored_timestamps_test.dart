@@ -5,6 +5,7 @@ import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/rules/db_rules.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
+import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// Issue #40: row rules were handed `created_at = now()` and a nullable
@@ -41,6 +42,30 @@ final class _PostTable extends Table<_Post> {
 
 final _posts = sqliteTable('stored_posts', _PostTable.new);
 
+/// A table whose `created_at` is nullable: rows written before the column
+/// existed hold NULL there.
+final class _Legacy {
+  const _Legacy({required this.id, this.createdAt});
+
+  final int? id;
+  final DateTime? createdAt;
+}
+
+final class _LegacyTable extends Table<_Legacy> {
+  _LegacyTable(super.$)
+    : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
+      createdAt = $.createdAt('created_at', (s) => s.createdAt);
+
+  final ColumnType<int?> id;
+  final ColumnType<DateTime?> createdAt;
+
+  @override
+  _Legacy fromRow(RowReader read) =>
+      _Legacy(id: read(id), createdAt: read(createdAt));
+}
+
+final _legacy = sqliteTable('legacy_posts', _LegacyTable.new);
+
 /// Records every row it is shown, and allows everything.
 final class _SpyRowRules extends RowRules<_PostTable, _Post> {
   _SpyRowRules() : super(_posts);
@@ -49,6 +74,12 @@ final class _SpyRowRules extends RowRules<_PostTable, _Post> {
 
   @override
   Future<bool> canView(Jwt? jwt, _Post row) async {
+    seen.add(row);
+    return true;
+  }
+
+  @override
+  Future<bool> canCreate(Jwt? jwt, _Post row) async {
     seen.add(row);
     return true;
   }
@@ -73,6 +104,9 @@ final class _SpyExtension extends Extension<_Post> {
   _SpyExtension() : super(_posts);
 
   final seen = <_Post>[];
+
+  @override
+  Future<void> beforeCreate(_Post row, Jwt? jwt) async => seen.add(row);
 
   @override
   Future<void> beforeUpdate(_Post row, Jwt? jwt) async => seen.add(row);
@@ -202,5 +236,53 @@ void main() {
 
       expect(hook.seen.single.createdAt, created);
     });
+  });
+
+  group('a create is stamped, whatever the client sent', () {
+    final sent = {'created_at': 0};
+
+    bool stampedNow(DateTime at) =>
+        DateTime.now().difference(at).abs() < const Duration(minutes: 1);
+
+    test('canCreate', () async {
+      final response = await rules.dispatch(
+        RowRulesRequest(
+          table: 'stored_posts',
+          operation: 'create',
+          data: sent,
+          updates: const [],
+          jwt: null,
+        ),
+      );
+
+      expect((response! as RowRulesResponse).canPerform, isTrue);
+      expect(stampedNow(spy.seen.single.createdAt), isTrue);
+    });
+
+    test('beforeCreate', () async {
+      final hook = _SpyExtension();
+      await DbExtensions(extensions: [hook]).dispatch(
+        CreateExtensionRequest.before(
+          table: 'stored_posts',
+          object: sent,
+          jwt: null,
+        ),
+      );
+
+      expect(stampedNow(hook.seen.single.createdAt), isTrue);
+    });
+  });
+
+  test('a stored NULL in a nullable created_at stays NULL', () {
+    final row = _legacy.$.safeCreate({
+      'id': 1,
+      'created_at': null,
+    }, stored: true);
+
+    expect(
+      row.createdAt,
+      isNull,
+      reason: 'now() is not when this row was made',
+    );
   });
 }
