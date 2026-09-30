@@ -36,6 +36,13 @@ abstract interface class DriftSyncTable {
 /// pulled page and its cursor — commit in one SQLite transaction.
 ///
 /// Base revisions are kept here too, so app tables need no `rev` column.
+///
+/// Requirements and limits:
+/// * every [DriftSyncTable] must use the SAME database instance as the store,
+///   or "one transaction" silently spans two connections and is not atomic;
+/// * [clearAll] (sign-out, account switch) clears only the registered synced
+///   tables and this store's bookkeeping. Other app tables that hold
+///   account data must be cleared by the app.
 final class DriftSyncStore implements SyncLocalStore {
   DriftSyncStore._(this._db, this._tables);
 
@@ -44,11 +51,36 @@ final class DriftSyncStore implements SyncLocalStore {
     GeneratedDatabase db,
     List<DriftSyncTable> tables,
   ) async {
-    for (final ddl in _ddl) {
-      await db.customStatement(ddl);
-    }
+    await db.transaction(() async {
+      for (final ddl in _ddl) {
+        await db.customStatement(ddl);
+      }
+      final row = await db
+          .customSelect(
+            "SELECT value FROM _zonai_sync_meta WHERE key = 'schema'",
+          )
+          .getSingleOrNull();
+      final found = int.tryParse(row?.read<String?>('value') ?? '');
+      if (found != null && found > schemaVersion) {
+        // Written by a newer zonai_sync_drift; reading it could corrupt it.
+        throw StateError(
+          'zonai_sync_drift bookkeeping is at schema $found; this version '
+          'understands up to $schemaVersion.',
+        );
+      }
+      // Future versions migrate from `found` here, step by step.
+      await db.customStatement(
+        'INSERT INTO _zonai_sync_meta (key, value) VALUES (?, ?) '
+        'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+        ['schema', '$schemaVersion'],
+      );
+    });
     return DriftSyncStore._(db, {for (final t in tables) t.name: t});
   }
+
+  /// Version of the `_zonai_sync_*` bookkeeping tables. Bump it with a
+  /// migration step in [open] whenever their shape changes.
+  static const schemaVersion = 1;
 
   static const _ddl = [
     'CREATE TABLE IF NOT EXISTS _zonai_sync_outbox ('

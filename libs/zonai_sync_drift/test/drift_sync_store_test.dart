@@ -234,6 +234,13 @@ void main() {
       expect(await store.entries(), isEmpty);
     });
 
+    test('refuses bookkeeping written by a newer version', () async {
+      await db.customStatement(
+        "UPDATE _zonai_sync_meta SET value = '99' WHERE key = 'schema'",
+      );
+      await expectLater(DriftSyncStore.open(db, [notes]), throwsStateError);
+    });
+
     test('bookkeeping survives reopening the database', () async {
       await store.setAccount('u1');
       await store.setCursor('notes', const SyncCursor(updatedAt: 5, id: 'x'));
