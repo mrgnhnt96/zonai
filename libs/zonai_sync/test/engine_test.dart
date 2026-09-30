@@ -2,7 +2,6 @@ import 'package:test/test.dart';
 import 'package:zonai_sync/testing.dart';
 import 'package:zonai_sync/zonai_sync.dart';
 
-
 const notes = SyncTable('notes');
 
 /// One device: its own local store and engine, talking to [server].
@@ -1122,37 +1121,34 @@ void main() {
       },
     );
 
-    test(
-      "a row held by a DEAD parent doesn't freeze a child table without "
-      'references',
-      () async {
-        // Round 5: one permanent dead letter must not stop unrelated
-        // grandchildren (the N2 design); only its own row subtree waits.
-        final phone = Device(
-          server,
-          tables: const [
-            SyncTable('courses'),
-            SyncTable(
-              'students',
-              parents: ['courses'],
-              references: {'course_id': 'courses'},
-            ),
-            SyncTable('grades', parents: ['students']),
-          ],
-        );
-        await phone.write({'id': 'c2'}, 'courses');
-        await phone.write({'id': 's2', 'course_id': 'c2'}, 'students');
-        await phone.engine.sync();
-        await phone.write({'id': 'c1'}, 'courses');
-        server.failures.add(const SyncRemoteException(FailureKind.forbidden));
-        await phone.engine.sync(); // c1 dead
-        await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
-        await phone.write({'id': 'g2', 'student_id': 's2'}, 'grades');
-        await phone.engine.sync();
-        expect(server.calls, isNot(contains('create students/s1')));
-        expect(server.calls, contains('create grades/g2'));
-      },
-    );
+    test("a row held by a DEAD parent doesn't freeze a child table without "
+        'references', () async {
+      // Round 5: one permanent dead letter must not stop unrelated
+      // grandchildren (the N2 design); only its own row subtree waits.
+      final phone = Device(
+        server,
+        tables: const [
+          SyncTable('courses'),
+          SyncTable(
+            'students',
+            parents: ['courses'],
+            references: {'course_id': 'courses'},
+          ),
+          SyncTable('grades', parents: ['students']),
+        ],
+      );
+      await phone.write({'id': 'c2'}, 'courses');
+      await phone.write({'id': 's2', 'course_id': 'c2'}, 'students');
+      await phone.engine.sync();
+      await phone.write({'id': 'c1'}, 'courses');
+      server.failures.add(const SyncRemoteException(FailureKind.forbidden));
+      await phone.engine.sync(); // c1 dead
+      await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
+      await phone.write({'id': 'g2', 'student_id': 's2'}, 'grades');
+      await phone.engine.sync();
+      expect(server.calls, isNot(contains('create students/s1')));
+      expect(server.calls, contains('create grades/g2'));
+    });
 
     test('a claim never re-owns a row that has ever synced', () async {
       // Belt to guestIds: even a wrong guest list cannot take a row the
