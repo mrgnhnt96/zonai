@@ -250,6 +250,70 @@ void main() {
       });
     }, timeout: const Timeout(Duration(minutes: 5)));
 
+    // Review of #50: a caller who may UPDATE a row but not VIEW it gets the
+    // 412 with nothing in it. Being allowed to write a row is not being
+    // allowed to read it back.
+    test(
+      'a failing expect on a row the caller cannot view reports no rows',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final owner = await user(db, 'b3-hidden-owner@example.com');
+          final other = await user(db, 'b3-hidden-other@example.com');
+          final token = await adminToken(db, 'admin-b3-hidden@example.com');
+          final id = await note(db, token, 'b3-hidden', owner.id);
+
+          await expectLater(
+            db.update(
+              'notes',
+              UpdatePayload(
+                where: Eq('id', id),
+                limit: 1,
+                updates: [Update.column('title', .literal('x'))],
+                expect: const Eq('title', 'not-it'),
+                jwt: other.jwt,
+              ),
+            ),
+            throwsA(
+              isA<PreconditionFailedException>().having(
+                (e) => e.current,
+                'current',
+                isEmpty,
+              ),
+            ),
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
+
+    // Review of #50: every 403 must win over a 412, or a refusal leaks that
+    // the row exists and what it does not match.
+    test('a rule denial wins over a failing expect', () async {
+      if (!_runningOnDartVm) return;
+
+      await withDb((db) async {
+        final me = await user(db, 'b3-locked@example.com');
+        final token = await adminToken(db, 'admin-b3-locked@example.com');
+        final id = await note(db, token, 'locked', me.id);
+
+        await expectLater(
+          db.update(
+            'notes',
+            UpdatePayload(
+              where: Eq('id', id),
+              limit: 1,
+              updates: [Update.column('title', .literal('x'))],
+              expect: const Eq('title', 'not-it'),
+              jwt: me.jwt,
+            ),
+          ),
+          throwsA(isA<RowAccessDeniedException>()),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
     test(
       'control: no row matched is still an empty result, not a 412',
       () async {

@@ -21,8 +21,12 @@ class NoteRowRules extends RowRules<NoteTable, Note> {
   @override
   Future<bool> canCreate(Jwt? jwt, Note row) async => true;
 
+  /// Open, except for a note titled `locked` -- the one row-level update
+  /// denial this fixture needs, so a test can tell a rule's 403 from an
+  /// update precondition's 412.
   @override
-  Future<bool> canUpdate(Jwt? jwt, Note before, Note after) async => true;
+  Future<bool> canUpdate(Jwt? jwt, Note before, Note after) async =>
+      before.title != 'locked';
 
   @override
   Future<bool> canDelete(Jwt? jwt, Note row) async => true;

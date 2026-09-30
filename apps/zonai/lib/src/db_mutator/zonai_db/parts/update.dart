@@ -43,6 +43,16 @@ extension _UpdateX on ZonaiDb {
         prefix: _prefix,
       );
 
+      // `expect` also rides the UPDATE, so a row that stopped meeting it in
+      // between is skipped by SQL rather than written. The single writer
+      // makes that unreachable today; if it ever happens, refuse rather than
+      // hand back the refetched, unchanged row as a success (review of #50).
+      if (payload.expect case final expect?
+          when updateResult.rowsAffected != beforeObjects.length) {
+        await _requirePrecondition(table, beforeObjects, expect, jwt);
+        throw PreconditionFailedException(table: table, current: const []);
+      }
+
       // `updateResult.rows` always returns empty, need to refetch the records.
       //
       // Nothing matched, so there is nothing to read back and no `IN ()` to
@@ -288,23 +298,10 @@ extension _UpdateX on ZonaiDb {
     }
     logger.trace('row_access');
 
-    if (payload.expect case final expect?) {
-      await _requirePrecondition(table, objects, expect, jwt);
-      logger.trace('precondition');
-    }
-
-    final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
-
+    // Every refusal that is about PERMISSION comes before the precondition,
+    // so a 403 always wins over a 412 (review of #50): the photo references
+    // an update names, and whether the caller may write a password at all.
     await _requirePhotoReferencesFromUpdates(table, payload.updates);
-
-    await _runExtension(
-      BeforeUpdateExtensionRequest(
-        table: table,
-        objects: sanitizedBefore,
-        jwt: jwt,
-      ),
-    );
-    logger.trace('ext_before');
 
     final (updates, changed) = await _hashPasswordUpdates(
       table,
@@ -316,6 +313,24 @@ extension _UpdateX on ZonaiDb {
         throw PasswordUpdateForbiddenException(table: table);
       }
     }
+
+    // And before the hooks: a `beforeUpdate` must not run for an update that
+    // is about to be refused.
+    if (payload.expect case final expect?) {
+      await _requirePrecondition(table, objects, expect, jwt);
+      logger.trace('precondition');
+    }
+
+    final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
+
+    await _runExtension(
+      BeforeUpdateExtensionRequest(
+        table: table,
+        objects: sanitizedBefore,
+        jwt: jwt,
+      ),
+    );
+    logger.trace('ext_before');
 
     // Keyed to the rows the row checks above admitted, NOT to `payload.where`.
     // `UpdateOne` reads with `LIMIT 1`, so exactly one row is adjudicated --

@@ -512,6 +512,58 @@ void main() {
       },
     );
 
+    // `expect` on an update (#50): a precondition that is present but not a
+    // where-object must be refused, never read as "no precondition" -- that
+    // silently turns a conditional write into an unconditional one, the lost
+    // update the field exists to prevent.
+    test(
+      'a malformed update expect is a 400, not an unconditional write',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        for (final malformed in <Object>[<Object>[], 'rev=3', 3, true]) {
+          final response = await client.patch(
+            server.uri('/db'),
+            headers: {
+              'content-type': 'application/json',
+              'authorization': 'Bearer $adminJwt',
+            },
+            body: jsonEncode({
+              'table': 'notes',
+              'where': Eq('title', 'service-note-$unique').toJson(),
+              'updates': [
+                Update.column('title', .literal('overwritten')).toJson(),
+              ],
+              'expect': malformed,
+            }),
+          );
+          expect(
+            response.statusCode,
+            400,
+            reason: 'expect=${jsonEncode(malformed)}: ${response.body}',
+          );
+        }
+
+        // Control: JSON null means "no precondition", the same as omitting it.
+        final unconditional = await client.patch(
+          server.uri('/db'),
+          headers: {
+            'content-type': 'application/json',
+            'authorization': 'Bearer $adminJwt',
+          },
+          body: jsonEncode({
+            'table': 'notes',
+            'where': Eq('title', 'service-note-$unique').toJson(),
+            'updates': [
+              Update.column('title', .literal('service-note-$unique')).toJson(),
+            ],
+            'expect': null,
+          }),
+        );
+        expect(unconditional.statusCode, 200, reason: unconditional.body);
+      },
+    );
+
     test('an API token cannot mint a token', () async {
       if (!_runningOnDartVm) return;
 

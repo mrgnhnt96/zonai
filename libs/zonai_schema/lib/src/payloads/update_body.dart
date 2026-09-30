@@ -1,3 +1,5 @@
+import 'package:revali_core/revali_core.dart' show HttpError;
+
 import '../types/where.dart';
 import '../update/update.dart';
 
@@ -50,9 +52,21 @@ class UpdateBody {
   }
 }
 
+/// Only a missing key or JSON `null` means "no precondition". Anything else
+/// that is not a where-object is refused: reading `[]` or `"rev=3"` as absent
+/// would turn a conditional write into an unconditional one -- the lost update
+/// `expect` exists to prevent (review of #50).
 Where? _expectFromJson(Object? json) => switch (json) {
+  null => null,
   final Map<dynamic, dynamic> json => Where.fromJson(json),
-  _ => null,
+  // A 400 the caller can branch on. An ArgumentError here surfaced as a 500:
+  // nothing maps a body-parse ArgumentError to a status.
+  final value => throw HttpError.badRequest(
+    code: 'invalid_expect',
+    message:
+        '`expect` must be a where object, or null/absent for no '
+        'precondition; got ${value.runtimeType}',
+  ),
 };
 
 class UpdateOneBody extends UpdateBody {

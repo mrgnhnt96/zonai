@@ -161,6 +161,8 @@ try {
 - A precondition failure is a `412`, with `error.code` set to `precondition_failed` and the rows in `error.details.current`. It is not a `404`: a row that no longer matches `where` at all still returns `404` from `update`, or an empty list from `updateMany`. The two mean different things to a client that is reconciling.
 - `updateMany` is refused whole when any target fails, and `current` lists only the failing rows.
 - `current` holds only rows you may view.
+- On the wire, `expect` must be a where-object. Missing or `null` means no precondition; anything else (`[]`, `"rev=3"`) is a `400` with code `invalid_expect`, never an unconditional write.
+- Every permission refusal comes first: a `403` always wins over a `412`, and a `beforeUpdate` hook never runs for an update the precondition refuses.
 - A server older than this feature ignores `expect` and applies the update unconditionally. Know your server version before you rely on it.
 
 ### Delete records

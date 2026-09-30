@@ -63,8 +63,10 @@ you read.** A `Where` every target row must meet; if any does not, the server
 writes nothing and answers `412` with code `precondition_failed` and the
 failing rows (as they are now, and only those the caller may view) in
 `details.current`. Distinct from the `404` for a row that is gone. Additive:
-omitted, an update behaves exactly as before. A server that predates this
-field ignores it, so a client relying on it must know its server.
+omitted (or JSON `null`), an update behaves exactly as before; any other
+non-object value is a `400` (`invalid_expect`), never read as "no
+precondition". A server that predates this field ignores it, so a client
+relying on it must know its server.
 
 ## 0.5.0
 
