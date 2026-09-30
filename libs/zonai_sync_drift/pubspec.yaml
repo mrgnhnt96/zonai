@@ -1,0 +1,24 @@
+name: zonai_sync_drift
+description: >-
+  drift (SQLite) storage for zonai_sync: keeps the outbox, cursors and base
+  revisions in the app's own drift database, in the same transactions as the
+  app's rows.
+version: 0.1.0-dev.1
+publish_to: none
+repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_sync_drift
+issue_tracker: https://github.com/mrgnhnt96/zonai/issues
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  # Wide on purpose: this workspace pins sqlite3 2.x (the server), while apps
+  # resolve the newest drift + sqlite3 3.x on their own.
+  drift: ">=2.20.0 <3.0.0"
+  zonai_sync: ^0.1.0-dev.1
+
+dev_dependencies:
+  sqlite3: ">=2.4.0 <4.0.0"
+  test: ^1.26.2
