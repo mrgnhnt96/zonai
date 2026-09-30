@@ -27,6 +27,7 @@ final class OutboxEntry {
     this.state = OutboxState.pending,
     this.lastError,
     this.notBefore,
+    this.sent = false,
   });
 
   factory OutboxEntry.fromJson(Map<String, Object?> json) => OutboxEntry(
@@ -42,6 +43,7 @@ final class OutboxEntry {
     state: OutboxState.values.byName(json['state']! as String),
     lastError: json['lastError'] as String?,
     notBefore: json['notBefore'] as int?,
+    sent: json['sent'] as bool? ?? false,
   );
 
   /// Monotonic per store; push order within a table.
@@ -70,6 +72,12 @@ final class OutboxEntry {
   /// Epoch ms before which this entry must not be retried (backoff).
   final int? notBefore;
 
+  /// Whether a create for this row has ever been SENT. Once it has, the
+  /// server may hold the row even if no response came back (a timeout, a
+  /// dropped connection), so a later delete must reach the server as a
+  /// tombstone instead of cancelling locally.
+  final bool sent;
+
   bool get isCreate => baseRev == null;
 
   OutboxEntry copyWith({
@@ -84,6 +92,7 @@ final class OutboxEntry {
     String? lastError,
     int? notBefore,
     bool clearNotBefore = false,
+    bool? sent,
   }) => OutboxEntry(
     id: id,
     table: table,
@@ -97,6 +106,7 @@ final class OutboxEntry {
     state: state ?? this.state,
     lastError: lastError ?? this.lastError,
     notBefore: clearNotBefore ? null : notBefore ?? this.notBefore,
+    sent: sent ?? this.sent,
   );
 
   Map<String, Object?> toJson() => {
@@ -112,6 +122,7 @@ final class OutboxEntry {
     'state': state.name,
     'lastError': lastError,
     'notBefore': notBefore,
+    'sent': sent,
   };
 
   @override
@@ -173,7 +184,7 @@ abstract final class Outbox {
         ),
       );
     }
-    if (op == OutboxOp.delete && pending.isCreate) {
+    if (op == OutboxOp.delete && pending.isCreate && !pending.sent) {
       return Cancel(pending.id);
     }
     return Enqueue(

@@ -523,7 +523,7 @@ void main() {
       };
       await phone.engine.sync();
       expect(phone.store.rows('notes'), isEmpty);
-      expect(await phone.store.account(), isNull);
+      expect(await phone.store.account(), SyncEngine.signedOutMarker);
       expect(await phone.store.cursor('notes'), isNull);
     });
 
@@ -648,6 +648,177 @@ void main() {
       server.user = 'u2';
       await phone.engine.sync();
       expect(phone.row('u1-note'), isNull);
+    });
+  });
+
+  group('second review (zonai-owner, 2026-09-29)', () {
+    test(
+      'R1 a device that was signed out never hands one account the next one\'s data',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'u1-private', 'body': 'u1 private'});
+        await phone.engine.sync();
+        await phone.engine.signOut();
+        // A leftover row that somehow survived (a write racing sign-out).
+        await phone.store.writeRow('notes', {
+          'id': 'leftover',
+          'owner_id': 'u1',
+        });
+        phone.account = 'u2';
+        server.user = 'u2';
+        await phone.engine.sync();
+        expect(
+          phone.row('leftover'),
+          isNull,
+          reason: 'u1 data must not stay for u2',
+        );
+        expect(
+          server.tables['notes']!.containsKey('leftover'),
+          isFalse,
+          reason: "u1's row must never be uploaded to u2's account",
+        );
+      },
+    );
+
+    test(
+      'R1d after a sign-out even an ownerless leftover is not claimed',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'n1'});
+        await phone.engine.sync();
+        await phone.engine.signOut();
+        await phone.store.writeRow('notes', {'id': 'ownerless'});
+        phone.account = 'u2';
+        server.user = 'u2';
+        await phone.engine.sync();
+        expect(server.tables['notes']!.containsKey('ownerless'), isFalse);
+        expect(phone.row('ownerless'), isNull);
+      },
+    );
+
+    test(
+      'R1b the claim never re-owns a row that names another account',
+      () async {
+        final phone = Device(server, account: null);
+        await phone.store.writeRow('notes', {'id': 'mine'});
+        await phone.store.writeRow('notes', {
+          'id': 'foreign',
+          'owner_id': 'u9',
+        });
+        phone.account = 'u1';
+        await phone.engine.sync();
+        expect(server.tables['notes']!.keys, ['mine']);
+        expect(phone.row('foreign'), isNull);
+      },
+    );
+
+    test(
+      'R1c a write racing sign-out does not commit into the cleared store',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'n1'});
+        await phone.engine.sync();
+        // Sign-out lands between the write's account check and its transaction.
+        final writing = phone.engine.write('notes', {
+          'id': 'late',
+          'owner_id': 'u1',
+        });
+        await phone.engine.signOut();
+        phone.account = null;
+        await expectLater(writing, throwsStateError);
+        expect(phone.row('late'), isNull);
+        expect(await phone.store.entries(), isEmpty);
+      },
+    );
+
+    test('R2 queued pushes stop the moment the account changes', () async {
+      final phone = Device(
+        server,
+        tables: const [SyncTable('notes', scopeColumn: null)],
+      );
+      await phone.write({'id': 'n1'});
+      await phone.write({'id': 'n2'});
+      server.whileInFlight = (call) async {
+        if (call == 'create notes/n1') {
+          server.whileInFlight = null;
+          phone.account = 'u2';
+          await phone.engine.write('notes', {'id': 'u2-note'}); // adopts u2
+          server.user = 'u2';
+        }
+      };
+      await phone.engine.sync();
+      expect(
+        server.calls.where((c) => c == 'create notes/n2'),
+        isEmpty,
+        reason: "u1's queued write must not go out under u2's session",
+      );
+    });
+
+    test(
+      'R3 a delete after a create whose response was lost still deletes remotely',
+      () async {
+        final phone = Device(server);
+        await phone.write({'id': 'n1'});
+        // The create commits on the server but the response never arrives.
+        server.whileInFlight = (call) async {
+          if (call == 'create notes/n1') {
+            server.whileInFlight = null;
+            await server.create('notes', {'id': 'n1', 'owner_id': 'u1'});
+            throw const SyncRemoteException(FailureKind.offline);
+          }
+        };
+        await phone.engine.sync();
+        await phone.engine.delete('notes', 'n1');
+        await phone.engine.sync();
+        expect(phone.row('n1'), isNull);
+        expect(server.tables['notes']!['n1']!['deleted_at'], isNotNull);
+      },
+    );
+
+    test('R4 a dead-lettered parent holds back its children', () async {
+      final phone = Device(
+        server,
+        tables: const [
+          SyncTable('courses'),
+          SyncTable(
+            'students',
+            parents: ['courses'],
+            references: {'course_id': 'courses'},
+          ),
+        ],
+      );
+      await phone.write({'id': 'c1'}, 'courses');
+      server.failures.add(const SyncRemoteException(FailureKind.forbidden));
+      await phone.engine.sync(); // parent dead
+      await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
+      await phone.write({'id': 'c2'}, 'courses');
+      await phone.write({'id': 's2', 'course_id': 'c2'}, 'students');
+      await phone.engine.sync();
+      expect(
+        server.calls,
+        isNot(contains('create students/s1')),
+        reason: 'its parent is dead: it would only earn a 422',
+      );
+      expect(
+        server.calls,
+        contains('create students/s2'),
+        reason:
+            'blocking is per row: a healthy parent does not hold its children',
+      );
+    });
+
+    test('R5 retrying a dead letter never overwrites a newer write', () async {
+      final phone = Device(server);
+      await phone.write({'id': 'n1', 'body': 'v1'});
+      server.failures.add(const SyncRemoteException(FailureKind.invalid));
+      await phone.engine.sync();
+      final dead = phone.engine.currentStatus.deadLetters.single;
+      await phone.write({'id': 'n1', 'body': 'v2'});
+      await phone.engine.retryDeadLetter(
+        dead.id,
+      ); // must not resurrect v1's payload
+      await phone.engine.sync();
+      expect(server.tables['notes']!['n1']!['body'], 'v2');
     });
   });
 

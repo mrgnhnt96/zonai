@@ -62,6 +62,7 @@ final class SyncTable {
     this.scopeColumn = 'owner_id',
     this.mode = SyncMode.bidirectional,
     this.parents = const [],
+    this.references = const {},
     this.conflict = ConflictPolicy.fieldMerge,
   });
 
@@ -76,6 +77,12 @@ final class SyncTable {
   /// Tables whose rows this table references. Their changes are pushed and
   /// pulled first, so a child never reaches the server before its parent.
   final List<String> parents;
+
+  /// Foreign keys as `column -> parent table`. When given, a child row is held
+  /// back only while ITS parent row is stuck (queued, backing off, or dead);
+  /// without them, any stuck row in a parent table holds back the whole child
+  /// table.
+  final Map<String, String> references;
   final ConflictPolicy conflict;
 
   bool get pushes => mode != SyncMode.pullOnly;

@@ -109,8 +109,10 @@ final class SyncEngine {
     if (id is! String || id.isEmpty) {
       throw ArgumentError('A synced row needs a String id');
     }
-    await _adoptAccount(_requireAccount());
+    final account = _requireAccount();
+    await _adoptAccount(account);
     await _local.transaction(() async {
+      await _ensureStoreOwnedBy(account);
       final existing = await _local.readRow(table, id);
       final touched = {
         ...changed ??
@@ -141,8 +143,10 @@ final class SyncEngine {
   Future<void> delete(String table, String id) async {
     final t = _table(table);
     if (!t.pushes) throw StateError('$table is pull-only');
-    await _adoptAccount(_requireAccount());
+    final account = _requireAccount();
+    await _adoptAccount(account);
     await _local.transaction(() async {
+      await _ensureStoreOwnedBy(account);
       final existing = await _local.readRow(table, id);
       final pending = await _local.pendingFor(table, id);
       await _local.deleteRow(table, id);
@@ -194,6 +198,9 @@ final class SyncEngine {
     final owner = await _local.account();
     if (owner == account) return;
     await _local.transaction(() async {
+      // Only a device NO account has ever used may be claimed. After a
+      // sign-out the store holds [signedOutMarker], not null, so whatever is
+      // left over can never be handed to the next account.
       if (owner == null && claimUnownedData) {
         // Nobody has signed in on this device before: whatever exists was
         // made by this user before they had an account. Keep it, and queue
@@ -212,6 +219,13 @@ final class SyncEngine {
         if (await _local.pendingFor(table.name, id) != null) continue;
         final existing = await _local.readRow(table.name, id);
         if (existing == null) continue;
+        final scope = table.scopeColumn;
+        final named = scope == null ? null : existing.data[scope];
+        if (named != null && named != account) {
+          // It belongs to someone else: never re-own it, never upload it.
+          await _local.deleteRow(table.name, id);
+          continue;
+        }
         // Rows made before there was an account have no owner yet.
         final data = {
           ...existing.data,
@@ -235,11 +249,26 @@ final class SyncEngine {
     }
   }
 
+  /// Stored as the account after [signOut]: "used before, owned by no one
+  /// now". Distinct from null ("never used"), which is the only state whose
+  /// leftover data may be claimed by the next account.
+  static const signedOutMarker = '\u0000signed-out';
+
+  /// Throws [StateError] unless the store currently belongs to [account]:
+  /// a sign-out or account switch landed between a caller's account check
+  /// and its transaction, and the write must not commit into a store that
+  /// was just cleared for someone else.
+  Future<void> _ensureStoreOwnedBy(String account) async {
+    if (await _local.account() != account) {
+      throw StateError('The signed-in account changed during this write');
+    }
+  }
+
   /// Erases everything this device holds for the signed-in account.
   Future<void> signOut() async {
     await _local.transaction(() async {
       await _local.clearAll();
-      await _local.setAccount(null);
+      await _local.setAccount(signedOutMarker);
     });
     _emit(SyncStatus.initial.copyWith(phase: SyncPhase.signedOut));
   }
@@ -356,20 +385,25 @@ final class SyncEngine {
     // (zonai answers a missing FK parent with 422, which would dead-letter
     // the child for good). That covers parents backing off from an earlier
     // pass as well as ones failing in this pass.
-    final blocked = {
-      for (final e in await _local.entries())
-        if (e.state == OutboxState.pending &&
-            e.notBefore != null &&
-            e.notBefore! > now)
-          e.table,
+    // Dead parents block too: their children would only earn a 422.
+    final all = await _local.entries();
+    final stuck = <(String, String)>{
+      for (final e in all)
+        if (e.state == OutboxState.dead ||
+            (e.notBefore != null && e.notBefore! > now))
+          (e.table, e.rowId),
     };
+    final blocked = {for (final (table, _) in stuck) table};
     for (final entry in due) {
       final table = _table(entry.table);
       if (!table.pushes) {
         await _local.removeEntry(entry.id);
         continue;
       }
-      if (_hasBlockedAncestor(table, blocked)) continue;
+      if (_isHeldBack(table, entry, stuck, blocked)) continue;
+      // Every entry is re-checked: an account switch mid-pass must stop the
+      // rest of the OLD account's queue from going out under the new session.
+      await _ensureOwner();
       try {
         await _pushOne(table, entry);
       } on SyncRemoteException catch (e) {
@@ -402,11 +436,33 @@ final class SyncEngine {
               FailureKind.notFound ||
               FailureKind.server:
             blocked.add(table.name);
+            stuck.add((entry.table, entry.rowId));
             await _defer(entry, null, spend: true, error: e);
         }
       }
     }
     return true;
+  }
+
+  /// Whether [entry] must wait for a parent. With declared [SyncTable.references]
+  /// that is decided per row (only its own parent row being stuck holds it);
+  /// otherwise any stuck row in an ancestor table holds the whole table.
+  bool _isHeldBack(
+    SyncTable table,
+    OutboxEntry entry,
+    Set<(String, String)> stuck,
+    Set<String> blocked,
+  ) {
+    if (table.references.isNotEmpty) {
+      for (final MapEntry(key: column, value: parent)
+          in table.references.entries) {
+        final parentId = entry.payload[column];
+        if (parentId is String && stuck.contains((parent, parentId)))
+          return true;
+      }
+      return false;
+    }
+    return _hasBlockedAncestor(table, blocked);
   }
 
   bool _hasBlockedAncestor(SyncTable table, Set<String> blocked) {
@@ -421,6 +477,7 @@ final class SyncEngine {
   Future<void> _pushOne(SyncTable table, OutboxEntry entry) async {
     switch (entry.op) {
       case OutboxOp.upsert when entry.isCreate:
+        if (!entry.sent) await _markSent(entry);
         try {
           final row = await _remote.create(table.name, entry.payload);
           await _settle(entry, row);
@@ -464,11 +521,21 @@ final class SyncEngine {
           }
           await _reconcile(table, entry, server, changed: entry.changedFields);
         }
-      case OutboxOp.delete:
-        if (entry.isCreate) {
-          await _local.removeEntry(entry.id);
+      case OutboxOp.delete when entry.isCreate:
+        // A delete of a row whose create was SENT but never confirmed: the
+        // server may hold it. Tombstone whatever is there.
+        final server = entry.sent
+            ? await _remote.read(table.name, entry.rowId)
+            : null;
+        if (server == null || server.isDeleted) {
+          await _gone(entry);
           return;
         }
+        final row = await _remote.update(table.name, entry.rowId, {
+          SyncFields.deletedAt: _now().millisecondsSinceEpoch,
+        }, ifRev: server.rev);
+        await _settle(entry, row);
+      case OutboxOp.delete:
         try {
           final row = await _remote.update(table.name, entry.rowId, {
             SyncFields.deletedAt: _now().millisecondsSinceEpoch,
@@ -656,6 +723,12 @@ final class SyncEngine {
         }
       });
 
+  /// Records that a create is about to be sent (see [OutboxEntry.sent]).
+  Future<void> _markSent(OutboxEntry entry) => _local.transaction(() async {
+    final latest = await _local.entry(entry.id);
+    if (latest != null) await _local.putEntry(latest.copyWith(sent: true));
+  });
+
   Future<void> _defer(
     OutboxEntry entry,
     Duration? wait, {
@@ -668,32 +741,45 @@ final class SyncEngine {
       return;
     }
     final delay = wait ?? _retry.delayAfter(attempts);
-    final latest = await _local.entry(entry.id);
-    if (latest == null || latest.version != entry.version) return;
-    await _local.putEntry(
-      entry.copyWith(
-        attempts: attempts,
-        lastError: error?.toString(),
-        notBefore: _now().add(delay).millisecondsSinceEpoch,
-      ),
-    );
+    await _local.transaction(() async {
+      final latest = await _local.entry(entry.id);
+      if (latest == null || latest.version != entry.version) return;
+      await _local.putEntry(
+        latest.copyWith(
+          attempts: attempts,
+          lastError: error?.toString(),
+          notBefore: _now().add(delay).millisecondsSinceEpoch,
+        ),
+      );
+    });
   }
 
-  Future<void> _deadLetter(OutboxEntry entry, SyncRemoteException? e) async {
-    final latest = await _local.entry(entry.id);
-    if (latest == null || latest.version != entry.version) return;
-    await _local.putEntry(
-      entry.copyWith(state: OutboxState.dead, lastError: e?.toString()),
-    );
-  }
+  Future<void> _deadLetter(OutboxEntry entry, SyncRemoteException? e) =>
+      _local.transaction(() async {
+        final latest = await _local.entry(entry.id);
+        if (latest == null || latest.version != entry.version) return;
+        await _local.putEntry(
+          latest.copyWith(
+            state: OutboxState.dead,
+            attempts: entry.attempts,
+            lastError: e?.toString(),
+          ),
+        );
+      });
 
   /// Puts a dead letter back in the queue.
   Future<void> retryDeadLetter(int entryId) async {
-    final e = await _local.entry(entryId);
-    if (e == null) return;
-    await _local.putEntry(
-      e.copyWith(state: OutboxState.pending, attempts: 0, clearNotBefore: true),
-    );
+    await _local.transaction(() async {
+      final e = await _local.entry(entryId);
+      if (e == null || e.state != OutboxState.dead) return;
+      await _local.putEntry(
+        e.copyWith(
+          state: OutboxState.pending,
+          attempts: 0,
+          clearNotBefore: true,
+        ),
+      );
+    });
     await _publishCounts();
     unawaited(requestSync(force: true));
   }
