@@ -85,6 +85,37 @@ Until `zonai_sync_schema` ships, declare these columns yourself:
 | 429 | waits for `retryAfter` |
 | 5xx | backs off exponentially, dead-letters after `RetryPolicy.maxAttempts` |
 
+### Parents and children
+
+A child is never sent while its parent is still waiting to reach the server
+(backing off, or itself held). How precisely depends on whether the child's
+table declares `references`:
+
+- **With `references`** (`{'course_id': 'courses'}`), holding is per row: only
+  the children of the stuck parent row wait, including when that parent is
+  dead-lettered, and the hold carries on to grandchildren.
+- **Without `references`**, holding is per table: any waiting row in an
+  ancestor table holds the whole child table. A dead-lettered parent does
+  **not** hold the child table, which would freeze it indefinitely. On zonai,
+  a child of that dead parent gets a 422 (`ForeignKeyConstraintException`) and
+  becomes its own dead letter, so once you fix the parent the child needs a
+  manual `retryDeadLetter` too. Declare `references` to avoid this.
+
+### Data from before sign-in
+
+The first account to sign in on a device that has never had one keeps the
+existing local rows and uploads them (`claimUnownedData`, on by default).
+Rows whose owner column names someone else are never uploaded and never
+deleted: they stay on the device, counted in `status.unclaimed`. That count
+comes from the store, so it survives restarts.
+
+Pre-account guest rows (an anonymous session, say) are re-owned only when
+their owner is in `guestIds(account)`, the explicit set of ids you know belong
+to the account now signing in. It is a set rather than a predicate on purpose:
+a store can hold a real user's rows (a migrated database, a restored backup),
+and a blanket predicate would upload them under whoever signed in next. If you
+learn a guest id later, call `claimGuestRows()`.
+
 ## Tests
 
 ```bash

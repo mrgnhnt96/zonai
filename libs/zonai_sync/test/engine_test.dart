@@ -992,10 +992,234 @@ void main() {
         tables: const [SyncTable('notes')],
         account: () => 'u1',
         syncOnWrite: false,
-        reownGuest: (owner) => owner.startsWith('guest-'),
+        guestIds: (_) => {'guest-7'},
       );
       await engine.sync();
       expect(server.tables['notes']!['guest-note']!['owner_id'], 'u1');
+    });
+  });
+
+  group('fourth review (zonai-owner, 2026-09-29)', () {
+    test(
+      'R2c a switch during the last owner read never lets the request out',
+      () async {
+        // The live account was checked BEFORE the store read and never again,
+        // so a switch landing during that read let u1's create out as u2.
+        // Flip at every read position the pass makes, so the test does not
+        // depend on how many reads precede the request.
+        var positionsTried = 0;
+        for (var flipAt = 1; flipAt <= 6; flipAt++) {
+          final server = FakeZonai();
+          final store = _SlowAccountStore();
+          String? account = 'u1';
+          final engine = SyncEngine(
+            remote: server,
+            local: store,
+            tables: const [SyncTable('notes', scopeColumn: null)],
+            account: () => account,
+            syncOnWrite: false,
+          );
+          await engine.write('notes', {'id': 'n1'});
+          var reads = 0;
+          var beforeRequest = false;
+          store.onAccountRead = () async {
+            if (++reads == flipAt) {
+              // Only a switch BEFORE the create left is a switch it must see.
+              beforeRequest = !server.calls.contains('create notes/n1');
+              account = 'u2';
+              server.user = 'u2';
+            }
+          };
+          await engine.sync();
+          if (!beforeRequest) continue;
+          positionsTried++;
+          expect(
+            server.calls,
+            isNot(contains('create notes/n1')),
+            reason: 'switch at owner read #$flipAt',
+          );
+        }
+        // Denominator: the adopt read, the push check, and _net's check.
+        expect(positionsTried, greaterThanOrEqualTo(3));
+      },
+    );
+
+    test(
+      "a claim never re-owns a real user's rows, only listed guests",
+      () async {
+        // A never-used store holding u1's rows (a migrated or restored DB).
+        final store = MemorySyncStore();
+        await store.writeRow('notes', {'id': 'u1-secret', 'owner_id': 'u1'});
+        await store.writeRow('notes', {'id': 'guest', 'owner_id': 'guest-7'});
+        final claimedFor = <String>[];
+        final engine = SyncEngine(
+          remote: server,
+          local: store,
+          tables: const [SyncTable('notes')],
+          account: () => 'u2',
+          syncOnWrite: false,
+          guestIds: (account) {
+            claimedFor.add(account);
+            return {'guest-7'};
+          },
+        );
+        server.user = 'u2';
+        await engine.sync();
+        expect(claimedFor, ['u2'], reason: 'the claiming account is passed in');
+        expect(server.tables['notes']!.keys, ['guest']);
+        expect(server.tables['notes']!['guest']!['owner_id'], 'u2');
+        expect(store.rows('notes')['u1-secret']!.data['owner_id'], 'u1');
+        expect(engine.currentStatus.unclaimed, 1);
+      },
+    );
+
+    test('guest rows can be claimed after the first sign-in too', () async {
+      final store = MemorySyncStore();
+      await store.writeRow('notes', {'id': 'guest', 'owner_id': 'guest-7'});
+      var guests = <String>{};
+      final engine = SyncEngine(
+        remote: server,
+        local: store,
+        tables: const [SyncTable('notes')],
+        account: () => 'u1',
+        syncOnWrite: false,
+        guestIds: (_) => guests,
+      );
+      await engine.sync();
+      expect(engine.currentStatus.unclaimed, 1);
+
+      guests = {'guest-7'}; // the app learns the guest id later
+      expect(await engine.claimGuestRows(), 1);
+      await engine.sync();
+      expect(server.tables['notes']!['guest']!['owner_id'], 'u1');
+      expect(engine.currentStatus.unclaimed, 0);
+    });
+
+    test(
+      'a held row holds a child table that declares no references',
+      () async {
+        final phone = Device(
+          server,
+          tables: const [
+            SyncTable('courses'),
+            SyncTable(
+              'students',
+              parents: ['courses'],
+              references: {'course_id': 'courses'},
+            ),
+            SyncTable('grades', parents: ['students']),
+          ],
+        );
+        await phone.write({'id': 'c1'}, 'courses');
+        server.failures.add(const SyncRemoteException(FailureKind.forbidden));
+        await phone.engine.sync(); // c1 dead
+        await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
+        await phone.write({'id': 'g1', 'student_id': 's1'}, 'grades');
+        await phone.engine.sync();
+        expect(server.calls, isNot(contains('create students/s1')));
+        expect(server.calls, isNot(contains('create grades/g1')));
+        expect(phone.engine.currentStatus.deadLetters, hasLength(1));
+      },
+    );
+
+    group('unclaimed stays true', () {
+      Future<MemorySyncStore> claimedStore(FakeZonai server) async {
+        final store = MemorySyncStore();
+        await store.writeRow('notes', {'id': 'other', 'owner_id': 'guest-7'});
+        await SyncEngine(
+          remote: server,
+          local: store,
+          tables: const [SyncTable('notes')],
+          account: () => 'u1',
+          syncOnWrite: false,
+        ).sync();
+        return store;
+      }
+
+      test('after a restart', () async {
+        final store = await claimedStore(server);
+        final relaunched = SyncEngine(
+          remote: server,
+          local: store,
+          tables: const [SyncTable('notes')],
+          account: () => 'u1',
+          syncOnWrite: false,
+        );
+        await relaunched.sync();
+        expect(relaunched.currentStatus.unclaimed, 1);
+      });
+
+      test('after an account switch clears the rows', () async {
+        final store = await claimedStore(server);
+        var account = 'u1';
+        final engine = SyncEngine(
+          remote: server,
+          local: store,
+          tables: const [SyncTable('notes')],
+          account: () => account,
+          syncOnWrite: false,
+        );
+        await engine.sync();
+        expect(engine.currentStatus.unclaimed, 1, reason: 'positive control');
+        account = 'u2';
+        server.user = 'u2';
+        await engine.sync();
+        expect(store.rows('notes'), isEmpty);
+        expect(engine.currentStatus.unclaimed, 0);
+      });
+
+      test('when the claim transaction fails', () async {
+        final store = _FailingSetAccountStore();
+        await store.writeRow('notes', {'id': 'mine'});
+        await store.writeRow('notes', {'id': 'other', 'owner_id': 'guest-7'});
+        // Fails the claim's LAST step, after every row was queued and counted.
+        store.failSetAccount = true;
+        final engine = SyncEngine(
+          remote: server,
+          local: store,
+          tables: const [SyncTable('notes')],
+          account: () => 'u1',
+          syncOnWrite: false,
+        );
+        await engine.sync();
+        expect(await store.account(), isNull, reason: 'the claim rolled back');
+        expect(engine.currentStatus.unclaimed, 0);
+      });
+    });
+
+    test('an account-change abort does not leave the status pushing', () async {
+      final phone = Device(
+        server,
+        tables: const [SyncTable('notes', scopeColumn: null)],
+      );
+      await phone.write({'id': 'n1'});
+      await phone.write({'id': 'n2'});
+      server.whileInFlight = (call) async {
+        if (call == 'create notes/n1') {
+          server.whileInFlight = null;
+          phone.account = 'u2';
+          server.user = 'u2';
+        }
+      };
+      await phone.engine.sync();
+      expect(server.calls, isNot(contains('create notes/n2')));
+      expect(phone.engine.currentStatus.phase, isNot(SyncPhase.pushing));
+      expect(phone.engine.currentStatus.phase, isNot(SyncPhase.pulling));
+    });
+
+    test('discardDeadLetter checks the live account before reading', () async {
+      final phone = Device(server);
+      await phone.write({'id': 'n1'});
+      server.failures.add(const SyncRemoteException(FailureKind.invalid));
+      await phone.engine.sync();
+      final dead = phone.engine.currentStatus.deadLetters.single;
+      phone.account = 'u2'; // the app switched; the store is still u1's
+      server
+        ..user = 'u2'
+        ..calls.clear();
+      await phone.engine.discardDeadLetter(dead.id);
+      expect(server.calls, isEmpty);
+      expect(await phone.store.entries(), hasLength(1));
     });
   });
 
@@ -1100,5 +1324,17 @@ final class _SlowAccountStore extends MemorySyncStore {
     final hook = onAccountRead;
     if (hook != null) await hook();
     return value;
+  }
+}
+
+/// A store whose [setAccount] fails while [failSetAccount] is set, to make a
+/// claim roll back at its last step.
+final class _FailingSetAccountStore extends MemorySyncStore {
+  bool failSetAccount = false;
+
+  @override
+  Future<void> setAccount(String? account) {
+    if (failSetAccount) throw StateError('disk full');
+    return super.setAccount(account);
   }
 }

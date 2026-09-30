@@ -48,9 +48,11 @@ final class SyncStatus {
   final DateTime? lastSyncedAt;
   final String? lastError;
 
-  /// Local rows the first sign-in did NOT upload because they name another
-  /// owner (and [SyncEngine.reownGuest] did not recognise it). They are kept
-  /// on the device, unsynced — never deleted — for the app to resolve.
+  /// Local rows that name another owner (not one of [SyncEngine.guestIds]),
+  /// so were never uploaded. They are kept on the device, unsynced — never
+  /// deleted — for the app to resolve. Counted from the store at each pass's
+  /// first sign-in or launch, so it survives restarts and clears with the
+  /// rows.
   final int unclaimed;
 
   bool get isSynced =>

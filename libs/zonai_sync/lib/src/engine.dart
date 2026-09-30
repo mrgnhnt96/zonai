@@ -36,7 +36,7 @@ final class SyncEngine {
     this.syncOnWrite = true,
     this.pullOverlap = const Duration(seconds: 2),
     this.claimUnownedData = true,
-    this.reownGuest,
+    this.guestIds,
   }) : _tables = orderTables(tables),
        _now = now ?? DateTime.now;
 
@@ -63,12 +63,22 @@ final class SyncEngine {
   /// leftover of a previous account.
   final bool claimUnownedData;
 
-  /// At a first-sign-in claim, rows whose owner column names someone else
-  /// are left alone (kept, unsynced, counted in [SyncStatus.unclaimed]) —
-  /// unless this recognises that owner as a pre-account guest id of this
-  /// same user (e.g. an anonymous session), in which case they are re-owned
-  /// and uploaded.
-  final bool Function(String owner)? reownGuest;
+  /// The pre-account guest ids (an anonymous session, say) that belong to
+  /// the account now signing in, which is passed in.
+  ///
+  /// At a claim, rows whose owner column names someone else are left alone
+  /// (kept, unsynced, counted in [SyncStatus.unclaimed]) unless their owner is
+  /// one of these ids; those are re-owned to the account and uploaded.
+  ///
+  /// It is a list of ids, not a predicate, on purpose: a store can hold a
+  /// REAL user's rows (a database migrated from a hand-built engine, a
+  /// restored backup), and a predicate like `(_) => true` would upload them
+  /// under whoever signs in next. Return only ids you know this account
+  /// created.
+  ///
+  /// It is consulted at the first sign-in's claim, and again whenever
+  /// [claimGuestRows] is called (for an app that learns a guest id later).
+  final Set<String> Function(String account)? guestIds;
 
   /// How far behind its stored cursor each pull starts re-reading.
   ///
@@ -211,9 +221,11 @@ final class SyncEngine {
     // Fast path only; the decision below re-reads the owner INSIDE the
     // transaction, since it may change between this read and that one.
     if (await _local.account() == account) return;
+    var changedHands = false;
     await _local.transaction(() async {
       final owner = await _local.account();
       if (owner == account) return;
+      changedHands = true;
       // Only a device NO account has ever used may be claimed. After a
       // sign-out the store holds [signedOutMarker], not null, so whatever is
       // left over can never be handed to the next account.
@@ -227,10 +239,16 @@ final class SyncEngine {
       }
       await _local.setAccount(account);
     });
+    // Counted once the claim or clear has COMMITTED; a rolled-back claim
+    // throws out of the transaction above and counts nothing.
+    if (changedHands) await _refreshUnclaimed(account);
   }
 
-  Future<void> _claimLocalRows(String account) async {
-    var unclaimed = 0;
+  Future<void> _claimLocalRows(
+    String account, {
+    bool onlyGuests = false,
+  }) async {
+    final guests = guestIds?.call(account) ?? const <String>{};
     for (final table in _tables.where((t) => t.pushes)) {
       for (final id in await _local.rowIds(table.name)) {
         if (await _local.pendingFor(table.name, id) != null) continue;
@@ -238,12 +256,12 @@ final class SyncEngine {
         if (existing == null) continue;
         final scope = table.scopeColumn;
         final named = scope == null ? null : existing.data[scope];
-        if (named is String &&
-            named != account &&
-            !(reownGuest?.call(named) ?? false)) {
+        final guest = named is String && guests.contains(named);
+        if (onlyGuests
+            ? !guest
+            : named is String && named != account && !guest) {
           // It names someone else: never upload it under this account, and
           // never delete it either — keep it, unsynced, for the app.
-          unclaimed++;
           continue;
         }
         // Rows made before there was an account have no owner yet.
@@ -267,7 +285,48 @@ final class SyncEngine {
         );
       }
     }
-    _status = _status.copyWith(unclaimed: unclaimed);
+  }
+
+  /// Re-owns and uploads rows whose owner is one of [guestIds] for the
+  /// signed-in account, after the first sign-in's claim has run. Returns how
+  /// many rows were claimed.
+  Future<int> claimGuestRows() async {
+    final account = _requireAccount();
+    await _adoptAccount(account);
+    final before = (await _local.entries()).length;
+    await _local.transaction(() async {
+      await _ensureStoreOwnedBy(account);
+      await _claimLocalRows(account, onlyGuests: true);
+    });
+    final claimed = (await _local.entries()).length - before;
+    await _refreshUnclaimed(account);
+    await _publishCounts();
+    if (claimed > 0 && syncOnWrite) unawaited(requestSync(force: true));
+    return claimed;
+  }
+
+  /// Whether [SyncStatus.unclaimed] reflects the store yet. It is counted
+  /// from the store, never carried in memory: a restart, an account switch
+  /// that clears the rows, or a claim that rolled back would each leave a
+  /// remembered figure wrong.
+  bool _unclaimedCounted = false;
+
+  Future<void> _refreshUnclaimed(String account) async {
+    var unclaimed = 0;
+    for (final table in _tables.where((t) => t.pushes)) {
+      final scope = table.scopeColumn;
+      if (scope == null) continue;
+      for (final id in await _local.rowIds(table.name)) {
+        final named = (await _local.readRow(table.name, id))?.data[scope];
+        if (named is String &&
+            named != account &&
+            await _local.pendingFor(table.name, id) == null) {
+          unclaimed++;
+        }
+      }
+    }
+    _unclaimedCounted = true;
+    _emit(_status.copyWith(unclaimed: unclaimed));
   }
 
   /// Stored as the account after [signOut]: "used before, owned by no one
@@ -291,6 +350,7 @@ final class SyncEngine {
       await _local.clearAll();
       await _local.setAccount(signedOutMarker);
     });
+    _unclaimedCounted = false;
     _emit(SyncStatus.initial.copyWith(phase: SyncPhase.signedOut));
   }
 
@@ -333,6 +393,12 @@ final class SyncEngine {
           await _syncOnce();
         } on _AccountChanged {
           // The account changed mid-pass; its work was abandoned on purpose.
+          // The status must not stay on the phase the pass was in.
+          _emit(
+            _status.copyWith(
+              phase: _account() == null ? SyncPhase.signedOut : SyncPhase.idle,
+            ),
+          );
         } on Object catch (e) {
           // A bug-shaped failure (a store error, a malformed row) ends this
           // pass, is reported, and must not strand callers waiting on it.
@@ -372,6 +438,7 @@ final class SyncEngine {
     }
     if (_status.phase == SyncPhase.needsAuth) return;
     await _adoptAccount(account);
+    if (!_unclaimedCounted) await _refreshUnclaimed(account);
     _passAccount = account;
 
     _emit(_status.copyWith(phase: SyncPhase.pushing, clearError: true));
@@ -432,8 +499,12 @@ final class SyncEngine {
       }
       if (_isHeldBack(table, entry, stuck, blocked)) {
         // Held rows hold THEIR children too (a grade waits for a student
-        // that waits for a dead course).
+        // that waits for a dead course). A held row is waiting, not dead, so
+        // it also holds child tables that declare no references: they cannot
+        // tell which parent row they need, and sending them now would only
+        // earn a 422 and a dead letter for a row that will be fine later.
         stuck.add((entry.table, entry.rowId));
+        blocked.add(entry.table);
         continue;
       }
       // Every entry is re-checked: an account switch mid-pass must stop the
@@ -680,11 +751,16 @@ final class SyncEngine {
   /// Throws [_AccountChanged] when the store no longer belongs to the account
   /// this pass started for. Called first inside every transaction that
   /// applies server data.
-  Future<void> _ensureOwner() async {
-    final owner = _passAccount;
+  Future<void> _ensureOwner() => _ensureOwnerIs(_passAccount);
+
+  /// The live account is checked again AFTER the store read: a switch that
+  /// lands while that read is in flight must still stop the request, and
+  /// nothing may await between this and the call it guards.
+  Future<void> _ensureOwnerIs(String? owner) async {
     if (owner == null ||
         _account() != owner ||
-        await _local.account() != owner) {
+        await _local.account() != owner ||
+        _account() != owner) {
       throw const _AccountChanged();
     }
   }
@@ -840,9 +916,16 @@ final class SyncEngine {
   /// Abandons a dead letter and restores the row to what the server has.
   Future<void> discardDeadLetter(int entryId) async {
     final e = await _local.entry(entryId);
-    if (e == null) return;
-    final owner = await _local.account();
-    final server = await _remote.read(e.table, e.rowId);
+    final owner = _account();
+    if (e == null || owner == null) return;
+    final RemoteRow? server;
+    try {
+      // Outside a pass, so it checks the owner itself, exactly as _net does.
+      await _ensureOwnerIs(owner);
+      server = await _remote.read(e.table, e.rowId);
+    } on _AccountChanged {
+      return;
+    }
     await _local.transaction(() async {
       // Anything may have happened while we read the server: a newer edit
       // (which replaced the dead letter) or a different account.
