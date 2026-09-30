@@ -21,6 +21,10 @@ final class LocalRow {
 /// local write and its outbox entry, or a pulled page and its cursor, commit
 /// together or not at all.
 abstract interface class SyncLocalStore {
+  /// Runs [body] atomically. Await everything [body] starts: work left
+  /// running unawaited inside a transaction outlives it, and still counts as
+  /// "inside" it (it inherits the zone), so it would skip the serialisation
+  /// a later transaction relies on.
   Future<T> transaction<T>(Future<T> Function() body);
 
   // ---- synced rows ----
