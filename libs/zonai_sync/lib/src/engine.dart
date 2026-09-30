@@ -431,7 +431,13 @@ final class SyncEngine {
     } finally {
       _running = null;
     }
-    await _scheduleRetry();
+    try {
+      await _scheduleRetry();
+    } on Object catch (e) {
+      // Same promise as the pass itself: a store error is reported, never
+      // thrown at a caller (or, for a timer-started pass, at no one).
+      _emit(_status.copyWith(lastError: '$e'));
+    }
   }
 
   /// Arms one timer for the next moment work can make progress without the
@@ -838,7 +844,7 @@ final class SyncEngine {
     requestTimeout,
     onTimeout: () => throw SyncRemoteException(
       FailureKind.offline,
-      message: 'no answer within ${requestTimeout.inSeconds}s',
+      message: 'no answer within ${requestTimeout.inMilliseconds}ms',
     ),
   );
 

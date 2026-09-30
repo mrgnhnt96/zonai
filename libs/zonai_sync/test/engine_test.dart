@@ -1349,6 +1349,24 @@ void main() {
       await engine.dispose();
     });
 
+    test('a store error while scheduling the retry never escapes', () async {
+      // Nothing awaits a pass started by a timer or by sync-on-write, so an
+      // error that escaped it would be an unhandled async error.
+      final store = _FailingEntriesStore();
+      final engine = SyncEngine(
+        remote: server,
+        local: store,
+        tables: const [notes],
+        account: () => 'u1',
+        syncOnWrite: false,
+      );
+      await engine.write('notes', {'id': 'n1', 'owner_id': 'u1'});
+      store.fail = true; // the app closed its database
+      await expectLater(engine.sync(), completes);
+      expect(engine.currentStatus.lastError, contains('store closed'));
+      await engine.dispose();
+    });
+
     test('dispose cancels a scheduled retry', () async {
       final engine = SyncEngine(
         remote: server,
@@ -1553,5 +1571,17 @@ final class _FailingSetAccountStore extends MemorySyncStore {
   Future<void> setAccount(String? account) {
     if (failSetAccount) throw StateError('disk full');
     return super.setAccount(account);
+  }
+}
+
+/// A store whose outbox reads fail while [fail] is set, like a database the
+/// app closed.
+final class _FailingEntriesStore extends MemorySyncStore {
+  bool fail = false;
+
+  @override
+  Future<List<OutboxEntry>> entries() {
+    if (fail) throw StateError('store closed');
+    return super.entries();
   }
 }

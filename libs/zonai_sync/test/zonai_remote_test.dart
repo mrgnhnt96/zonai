@@ -69,7 +69,9 @@ void main() {
       for (final f in Directory('lib').listSync(recursive: true))
         if (f is File &&
             f.path.endsWith('.dart') &&
-            f.readAsStringSync().contains("import 'dart:io'"))
+            RegExp(
+              r"""(import|export)\s+['"]dart:io['"]""",
+            ).hasMatch(f.readAsStringSync()))
           f.path,
     ];
     final scanned = Directory(
