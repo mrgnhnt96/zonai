@@ -373,6 +373,7 @@ final class Exceptions implements LifecycleComponent {
       // secret column's name is not a secret; its value is, and that is what
       // refusing the filter protects.
       SecretColumnFilterException() ||
+      ServerManagedColumnWriteException() ||
       CustomOperationNameCollisionException() ||
       CustomOperationNotImplementedException() => .handled(
         statusCode: 400,

@@ -195,3 +195,21 @@ final class CustomOperationRequiresWhereException extends SchemaException {
       'alone, bypassing row rules. Provide "where" whenever "updates" is '
       'non-empty.';
 }
+
+/// A create or update tried to set a column the server maintains itself -- a
+/// `$.revision`. Refused rather than ignored: a client that believes it wrote
+/// the value is the one that most needs to be told it did not.
+final class ServerManagedColumnWriteException extends SchemaException {
+  const ServerManagedColumnWriteException({
+    required this.table,
+    required this.columnName,
+  });
+
+  final String table;
+  final String columnName;
+
+  @override
+  String toString() =>
+      'Column "$columnName" on "$table" is maintained by the server and '
+      'cannot be written by a create or update';
+}

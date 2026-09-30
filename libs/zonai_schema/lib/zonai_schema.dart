@@ -36,6 +36,7 @@ export 'package:cron/cron.dart' show Schedule;
 export 'payloads.dart';
 export 'src/column_types/create_primary_key.dart';
 export 'src/column_types/created_at_column.dart';
+export 'src/column_types/revision_column.dart';
 export 'src/column_types/email_column.dart';
 export 'src/column_types/enum_column.dart';
 export 'src/column_types/enum_list_column.dart';

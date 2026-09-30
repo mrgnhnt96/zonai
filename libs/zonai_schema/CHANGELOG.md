@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**`$.revision(...)`: a revision counter the server maintains.** `0` on create
+and one higher on every update, so a client can update only the version it
+read (with `UpdateBody.expect`, where available). `INTEGER NOT NULL DEFAULT
+0`, so adding it to an existing table migrates the rows to `0`. A create or
+update that sets it is refused with a `400` (`ServerManagedColumnWriteException`)
+rather than silently ignored. Shown read-only in the dashboard and treated as
+server-set by the generated client. Additive.
+
 **Rules and hooks see a row's stored `created_at` / `updated_at`** (#40). Rows
 handed to `canView`, `canUpdate(before, after)`, `canDelete`, custom-operation
 rules, and the update, delete, after-create and auth hooks were rebuilt with the

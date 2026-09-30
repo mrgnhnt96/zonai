@@ -65,9 +65,12 @@ Each column maps a Dart type to a SQLite type:
 | `$.dateTime(...)` | `DateTime` | INTEGER NOT NULL (Unix ms) |
 | `$.id(...)` | Custom `Id` subclass | TEXT NOT NULL |
 | `$.createdAt(...)` | `DateTime` | INTEGER NOT NULL (auto-set) |
-| `$.updatedAt(...)` | `DateTime?` | INTEGER (auto-updated) |
+| `$.updatedAt(...)` | `DateTime` or `DateTime?` | INTEGER, NOT NULL when non-nullable (auto-updated) |
+| `$.revision(...)` | `int` | INTEGER NOT NULL DEFAULT 0 (auto-incremented) |
 
-A column is nullable when the accessor you hand the builder returns a nullable type — there is no `isNullable` argument. `$.text('bio', (s) => s.bio)` is a `TextColumn` when `bio` is a `String` and a `ColumnType<String?>` when it is a `String?`. `$.updatedAt(...)` is always nullable, since a freshly inserted row has not been updated yet.
+A column is nullable when the accessor you hand the builder returns a nullable type — there is no `isNullable` argument. `$.text('bio', (s) => s.bio)` is a `TextColumn` when `bio` is a `String` and a `ColumnType<String?>` when it is a `String?`.
+
+`$.updatedAt(...)` follows the same rule. A nullable one is `NULL` until the row is first updated. A non-nullable one is stamped on insert as well, so every row carries a value from the moment it exists. That's the one to use when something pages or syncs by `updated_at`, because a `NULL` never compares greater than a cursor.
 
 ## Server-Generated Columns
 
@@ -82,6 +85,31 @@ apiKey = $.serverGenerated('api_key', (s) => s.apiKey),
 It is a `TEXT` column that stays non-nullable, but when a create payload omits it, Zonai fills in a blank placeholder. That matters because rules run **before** operations, against a row built from the raw request: with a plain non-nullable `$.text` column the client never sends, building that row fails and the request errors before your `insert` override runs.
 
 Unlike `$.password`, the value is returned in responses, so use it for values callers may see once set — not secrets. The admin dashboard shows it read-only.
+
+## Revisions
+
+`$.revision(...)` is a counter the server maintains: `0` when the row is created, and one higher on every update, whatever the update changed.
+
+```dart no-analyze
+rev = $.revision('rev', (s) => s.rev),
+```
+
+`no-analyze`: a single initializer, shown out of its table class.
+
+Use it to update a row only if nobody else changed it since you read it:
+
+```dart no-analyze
+UpdateOneBody(
+  table: 'posts',
+  where: Eq('id', id),
+  updates: [Update.column('title', UpdateValue.literal('New'))],
+  expect: Eq('rev', 3), // the revision you read
+)
+```
+
+`no-analyze`: shows the body alone; see [the Dart client](/dart-client/database) for the call around it.
+
+A create or update that sets the revision itself is **refused with a `400`**, not quietly ignored. A client that believed it wrote the value is exactly the one that needs to be told it didn't. The column is `INTEGER NOT NULL DEFAULT 0`, so adding it to a table that already has rows migrates them to revision `0`. The admin dashboard shows it read-only.
 
 ## Indexes
 
