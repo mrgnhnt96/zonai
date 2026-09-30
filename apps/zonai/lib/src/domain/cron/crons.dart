@@ -15,6 +15,7 @@ import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
 import '../message_contract_stamp.dart';
 import 'cron_generator.dart';
+import '../../utils/compile_coalescer.dart';
 
 final class CronsCompiler {
   CronsCompiler();
@@ -25,6 +26,12 @@ final class CronsCompiler {
 
   StreamSubscription<WatchEvent>? __subscription;
 
+  /// One compile per burst of events, never two at once: see
+  /// [CompileCoalescer]. Created by [watch] and cancelled by [stop].
+  CompileCoalescer? __recompile;
+  CompileCoalescer get _recompile =>
+      __recompile ??= CompileCoalescer(compile, label: 'crons');
+
   void watch() {
     if (args.release) return;
 
@@ -33,14 +40,15 @@ final class CronsCompiler {
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Crons changed: ${event.path}');
-      logger.info('Detected changes in crons, recompiling...');
-      compile();
+      _recompile.trigger();
     });
 
     cleanUp.add(stop);
   }
 
   void stop() {
+    __recompile?.cancel();
+    __recompile = null;
     __subscription?.cancel();
     __subscription = null;
   }

@@ -15,6 +15,7 @@ import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
 import '../message_contract_stamp.dart';
 import 'config_generator.dart';
+import '../../utils/compile_coalescer.dart';
 
 class Config {
   Config();
@@ -25,6 +26,12 @@ class Config {
 
   StreamSubscription<WatchEvent>? __subscription;
 
+  /// One compile per burst of events, never two at once: see
+  /// [CompileCoalescer]. Created by [watch] and cancelled by [stop].
+  CompileCoalescer? __recompile;
+  CompileCoalescer get _recompile =>
+      __recompile ??= CompileCoalescer(compile, label: 'config');
+
   void watch() {
     if (args.release) return;
     if (__subscription != null) return;
@@ -32,14 +39,15 @@ class Config {
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Config changed: ${event.path}');
-      logger.info('Detected changes in config, recompiling...');
-      compile();
+      _recompile.trigger();
     });
 
     cleanUp.add(stop);
   }
 
   void stop() {
+    __recompile?.cancel();
+    __recompile = null;
     __subscription?.cancel();
     __subscription = null;
   }

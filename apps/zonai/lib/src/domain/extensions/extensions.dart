@@ -15,6 +15,7 @@ import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
 import '../message_contract_stamp.dart';
 import 'extension_generator.dart';
+import '../../utils/compile_coalescer.dart';
 
 /// Utilities to handle extensions to the database
 class Extensions {
@@ -26,6 +27,12 @@ class Extensions {
 
   StreamSubscription<WatchEvent>? __subscription;
 
+  /// One compile per burst of events, never two at once: see
+  /// [CompileCoalescer]. Created by [watch] and cancelled by [stop].
+  CompileCoalescer? __recompile;
+  CompileCoalescer get _recompile =>
+      __recompile ??= CompileCoalescer(compile, label: 'extensions');
+
   void watch() {
     if (args.release) return;
     if (__subscription != null) return;
@@ -33,14 +40,15 @@ class Extensions {
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Extensions changed: ${event.path}');
-      logger.info('Detected changes in extensions, recompiling...');
-      compile();
+      _recompile.trigger();
     });
 
     cleanUp.add(stop);
   }
 
   void stop() {
+    __recompile?.cancel();
+    __recompile = null;
     __subscription?.cancel();
     __subscription = null;
   }
