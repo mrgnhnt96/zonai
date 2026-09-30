@@ -8,6 +8,21 @@ abstract interface class AuthDataSource {
     String? authorization,
   });
   Future<Map<String, Object?>?> refreshToken({required String authorization});
+  Future<Map<String, Object?>> signInAnonymously({
+    required AnonymousAuthBody body,
+    String? authorization,
+  });
+  Future<Map<String, Object?>> resumeAnonymous({
+    required ResumeAnonymousAuthBody body,
+  });
+  Future<void> requestUpgrade({
+    required UpgradeAuthBody body,
+    required String authorization,
+  });
+  Future<Map<String, Object?>> confirmUpgrade({
+    required ConfirmUpgradeAuthBody body,
+    required String authorization,
+  });
   Future<void> sendResetPassword({
     required ResetPasswordAuthBody body,
     String? authorization,

@@ -535,7 +535,10 @@ extension _AuthUtilsX on ZonaiDb {
       throw const JwtRecordNotFoundException();
     }
 
-    return await _withServerDerivedAdmin(jwt);
+    return await _withServerDerivedAdmin(
+      jwt,
+      isAnonymous: jwtRecord.first.anonymous,
+    );
   }
 
   /// Replaces the token's `admin` claim with the one the server derives, so a
@@ -555,7 +558,12 @@ extension _AuthUtilsX on ZonaiDb {
   /// means a demotion takes effect on the next request rather than at token
   /// expiry: remove `AsAdmin` and redeploy, and every outstanding token for
   /// that table stops being an admin token immediately.
-  Future<Jwt> _withServerDerivedAdmin(Jwt jwt) async {
+  /// [isAnonymous], when given, is the session record's answer and replaces
+  /// the token's for the same reason `admin` is replaced: a claim the server
+  /// did not re-derive is not believed. Only the claims-only path, which
+  /// deliberately reads no record and only decides what UI to render, omits
+  /// it.
+  Future<Jwt> _withServerDerivedAdmin(Jwt jwt, {bool? isAnonymous}) async {
     final status = await _tableAdminStatus(jwt.table);
 
     // Only an ESCALATION is worth a line in the log: a claim asserting more
@@ -589,6 +597,7 @@ extension _AuthUtilsX on ZonaiDb {
       user: jwt.user,
       claims: jwt.claims,
       admin: (isAdmin: status.isAdmin, canEdit: status.canEdit),
+      isAnonymous: isAnonymous ?? jwt.isAnonymous,
     );
   }
 

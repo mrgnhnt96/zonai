@@ -38,8 +38,14 @@ library;
 /// because the derivation admits every internal table but `_photos` and a
 /// hand-carved exception would drift, but an operator reaching for it should
 /// know it is an amnesty, not a cleanup.
+///
+/// **`_anonymous_credentials` is the one whose purge cannot be undone.** It
+/// is restrictive like `_jwt`, but a signed-out user signs back in and an
+/// anonymous account cannot: its device credential is its only way back once
+/// its session expires. Purging it strands every anonymous account for good.
 const kPurgeableTableNames = <String>{
   '_abusers',
+  '_anonymous_credentials',
   '_api_tokens',
   '_auth_challenges',
   '_cron_jobs',

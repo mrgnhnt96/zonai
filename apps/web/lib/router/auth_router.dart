@@ -191,6 +191,9 @@ class _SignInRootScreen extends StatelessComponent {
           AuthType.otp => otp_sign_in.OtpSignInScreen(),
           AuthType.magicLink => magic_link_sign_in.MagicLinkSignInScreen(),
           AuthType.oauth => const OAuthSignInScreen(),
+          // Unreachable: these are an AsAdmin table's methods, and the
+          // operations worker refuses AnonymousAuth on an AsAdmin table.
+          AuthType.anonymous => throw StateError('An admin table cannot offer anonymous sign-in'),
         };
       }
       return const _SignInLoading();

@@ -15,6 +15,17 @@ final class RateLimitPolicy {
     window: Duration(hours: 1),
   );
 
+  /// Default for `AuthTableRateLimits.anonymousSignUpPolicy`. The same
+  /// reasoning and the same numbers as [externalIdpProvisioning]: each accepted
+  /// request provisions a new row in the auth table, and an anonymous one costs
+  /// the caller nothing to ask for. An honest device creates one account and
+  /// resumes it thereafter, so even a household behind one address stays far
+  /// below this.
+  static const anonymousSignUp = RateLimitPolicy(
+    maxRequests: 30,
+    window: Duration(hours: 1),
+  );
+
   /// Default for the admin auth endpoint (`adminAuthenticatePolicy` /
   /// `adminSignInPolicy`). Much tighter than [defaultPolicy]: this endpoint
   /// guards the most privileged accounts in the system, and the only honest

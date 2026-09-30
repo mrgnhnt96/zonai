@@ -42,6 +42,13 @@ enum RateLimitOperation {
   /// override surface); use the dedicated method, not `check`.
   externalIdpProvisioning,
 
+  /// `POST /auth/anonymous` -- creating an anonymous account. Bucketed per
+  /// `(IP, table)` like `signUp`, but with its own, much tighter default
+  /// ([RateLimitPolicy.anonymousSignUp]): every accepted request inserts a row
+  /// and costs the caller nothing, not even an inbox. Override with
+  /// `AuthTableRateLimits.anonymousSignUpPolicy`.
+  anonymousSignUp,
+
   /// `GET /auth/oauth/start/:provider?table=` (design §3.1 step 1, §4 item 8).
   /// Bucketed per auth table, like every other auth operation, because the
   /// caller names the table it is starting a flow for. Override with

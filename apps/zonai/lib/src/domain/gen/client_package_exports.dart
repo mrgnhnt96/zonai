@@ -53,6 +53,7 @@ const kZonaiClientExports = <String>[
   'DeleteBody',
   'DeleteOneBody',
   'Email',
+  'EmailInUseException',
   'Emails',
   'EndsWith',
   'Eq',

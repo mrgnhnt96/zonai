@@ -56,15 +56,19 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
       .otp => schema is OtpAuth,
       .magicLink => schema is MagicLinkAuth,
       .oauth => schema is OAuth,
+      .anonymous => schema is AnonymousAuth,
     };
   }
 
+  /// [AuthType.anonymous] here is resuming an anonymous account with its
+  /// device credential (`POST /auth/anonymous/resume`).
   Future<bool> canSignIn(Jwt? jwt, AuthType authType) async {
     return switch (authType) {
       .password => schema is PasswordAuth,
       .otp => schema is OtpAuth,
       .magicLink => schema is MagicLinkAuth,
       .oauth => schema is OAuth,
+      .anonymous => schema is AnonymousAuth,
     };
   }
 
@@ -74,6 +78,7 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
       .otp => false,
       .magicLink => false,
       .oauth => false,
+      .anonymous => false,
     };
   }
 
@@ -88,6 +93,11 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
     return _rowIdMatches(row, jwtUserId);
   }
 
+  /// On an [AnonymousAuth] table the owner may not change their own email or
+  /// verification flag. Those are written by the upgrade flow alone, after
+  /// the new address is proven. A self-written address would sit unverified
+  /// on a row the writer still holds a credential for, and the address's
+  /// real owner signing in by OTP would land in it.
   Future<bool> canUpdate(Jwt? jwt, R before, R after) async {
     if (jwt?.admin.canEdit case true) {
       return true;
@@ -103,6 +113,13 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
     // An app that opens `canUpdate` at the table level for profile edits used
     // to hand both out with it. There is no self-service email change yet --
     // an admin, or an override of this method, is the way to change one.
+    //
+    // An anonymous row needs its own check first: the text comparison below
+    // reads a NULL address as "null", so an anonymous owner writing the
+    // string 'null' would pass it as "unchanged".
+    if (schema case final AnonymousAuth anonymous) {
+      if (_identityChanged(anonymous, before, after)) return false;
+    }
     return !_changesAuthOwnedColumns(before, after);
   }
 
@@ -139,6 +156,18 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
     return _rowIdMatches(row, jwtUserId);
+  }
+
+  /// Fails closed: a column that cannot be read counts as changed.
+  bool _identityChanged(AnonymousAuth table, R before, R after) {
+    try {
+      return table.email.readValueOf(before) !=
+              table.email.readValueOf(after) ||
+          table.isVerified.readValueOf(before) !=
+              table.isVerified.readValueOf(after);
+    } catch (_) {
+      return true;
+    }
   }
 
   bool _rowIdMatches(R row, UnknownId jwtUserId) {

@@ -34,6 +34,60 @@ class AuthHandler {
     return _sessionPayload(result.user, result.jwt);
   }
 
+  /// `POST /auth/anonymous`. The session, plus `anonymousCredential` --
+  /// returned this once and never again, so the client must keep it.
+  Future<Map<String, Object?>> signInAnonymously(
+    AnonymousAuthBody body, {
+    String? authorization,
+  }) async {
+    final token = switch (authorization) {
+      null => null,
+      final String header when header.trim().isEmpty => null,
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
+
+    final result = await zonaiDB.signInAnonymously(
+      body.table,
+      object: body.object,
+      jwt: token,
+    );
+
+    return {
+      ..._sessionPayload(result.user, result.jwt),
+      'anonymousCredential': result.credential,
+    };
+  }
+
+  Future<Map<String, Object?>> resumeAnonymous(
+    ResumeAnonymousAuthBody body,
+  ) async {
+    final result = await zonaiDB.resumeAnonymous(body.credential);
+    return _sessionPayload(result.user, result.jwt);
+  }
+
+  Future<void> requestUpgrade({
+    required String authorization,
+    required UpgradeAuthBody body,
+  }) async {
+    await zonaiDB.requestUpgrade(
+      jwt: _parseBearerAuthorization(authorization),
+      email: body.email,
+    );
+  }
+
+  Future<Map<String, Object?>> confirmUpgrade({
+    required String authorization,
+    required ConfirmUpgradeAuthBody body,
+  }) async {
+    final result = await zonaiDB.confirmUpgrade(
+      jwt: _parseBearerAuthorization(authorization),
+      email: body.email,
+      code: body.code,
+      password: body.password,
+    );
+    return _sessionPayload(result.user, result.jwt);
+  }
+
   Future<Map<String, Object?>?> authenticate(
     AuthBody body, {
     String? authorization,

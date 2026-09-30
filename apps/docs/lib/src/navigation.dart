@@ -233,6 +233,11 @@ const List<NavGroup> navigation = [
       ),
       NavItem('OTP Auth', '/authentication/otp-auth', summary: 'Emailed one-time passcodes.'),
       NavItem(
+        'Anonymous Auth',
+        '/authentication/anonymous-auth',
+        summary: 'Accounts before an address, upgraded in place.',
+      ),
+      NavItem(
         'Magic Link Auth',
         '/authentication/magic-link-auth',
         summary: 'Passwordless sign-in over emailed links.',

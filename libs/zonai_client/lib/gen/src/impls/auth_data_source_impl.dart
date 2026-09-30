@@ -52,6 +52,80 @@ class AuthDataSourceImpl implements AuthDataSource {
   }
 
   @override
+  Future<Map<String, Object?>> signInAnonymously({
+    required AnonymousAuthBody body,
+    String? authorization,
+  }) async {
+    final response = await _client.request(
+      method: 'POST',
+      path: '/auth/anonymous',
+      headers: {'authorization': authorization},
+      body: body,
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return data.map((key, value) => MapEntry((key as String), value));
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
+  Future<Map<String, Object?>> resumeAnonymous({
+    required ResumeAnonymousAuthBody body,
+  }) async {
+    final response = await _client.request(
+      method: 'POST',
+      path: '/auth/anonymous/resume',
+      body: body,
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return data.map((key, value) => MapEntry((key as String), value));
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
+  Future<void> requestUpgrade({
+    required UpgradeAuthBody body,
+    required String authorization,
+  }) async {
+    await _client.request(
+      method: 'POST',
+      path: '/auth/upgrade',
+      headers: {'authorization': authorization},
+      body: body,
+    );
+  }
+
+  @override
+  Future<Map<String, Object?>> confirmUpgrade({
+    required ConfirmUpgradeAuthBody body,
+    required String authorization,
+  }) async {
+    final response = await _client.request(
+      method: 'POST',
+      path: '/auth/upgrade/confirm',
+      headers: {'authorization': authorization},
+      body: body,
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return data.map((key, value) => MapEntry((key as String), value));
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
   Future<void> sendResetPassword({
     required ResetPasswordAuthBody body,
     String? authorization,

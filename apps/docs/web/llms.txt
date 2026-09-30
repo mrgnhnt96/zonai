@@ -90,6 +90,7 @@ Full walkthrough: https://docs.zonai.dev/getting-started/quick-start
 - [Authentication Overview](https://docs.zonai.dev/authentication/overview): JWT model, multi-table auth, response shape.
 - [Password Auth](https://docs.zonai.dev/authentication/password-auth): Email/password + Argon2id.
 - [OTP Auth](https://docs.zonai.dev/authentication/otp-auth): Email one-time codes.
+- [Anonymous Auth](https://docs.zonai.dev/authentication/anonymous-auth): `AnonymousAuth`, accounts with no address yet, a device credential to resume them, and upgrade in place with an emailed code.
 - [Magic Link Auth](https://docs.zonai.dev/authentication/magic-link-auth): Passwordless emailed links.
 - [Session Management](https://docs.zonai.dev/authentication/session-management): Refresh, logout, JWT lifetime.
 - [Admin Accounts](https://docs.zonai.dev/authentication/admin-accounts): `zonai db admin`, `AsAdmin`, elevated claims.

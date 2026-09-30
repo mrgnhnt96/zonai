@@ -14,6 +14,10 @@ final class CronJwt implements Jwt {
   @override
   DateTime get expiresAt => .now().add(Duration(days: 365));
 
+  /// A worker sentinel, never an account.
+  @override
+  bool get isAnonymous => false;
+
   @override
   bool get isExpired => false;
 

@@ -39,6 +39,10 @@ final class ProvisioningJwt implements Jwt {
   @override
   DateTime get expiresAt => DateTime.now().add(const Duration(minutes: 1));
 
+  /// A worker sentinel, never an account.
+  @override
+  bool get isAnonymous => false;
+
   @override
   bool get isExpired => false;
 

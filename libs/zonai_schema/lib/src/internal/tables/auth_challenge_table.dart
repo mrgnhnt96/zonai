@@ -44,6 +44,26 @@ class AuthChallenge {
        canConsume = true,
        consumedAt = null;
 
+  /// A code proving a new address for an existing account -- today, the
+  /// upgrade of an anonymous account (`POST /auth/upgrade`).
+  ///
+  /// The first challenge bound to a [userId]. The code is only accepted from a
+  /// session of that same user, so a code that leaks is useless without the
+  /// session that asked for it. `target` is the new address, lowercased.
+  AuthChallenge.emailChange({
+    required this.id,
+    required Id this.userId,
+    required this.expiresAt,
+    required this.secretHash,
+    required this.target,
+    required this.table,
+  }) : metadata = null,
+       type = .emailChange,
+       allowedAttempts = 3,
+       createdAt = DateTime.now(),
+       canConsume = true,
+       consumedAt = null;
+
   AuthChallenge.magicLink({
     required this.id,
     required this.expiresAt,

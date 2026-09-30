@@ -18,6 +18,7 @@ abstract base class AuthTable<T> extends Schema<T> implements Auth {
       if (supportsOtp) .otp,
       if (supportsMagicLink) .magicLink,
       if (supportsOAuth) .oauth,
+      if (supportsAnonymous) .anonymous,
     ];
   }
 
@@ -25,6 +26,7 @@ abstract base class AuthTable<T> extends Schema<T> implements Auth {
   bool get supportsOtp => false;
   bool get supportsMagicLink => false;
   bool get supportsOAuth => false;
+  bool get supportsAnonymous => false;
 }
 
 mixin AsAdmin on Auth {

@@ -74,6 +74,83 @@ class AuthController {
     return result;
   }
 
+  // Anonymous accounts. Creation is bucketed per (IP, table) on its own,
+  // tight policy -- each accepted request inserts a row and costs the caller
+  // nothing. See apps/docs/content/authentication/anonymous-auth.md.
+  @swagger.ApiResponse(
+    200,
+    description:
+        'An anonymous account was created. The body carries the session '
+        '(`accessToken`, `user`) and `anonymousCredential`, returned this '
+        'once: it is the only way back into the account after the session '
+        'expires (`POST /auth/anonymous/resume`).',
+  )
+  @BodyRateLimit<AnonymousAuthBody>(RateLimitOperation.anonymousSignUp)
+  @Post('anonymous')
+  Future<Map<String, Object?>> signInAnonymously({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Body() required AnonymousAuthBody body,
+    required ResponseHeaders headers,
+  }) async {
+    final result = await authHandler.signInAnonymously(
+      body,
+      authorization: authorization,
+    );
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
+  }
+
+  @BodyRateLimit<ResumeAnonymousAuthBody>(RateLimitOperation.refreshToken)
+  @Post('anonymous/resume')
+  Future<Map<String, Object?>> resumeAnonymous({
+    @Body() required ResumeAnonymousAuthBody body,
+    required ResponseHeaders headers,
+  }) async {
+    final result = await authHandler.resumeAnonymous(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
+  }
+
+  // Answers the same whether or not the address already has an account:
+  // only its owner learns that, at confirm, after proving the mailbox.
+  @AuthHeaderRateLimit(RateLimitOperation.sendOtp)
+  @Post('upgrade')
+  Future<void> requestUpgrade({
+    @Header(HttpHeaders.authorizationHeader) required String authorization,
+    @Body() required UpgradeAuthBody body,
+  }) async {
+    await authHandler.requestUpgrade(authorization: authorization, body: body);
+  }
+
+  @swagger.ApiResponse(
+    409,
+    description:
+        'The code was right, but the address already belongs to another '
+        'account in this table. Body is the structured envelope '
+        '`{"error": {"code": "email_in_use", "message": ...}}`. The anonymous '
+        'account is unchanged; sign in to the existing account instead.',
+  )
+  @AuthHeaderRateLimit(RateLimitOperation.confirm)
+  @Post('upgrade/confirm')
+  Future<Map<String, Object?>> confirmUpgrade({
+    @Header(HttpHeaders.authorizationHeader) required String authorization,
+    @Body() required ConfirmUpgradeAuthBody body,
+    required ResponseHeaders headers,
+  }) async {
+    final result = await authHandler.confirmUpgrade(
+      authorization: authorization,
+      body: body,
+    );
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
+  }
+
   @BodyRateLimit<ResetPasswordAuthBody>(RateLimitOperation.sendResetPassword)
   @Post('reset-password')
   Future<void> sendResetPassword({

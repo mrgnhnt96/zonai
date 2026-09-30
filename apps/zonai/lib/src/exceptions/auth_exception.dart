@@ -141,6 +141,31 @@ final class PasswordResetRequiredException extends AuthException {
   String toString() => 'A new password is required before signing in';
 }
 
+/// The upgrade of an anonymous account named an address another account in
+/// the same table already holds.
+///
+/// Only ever raised at `POST /auth/upgrade/confirm`, after the caller has
+/// proven the mailbox -- so it tells the address's owner, and nobody else,
+/// that the address is taken. The request step answers the same either way.
+/// The anonymous account is left exactly as it was; zonai never merges two
+/// accounts on anyone's behalf.
+final class EmailInUseException extends AuthException {
+  const EmailInUseException();
+
+  @override
+  String toString() =>
+      'That address already belongs to an account. Sign in to it instead';
+}
+
+/// A non-anonymous session tried to upgrade. Only an anonymous account has
+/// nothing to lose by gaining an address.
+final class NotAnonymousSessionException extends AuthException {
+  const NotAnonymousSessionException();
+
+  @override
+  String toString() => 'Only an anonymous session can be upgraded';
+}
+
 final class PasswordReuseException extends AuthException {
   const PasswordReuseException();
 

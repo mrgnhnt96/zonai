@@ -30,6 +30,7 @@ import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
+import 'package:zonai_schema/src/internal/tables/anonymous_credential_table.dart';
 import 'package:zonai_schema/src/internal/tables/api_token_table.dart';
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart';
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
@@ -92,6 +93,7 @@ part 'parts/admin/invite_admin.dart';
 part 'parts/admin/list_admins.dart';
 part 'parts/admin/remove_admin.dart';
 part 'parts/admin/reset_admin_password.dart';
+part 'parts/auth/anonymous.dart';
 part 'parts/auth/auth.dart';
 part 'parts/auth/challenge.dart';
 part 'parts/auth/external_idp.dart';
@@ -295,6 +297,11 @@ class ZonaiDb {
   /// The write gate, reachable from a test so it can be filled without a
   /// database: proving that a refused write never reached the hasher needs
   /// every slot held, and there is deliberately no other way to hold one.
+  /// How many table-rule verdicts are cached, so a test can see expired ones
+  /// leave.
+  @visibleForTesting
+  int get debugTableAccessCacheSize => _tableAccessCache.length;
+
   @visibleForTesting
   WriteAdmission get writeAdmission => _writeAdmission;
 
@@ -425,6 +432,59 @@ class ZonaiDb {
 
   Future<_AuthResult?> refreshToken(String jwt) async {
     return await _run(() => _refreshToken(jwt));
+  }
+
+  /// Creates an anonymous account in [table] (which must mix in
+  /// `AnonymousAuth`). The returned `credential` is shown once: it is the
+  /// only way back into the account after the session expires.
+  Future<({Map<String, Object?> user, String jwt, String credential})>
+  signInAnonymously(
+    String table, {
+    Map<String, Object?>? object,
+    String? jwt,
+  }) async {
+    return await _runWrite(
+      () => _signInAnonymously(table, object: object, jwt: jwt),
+    );
+  }
+
+  /// Trades an anonymous account's device credential for a fresh session.
+  /// On the single-writer queue, like [confirmUpgrade]'s write: a resume
+  /// must not read an account as still anonymous while an upgrade of it
+  /// commits, or it would mint a session the upgrade meant to retire.
+  Future<_AuthResult> resumeAnonymous(String credential) async {
+    return await _runWrite(() => _resumeAnonymous(credential));
+  }
+
+  /// Sends a code to [email] for the anonymous session [jwt] to adopt.
+  Future<void> requestUpgrade({
+    required String? jwt,
+    required String email,
+  }) async {
+    return await _run(() => _requestUpgrade(jwt: jwt, email: email));
+  }
+
+  /// Proves [code] and writes [email] onto the anonymous account behind
+  /// [jwt], keeping its id. Only the "is this address taken" check and the
+  /// write hold the single-writer queue; the code check, the app's hook and
+  /// password hashing run before it, so a burst of bad confirms cannot stall
+  /// every other write.
+  Future<_AuthResult> confirmUpgrade({
+    required String? jwt,
+    required String email,
+    required String code,
+    String? password,
+  }) async {
+    final upgrade = await _run(
+      () => _prepareUpgrade(
+        jwt: jwt,
+        email: email,
+        code: code,
+        password: password,
+      ),
+    );
+    await _runWrite(() => _commitUpgrade(upgrade));
+    return await _run(() => _upgradedSession(upgrade));
   }
 
   Future<void> sendResetPassword(

@@ -141,6 +141,10 @@ class DbRateLimits {
         null => defaults.auth.externalIdpProvisioningPolicy(),
         final a => a.externalIdpProvisioningPolicy(),
       },
+      .anonymousSignUp => switch (bucket?.auth) {
+        null => defaults.auth.anonymousSignUpPolicy(),
+        final a => a.anonymousSignUpPolicy(),
+      },
       .oauthStart => switch (bucket?.auth) {
         null => defaults.auth.oauthStartPolicy(),
         final a => a.oauthStartPolicy(),
@@ -225,6 +229,8 @@ final class _DefaultAuthTableRateLimits {
 
   Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
       .externalIdpProvisioning;
+
+  Future<RateLimitPolicy?> anonymousSignUpPolicy() async => .anonymousSignUp;
 
   Future<RateLimitPolicy?> oauthStartPolicy() async => .defaultPolicy;
 

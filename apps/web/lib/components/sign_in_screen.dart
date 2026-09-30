@@ -68,6 +68,9 @@ class AuthTypePickerScreen extends StatelessComponent {
       AuthType.otp => 'Email code',
       AuthType.magicLink => 'Magic link',
       AuthType.oauth => 'Continue with a provider',
+      // Unreachable: these are an AsAdmin table's methods, and the
+      // operations worker refuses AnonymousAuth on an AsAdmin table at boot.
+      AuthType.anonymous => throw StateError('An admin table cannot offer anonymous sign-in'),
     };
   }
 
@@ -79,6 +82,9 @@ class AuthTypePickerScreen extends StatelessComponent {
       // Deliberately names no provider: which ones exist is the developer's
       // `oauthProviders` list, and the buttons below say so themselves.
       AuthType.oauth => 'Use an account you already have with one of these providers.',
+      // Unreachable: these are an AsAdmin table's methods, and the
+      // operations worker refuses AnonymousAuth on an AsAdmin table at boot.
+      AuthType.anonymous => throw StateError('An admin table cannot offer anonymous sign-in'),
     };
   }
 }

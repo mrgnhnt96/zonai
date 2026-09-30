@@ -7,7 +7,10 @@ abstract class Auth implements SupportedAuths {
 }
 
 mixin HasEmail on Auth {
-  EmailColumn get email;
+  /// Non-null for every table except an [AnonymousAuth] one, whose rows carry
+  /// no address until they are upgraded. Declaring it as an [EmailColumn]
+  /// still satisfies this getter.
+  ColumnType<String?> get email;
   IsVerifiedColumn get isVerified;
 }
 
@@ -29,6 +32,40 @@ base mixin MagicLinkAuth on Auth implements HasEmail {
   @override
   @nonVirtual
   bool get supportsMagicLink => true;
+}
+
+/// Lets a table hold accounts that exist before their owner gives an address.
+///
+/// An anonymous row is an ordinary row of this table whose email is NULL. It
+/// is created by `POST /auth/anonymous`, kept alive past the token lifetime by
+/// a device-held credential, and upgraded in place -- same primary key -- once
+/// its owner proves a mailbox. Every email lookup is an equality on the email
+/// column, and NULL never equals anything, so the OTP, magic-link, password
+/// and reset flows cannot reach an anonymous row at all.
+///
+/// Requires the email column to be nullable ([NullableEmailColumn]), and may
+/// not be combined with `AsAdmin`: admin is a property of the table, so every
+/// anonymous visitor would be an admin. Both are checked when the operations
+/// worker registers its tables, so a misdeclared table fails at boot.
+base mixin AnonymousAuth on Auth implements HasEmail {
+  @override
+  @nonVirtual
+  bool get supportsAnonymous => true;
+
+  /// The columns an anonymous sign-up may set from its request body.
+  ///
+  /// Everything else in the body is dropped -- the primary key included --
+  /// and the default is none. Creating an anonymous account costs the caller
+  /// nothing, not even an inbox, and there is no `beforeSignUp` to vet the
+  /// body (its candidate is an address, and this sign-up has none). So the
+  /// table names what a stranger may choose, rather than an app having to
+  /// remember to refuse `role` or a chosen `id`:
+  ///
+  /// ```dart
+  /// @override
+  /// Set<String> get anonymousSignUpColumns => const {'display_name'};
+  /// ```
+  Set<String> get anonymousSignUpColumns => const {};
 }
 
 base mixin OAuth on Auth implements HasEmail {
