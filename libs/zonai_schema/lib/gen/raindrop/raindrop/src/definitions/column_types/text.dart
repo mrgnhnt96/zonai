@@ -29,3 +29,27 @@ extension StringOperators<V extends String?> on ColumnOf<V> {
   SQL lessThanOrEqual(ColumnOr<V> value) =>
       SQL([this, Op.lessThanOrEqual, operand(value)]);
 }
+
+/// Normalization for a possibly-absent text column.
+extension NormalizedColumn<T extends ColumnType<V>, V extends String?> on T? {
+  /// Folds every value of this column to lower case: on write, in
+  /// comparisons, and in the database, through a CHECK constraint.
+  ///
+  /// See [ColumnNormalizer] for what the declaration migrates.
+  T? lowercase() {
+    if (this case final column?) {
+      column.normalizer = ColumnNormalizer.lowercase;
+    }
+    return this;
+  }
+}
+
+/// Normalization for a known-present text column.
+extension NormalizedColumnNonNull<T extends ColumnType<V>, V extends String?>
+    on T {
+  /// Folds every value of this column to lower case: on write, in
+  /// comparisons, and in the database, through a CHECK constraint.
+  ///
+  /// See [ColumnNormalizer] for what the declaration migrates.
+  T lowercase() => NormalizedColumn(this).lowercase()!;
+}

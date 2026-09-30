@@ -72,15 +72,45 @@ Map<String, Object?> _table(TableMeta<dynamic, dynamic> table, SqlDialect dialec
     columns[column.name] = _column(table, column, dialect);
   }
 
+  final checks = {
+    for (final check in table.checks) check.name: _checkSql(check, dialect),
+  };
+  for (final column in table.columns) {
+    final normalizer = column.normalizer;
+    if (normalizer == null) continue;
+
+    final name = normalizerCheckName(table.name, column.name, normalizer);
+    if (checks.containsKey(name)) {
+      throw StateError(
+        '''
+table "${table.name}" declares a check named "$name", which is the name column "${column.name}"'s ${normalizer.name}() constraint needs''',
+      );
+    }
+    checks[name] = renderPredicate(
+      SQL([
+        column,
+        Op.equals,
+        SQL.function(normalizer.sqlFunction, [column]),
+      ]),
+      dialect,
+    );
+  }
+
   return {
     'name': table.name,
     'columns': columns,
-    if (table.checks.isNotEmpty)
-      'checks': {
-        for (final check in table.checks) check.name: _checkSql(check, dialect),
-      },
+    if (checks.isNotEmpty) 'checks': checks,
   };
 }
+
+/// The name of the CHECK constraint that holds column [columnName] of
+/// [tableName] to [normalizer].
+String normalizerCheckName(
+  String tableName,
+  String columnName,
+  ColumnNormalizer normalizer,
+) =>
+    '${tableName}_${columnName}_${normalizer.name}';
 
 /// A constraint's SQL, rendered from its predicate.
 String _checkSql(Check check, SqlDialect dialect) =>
@@ -106,6 +136,7 @@ column "${table.name}.${column.name}" has no sqlType, so no migration can declar
     'primaryKey': column.isPrimaryKey,
     'isNullable': column.isNullable,
     if (column.autoIncrement) 'autoIncrement': true,
+    if (column.normalizer case final normalizer?) 'normalize': normalizer.name,
     if (column.defaultValue case final defaultValue?)
       'default': switch (defaultValue) {
         final Expression<dynamic> expression =>

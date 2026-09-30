@@ -8,6 +8,7 @@
 
 export 'check.dart';
 export 'column.dart';
+export 'column_normalizer.dart';
 export 'column_types/column_types.dart';
 export 'foreign_key.dart';
 export 'index.dart';

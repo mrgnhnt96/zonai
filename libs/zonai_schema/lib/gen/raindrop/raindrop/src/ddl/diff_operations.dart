@@ -30,6 +30,7 @@ sealed class DiffOperation {
       'alterTable' => AlterTable.fromMap(map),
       'createIndex' => CreateIndex.fromMap(map),
       'dropIndex' => DropIndex.fromMap(map),
+      'normalizeRows' => NormalizeRows.fromMap(map),
       _ => throw ArgumentError('Unknown operation type: $type'),
     };
   }
@@ -243,6 +244,57 @@ class DropIndex extends DiffOperation {
       'type': 'dropIndex',
       'indexName': indexName,
       'tableName': tableName,
+    };
+  }
+}
+
+/// {@template normalize_rows}
+/// Operation bringing the rows already in a table into line with a
+/// [ColumnNormalizer] newly declared on one of its columns.
+///
+/// Runs BEFORE the [AlterTable] that adds the normalizer's CHECK constraint:
+/// both postgres (which validates existing rows when a constraint is added)
+/// and SQLite (which rebuilds the table and copies its rows across) would
+/// otherwise refuse the migration the moment a single row disagrees.
+/// {@endtemplate}
+class NormalizeRows extends DiffOperation {
+  /// {@macro normalize_rows}
+  const NormalizeRows({
+    required this.tableName,
+    required this.columnName,
+    required this.normalizer,
+  });
+
+  /// Creates a [NormalizeRows] from a map representation.
+  factory NormalizeRows.fromMap(Map<String, dynamic> map) {
+    return NormalizeRows(
+      tableName: map['tableName'] as String,
+      columnName: map['columnName'] as String,
+      normalizer: ColumnNormalizer.byName(map['normalizer'] as String),
+    );
+  }
+
+  /// The table whose rows are updated.
+  final String tableName;
+
+  /// The column being normalized, under the name it has BEFORE the
+  /// [AlterTable] that follows, since that may rename it.
+  final String columnName;
+
+  /// The rule the column's values are brought into line with.
+  final ColumnNormalizer normalizer;
+
+  @override
+  String describe() =>
+      'Normalize existing "$tableName"."$columnName" values (${normalizer.name})';
+
+  @override
+  Map<String, dynamic> toMap() {
+    return {
+      'type': 'normalizeRows',
+      'tableName': tableName,
+      'columnName': columnName,
+      'normalizer': normalizer.name,
     };
   }
 }

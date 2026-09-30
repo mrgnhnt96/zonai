@@ -359,7 +359,9 @@ class DbOperations {
 
     final operationRequest = ReadOperationRequest(
       table: request.table,
-      where: Eq(emailColumn.name, email),
+      // Through the column, so the address is compared in its stored form:
+      // lowercased, which is what makes sign-in case-insensitive.
+      where: Eq(emailColumn.name, emailColumn.encode(email)!),
       jwt: request.jwt,
     );
 

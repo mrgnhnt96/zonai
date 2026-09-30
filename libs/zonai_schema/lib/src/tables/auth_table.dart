@@ -47,6 +47,14 @@ S authTable<S extends AuthTable<T>, T>(
     builder,
     dialect: const SQLiteDialect(),
     extra: (table) {
+      // Addresses are compared case-insensitively everywhere else (mail
+      // delivery, the OTP and magic-link rate-limit keys), so they are stored
+      // that way too: `Ann@x.com` and `ann@x.com` are one account. Declared
+      // rather than done by hand so `generate` migrates existing rows.
+      if (table case HasEmail(:final email)) {
+        email.lowercase();
+      }
+
       if (extra case final extra?) {
         extra.call(table);
 

@@ -39,6 +39,7 @@ class Column<R, V extends Object?> with SqlOperand<V> implements Selectable<V> {
     this.autoIncrement = false,
     this.defaultValue,
     this.foreignKeyReference,
+    this.normalizer,
   }) : _valueOf = valueOf;
 
   /// The table of the column.
@@ -81,6 +82,19 @@ class Column<R, V extends Object?> with SqlOperand<V> implements Selectable<V> {
   /// Foreign key reference for this column.
   ForeignKeyReference? foreignKeyReference;
 
+  /// The rule every value of this column obeys, or null for none.
+  ///
+  /// Applied to the stored form in [encode], so writes and comparisons alike
+  /// see the normalized value.
+  ColumnNormalizer? normalizer;
+
+  @override
+  Object? encode(V? input) => switch ((super.encode(input), normalizer)) {
+        (final String value, final ColumnNormalizer normalizer) =>
+          normalizer.apply(value),
+        (final value, _) => value,
+      };
+
   // TODO(wolfen): should be on ColumnType
   /// Returns the nullable version of this column.
   Column<R, V?> get nullable => Column(
@@ -92,6 +106,7 @@ class Column<R, V extends Object?> with SqlOperand<V> implements Selectable<V> {
         autoIncrement: autoIncrement,
         defaultValue: defaultValue,
         foreignKeyReference: foreignKeyReference,
+        normalizer: normalizer,
       );
 
   /// Make an alias of the column.
@@ -106,6 +121,7 @@ class Column<R, V extends Object?> with SqlOperand<V> implements Selectable<V> {
       autoIncrement: autoIncrement,
       defaultValue: defaultValue,
       foreignKeyReference: foreignKeyReference,
+      normalizer: normalizer,
     );
   }
 
@@ -127,6 +143,7 @@ class ColumnAlias<R, V extends Object?> extends Column<R, V> {
     super.autoIncrement,
     super.defaultValue,
     super.foreignKeyReference,
+    super.normalizer,
   });
 
   /// The alias of the column.

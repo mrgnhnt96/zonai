@@ -164,6 +164,7 @@ abstract class DdlGenerator {
         final AlterTable alter => alterTable(alter),
         CreateIndex(:final index) => createIndex(index),
         DropIndex(:final indexName) => dropIndex(indexName),
+        final NormalizeRows normalize => normalizeRows(normalize),
       };
 
   String _nonBlank(DiffOperation operation, String sql) {
@@ -188,6 +189,26 @@ abstract class DdlGenerator {
 
   /// Generates a DROP INDEX statement.
   String dropIndex(String indexName);
+
+  /// Brings the rows [operation] names into line with its normalizer.
+  ///
+  /// Only rows that disagree are touched. Written once, here, because
+  /// `UPDATE` and the normalizers' functions read the same in every dialect
+  /// raindrop supports; a driver overrides it only if that stops being true.
+  ///
+  /// When the column is also under a unique index, two rows that differ only
+  /// by what the normalizer removes (`Ann@x.com` and `ann@x.com`) collapse
+  /// into one value and the UPDATE fails on the index, naming it. That is the
+  /// right outcome: which row survives is a decision about data, not schema.
+  String normalizeRows(NormalizeRows operation) {
+    final table = escapeName(operation.tableName);
+    final column = escapeName(operation.columnName);
+    final normalized = '${operation.normalizer.sqlFunction}($column)';
+    return '''
+-- Existing rows, before the constraint that holds $table.$column to ${operation.normalizer.name}().
+-- Fails on a unique index if two rows differ only in what ${operation.normalizer.name}() removes: resolve those by hand first.
+UPDATE $table SET $column = $normalized WHERE $column <> $normalized;''';
+  }
 
   /// Gets the SQL type string for a column.
   String getColumnType(ColumnInfo column);
