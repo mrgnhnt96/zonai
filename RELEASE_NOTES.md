@@ -8,6 +8,15 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.10.1
+
+- **`zonai serve` no longer breaks its workers when many files change at
+  once.** Saving or checking out a burst of files under `config/`, `schemas/`
+  or `rules/` used to start one overlapping compile per file. The compiles
+  overwrote each other and could leave the rules worker broken until a
+  restart. A burst is now one compile. An edit made during a compile still
+  gets compiled, once, right after it.
+
 ## 0.10.0
 
 **Upgrade `zonai_schema` to 0.6.0 and re-run `zonai compile`.** This CLI
