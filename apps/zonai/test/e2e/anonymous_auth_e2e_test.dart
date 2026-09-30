@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
@@ -206,19 +207,25 @@ void main() {
           ),
         );
 
-        await expectLater(
-          db.update(
-            'users',
-            UpdatePayload(
-              where: Eq('id', created.user['id']!),
-              updates: [
-                Update.object({'email': 'self-written@example.com'}),
-              ],
-              jwt: created.jwt,
+        // `'null'` is the string, not NULL: a guard that compares addresses
+        // as text (`'$before'`) reads the NULL of an anonymous row as "null"
+        // and would take this write for no change at all.
+        for (final written in ['self-written@example.com', 'null']) {
+          await expectLater(
+            db.update(
+              'users',
+              UpdatePayload(
+                where: Eq('id', created.user['id']!),
+                updates: [
+                  Update.object({'email': written}),
+                ],
+                jwt: created.jwt,
+              ),
             ),
-          ),
-          throwsA(anything),
-        );
+            throwsA(isA<RowAccessDeniedException>()),
+            reason: 'writing $written',
+          );
+        }
       });
     }, timeout: _timeout);
 
@@ -370,6 +377,104 @@ void main() {
           ViewPayload(where: Eq('owner_id', userId), jwt: upgraded.jwt),
         );
         expect(note['body'], 'final');
+      });
+    }, timeout: _timeout);
+
+    // Three writes make an anonymous account: the row, its session, its
+    // credential. The credential is the only way back into an address-less
+    // row, so a row whose credential never landed could never be resumed and
+    // would just sit there. The sign-up has to undo it. The positive control
+    // (a normal sign-up raises the count) is what shows the count would have
+    // seen a leftover row.
+    test('a sign-up whose credential fails leaves no row behind', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final observer = await db.signInAnonymously('users');
+        Future<int> anonymousRows() => db.count(
+          'users',
+          CountPayload(where: const Null('email'), jwt: observer.jwt),
+        );
+
+        final before = await anonymousRows();
+        debugFailAnonymousCredentialIssue = true;
+        try {
+          await expectLater(
+            db.signInAnonymously('users'),
+            throwsA(isA<StateError>()),
+          );
+        } finally {
+          debugFailAnonymousCredentialIssue = false;
+        }
+        expect(await anonymousRows(), before);
+
+        await db.signInAnonymously('users');
+        expect(await anonymousRows(), before + 1);
+      });
+    }, timeout: _timeout);
+
+    // A sign-up can take the address between the upgrade's check and its
+    // write: OTP and password sign-up do not run on the writer queue. The
+    // unique index then refuses the write, and the caller must hear the same
+    // email_in_use the check gives -- not a generic auth failure.
+    test('an address taken after the check is still email_in_use', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        await db.authenticate(
+          'users',
+          const SignUpPasswordAuthPayload(
+            email: 'race@example.com',
+            password: 'race-winner-password-1',
+          ),
+        );
+        final created = await db.signInAnonymously('users');
+        await db.requestUpgrade(jwt: created.jwt, email: 'race@example.com');
+
+        debugSkipUpgradeAddressCheck = true;
+        try {
+          await expectLater(
+            db.confirmUpgrade(
+              jwt: created.jwt,
+              email: 'race@example.com',
+              code: kInsecureTestOtp,
+            ),
+            throwsA(isA<EmailInUseException>()),
+          );
+        } finally {
+          debugSkipUpgradeAddressCheck = false;
+        }
+
+        // Still anonymous, still resumable: nothing was written.
+        final resumed = await db.resumeAnonymous(created.credential);
+        expect(resumed.user['id'], created.user['id']);
+      });
+    }, timeout: _timeout);
+
+    // Verdicts are cached per session (see the upgrade test above), and a
+    // lookup only evicts the key it reads, so without pruning every session
+    // that ever made a request would leave its entries behind.
+    test('expired table-rule verdicts are pruned on the next write', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        var now = DateTime.now();
+        await withClock(Clock(() => now), () async {
+          Future<void> oneSessionCounts() async {
+            final session = await db.signInAnonymously('users');
+            await db.count('users', CountPayload(jwt: session.jwt));
+          }
+
+          for (var i = 0; i < 3; i++) {
+            await oneSessionCounts();
+          }
+          final before = db.debugTableAccessCacheSize;
+          expect(before, greaterThanOrEqualTo(3));
+
+          now = now.add(const Duration(seconds: 6));
+          await oneSessionCounts();
+          expect(db.debugTableAccessCacheSize, lessThan(before));
+        });
       });
     }, timeout: _timeout);
 

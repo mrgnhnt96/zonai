@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS "_password_reset_requirements" (
 CREATE UNIQUE INDEX IF NOT EXISTS "password_reset_requirement_account_unique" ON "_password_reset_requirements" ("table", "user_id");''',
   ),
   const Migration(
-    '0011__zonai_v0_9_4_',
+    '0011_anonymous_auth',
     '''
 CREATE TABLE IF NOT EXISTS "_anonymous_credentials" (
   "id" TEXT PRIMARY KEY,

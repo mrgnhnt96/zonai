@@ -1,8 +1,5 @@
 part of zonai_db;
 
-/// What creating an anonymous account hands back: the session, plus the
-/// credential that resumes the account once that session has expired. The
-/// credential is returned exactly once and never stored in plaintext.
 /// A confirm that has passed every check and is ready to be written.
 typedef _PreparedUpgrade = ({
   Jwt caller,
@@ -11,6 +8,9 @@ typedef _PreparedUpgrade = ({
   String? passwordHash,
 });
 
+/// What creating an anonymous account hands back: the session, plus the
+/// credential that resumes the account once that session has expired. The
+/// credential is returned exactly once and never stored in plaintext.
 typedef _AnonymousResult = ({
   Map<String, Object?> user,
   String jwt,
@@ -28,8 +28,8 @@ typedef _AnonymousResult = ({
 /// - [_requestUpgrade] sends a code to the address the owner wants to adopt,
 ///   bound to the requesting session.
 /// - [_prepareUpgrade] / [_commitUpgrade] prove the code and write the
-///   address onto the SAME
-///   row, so everything the account already owns stays its own.
+///   address onto the SAME row, so everything the account already owns stays
+///   its own.
 ///
 /// Every email lookup elsewhere is an equality on the email column, and NULL
 /// never equals anything, so none of the OTP, magic-link, password or reset
@@ -66,11 +66,24 @@ extension _AnonymousX on ZonaiDb {
     final user = await _sanitizeRow(table, result.rows.single.toMap());
     logger.verbose('Created anonymous user', prefix: _prefix);
 
-    final (newJwt, token) = await _createJwt(table, user);
-    final credential = await _issueAnonymousCredential(
-      table: table,
-      userId: newJwt.userId,
-    );
+    // The row, its session and its credential are three writes. The
+    // credential is the only way back into an address-less account, so a row
+    // left without one could never be resumed: it would sit in the table,
+    // owned by nobody who can reach it. Undo the row if either later write
+    // fails, rather than leave that behind.
+    final Jwt newJwt;
+    final String token;
+    final String credential;
+    try {
+      (newJwt, token) = await _createJwt(table, user);
+      credential = await _issueAnonymousCredential(
+        table: table,
+        userId: newJwt.userId,
+      );
+    } on Object {
+      await _discardAnonymousRow(table, user);
+      rethrow;
+    }
 
     // `beforeSignUp` is deliberately not run here: its candidate carries an
     // address, and this sign-up has none. It runs at upgrade, when there is
@@ -258,10 +271,12 @@ extension _AnonymousX on ZonaiDb {
     final (:caller, :address, :columns, :passwordHash) = upgrade;
     final table = caller.table;
 
-    // Case-insensitively: addresses are stored as given, and `Ada@x` and
-    // `ada@x` must not become two accounts. Known only to the caller who just
-    // proved the mailbox; the anonymous account is left exactly as it was.
-    if (await _addressTaken(table, columns.email, address)) {
+    // Addresses are stored lowercased (the email column's normalizer), and
+    // [address] is too, so this is a plain equality. Known only to the caller
+    // who just proved the mailbox; the anonymous account is left exactly as
+    // it was.
+    if (!debugSkipUpgradeAddressCheck &&
+        await _addressTaken(table, columns.email, address)) {
       throw const EmailInUseException();
     }
 
@@ -287,6 +302,13 @@ extension _AnonymousX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null) {
+      // The check above runs on the writer queue, but OTP and password
+      // sign-up do not, so one can insert the address between the check and
+      // this write. A unique email index then refuses the write; that is the
+      // same answer the check would have given, so give it.
+      if (mapDatabaseError(error, table: table) is UniqueConstraintException) {
+        throw const EmailInUseException();
+      }
       throw AuthFailedException(cause: error);
     }
     // `rowsAffected`, not `rows`: an UPDATE returns no rows here (see the
@@ -417,6 +439,9 @@ extension _AnonymousX on ZonaiDb {
     required String table,
     required UnknownId userId,
   }) async {
+    if (debugFailAnonymousCredentialIssue) {
+      throw StateError('debugFailAnonymousCredentialIssue');
+    }
     final credential = '$_credentialPrefix${_randomChallengeSecret()}';
 
     final db = await open();
@@ -430,6 +455,39 @@ extension _AnonymousX on ZonaiDb {
     ]);
 
     return credential;
+  }
+
+  /// Removes an anonymous row whose credential could not be issued, and any
+  /// session already minted for it. Best effort: the original failure is
+  /// what the caller hears about, so a failure here is logged, not thrown.
+  Future<void> _discardAnonymousRow(
+    String table,
+    Map<String, Object?> user,
+  ) async {
+    try {
+      final idColumn = await _dispatchOperation<ColumnNameResponse>(
+        GetColumnNameRequest(table: table, columnName: .id),
+      );
+      final id = switch (idColumn.name) {
+        final name? => user[name],
+        null => null,
+      };
+      if (id is! String) return;
+
+      await _revokeAllSessions(UnknownId(id));
+      final (error, _) = await _execute((
+        'DELETE FROM "$table" WHERE "${idColumn.name}" = ? AND '
+            '"${(await _upgradeColumns(table)).email}" IS NULL',
+        [id],
+      ));
+      if (error != null) throw error;
+    } on Object catch (error, stack) {
+      logger.error(
+        'Could not remove an anonymous row left without a credential',
+        error,
+        stack,
+      );
+    }
   }
 
   /// SHA-256 rather than Argon2 for the reason `_api_tokens` gives: the input
@@ -450,7 +508,12 @@ extension _AnonymousX on ZonaiDb {
     return name != null && user[name] == null;
   }
 
-  String _normalizeAddress(String email) => email.trim().toLowerCase();
+  /// The address as the email column will store it: lowercased, exactly as
+  /// the column's `.lowercase()` normalizer folds it, and nothing more. Not
+  /// trimmed, because sign-in does not trim: an address normalized here in a
+  /// way the sign-in lookup does not repeat could be upgraded to and then
+  /// never signed in with.
+  String _normalizeAddress(String email) => email.toLowerCase();
 
   Future<({String id, String email, String isVerified, String? password})>
   _upgradeColumns(String table) async {
@@ -484,7 +547,7 @@ extension _AnonymousX on ZonaiDb {
     // Column and table names come from the registered schema and the
     // server-issued token, never from the request body.
     final (error, result) = await _execute((
-      'SELECT 1 FROM "$table" WHERE LOWER("$emailColumn") = ? LIMIT 1',
+      'SELECT 1 FROM "$table" WHERE "$emailColumn" = ? LIMIT 1',
       [address],
     ));
     if (error != null) {
@@ -493,3 +556,15 @@ extension _AnonymousX on ZonaiDb {
     return result?.rows.isNotEmpty ?? false;
   }
 }
+
+/// Makes the next anonymous sign-ups fail at the credential step, after the
+/// row and its session are written -- the failure [_AnonymousX._discardAnonymousRow]
+/// exists to clean up after, and which nothing else can produce on demand.
+@visibleForTesting
+bool debugFailAnonymousCredentialIssue = false;
+
+/// Skips the upgrade's "address already taken" check, so a test can make the
+/// write itself meet the unique index -- the race with a concurrent sign-up
+/// that the check cannot close.
+@visibleForTesting
+bool debugSkipUpgradeAddressCheck = false;

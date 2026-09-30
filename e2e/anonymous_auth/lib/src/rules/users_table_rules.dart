@@ -10,4 +10,9 @@ final class UserTableRules extends AuthTableRules<UserTable, User> {
 
   @override
   Future<bool> canUpdate(Jwt? jwt) async => jwt != null;
+
+  /// So a test can count rows: `count` is gated by the list rule and does not
+  /// read rows back, so it shows what exists without exposing any of it.
+  @override
+  Future<bool> canList(Jwt? jwt) async => jwt != null;
 }

@@ -63,4 +63,8 @@ final class UserTable extends AuthTable<User>
   Set<String> get anonymousSignUpColumns => const {'display_name'};
 }
 
-final users = authTable('users', UserTable.new);
+final users = authTable('users', UserTable.new, (table) {
+  // One account per address, as a real table declares it. NULLs (anonymous
+  // accounts) never collide under a SQLite unique index.
+  uniqueIndex('users_email_unique').on(table.email);
+});

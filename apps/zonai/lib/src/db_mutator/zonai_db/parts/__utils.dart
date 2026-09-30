@@ -292,7 +292,15 @@ extension UtilsX on ZonaiDb {
   }
 
   void _cacheTableRules(String cacheKey, TableRulesResponse response) {
-    _tableAccessCache[cacheKey] = (response: response, at: clock.now());
+    final now = clock.now();
+    // Keys are per session, so a session that ends leaves its entries behind,
+    // and a lookup only evicts the key it reads. Prune every expired entry on
+    // write: one pass per rules round trip, which the cache exists to make
+    // rare, keeps the map bounded by sessions active within the TTL.
+    _tableAccessCache.removeWhere(
+      (_, cached) => now.difference(cached.at) >= _tableAccessCacheTtl,
+    );
+    _tableAccessCache[cacheKey] = (response: response, at: now);
   }
 
   Future<TableRulesResponse> _tableRules(

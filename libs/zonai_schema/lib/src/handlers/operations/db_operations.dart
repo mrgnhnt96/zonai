@@ -46,15 +46,6 @@ class DbOperations {
     return _operationsByTable = map;
   }
 
-  /// NULL in an auth table's email column has exactly one meaning: this row is
-  /// an anonymous account. So an `AnonymousAuth` table must be able to store
-  /// it, and no other table may.
-  ///
-  /// `AnonymousAuth` with `AsAdmin` is refused too. Admin is a property of the
-  /// table, so every anonymous visitor would be an admin.
-  ///
-  /// Checked when the tables are registered, so a misdeclared table fails the
-  /// first request after boot rather than the first sign-in.
   /// The part of an anonymous sign-up body the table allows. The id and the
   /// auth columns are refused even if listed: they are never a stranger's to
   /// choose.
@@ -77,6 +68,15 @@ class DbOperations {
     };
   }
 
+  /// NULL in an auth table's email column has exactly one meaning: this row is
+  /// an anonymous account. So an `AnonymousAuth` table must be able to store
+  /// it, and no other table may.
+  ///
+  /// `AnonymousAuth` with `AsAdmin` is refused too. Admin is a property of the
+  /// table, so every anonymous visitor would be an admin.
+  ///
+  /// Checked when the tables are registered, so a misdeclared table fails the
+  /// first request after boot rather than the first sign-in.
   void _validateEmailNullability(TableOperations ops) {
     final schema = ops.schema;
     if (schema is! HasEmail) return;
