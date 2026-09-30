@@ -131,9 +131,22 @@ void main() {
     test('a row read back from the database keeps its revision', () {
       // Rules rebuild stored rows through `safeCreate`; filling in 0 there
       // would hand every rule a revision that is not the row's.
-      final row = _docs.$.safeCreate({'id': 'd1', 'title': 'a', 'rev': 5});
+      final row = _docs.$.safeCreate({
+        'id': 'd1',
+        'title': 'a',
+        'rev': 5,
+      }, stored: true);
 
       expect(row.rev, 5);
+    });
+
+    test('a row about to be inserted starts at 0, whatever it carries', () {
+      // A client-sent revision is refused earlier, in `TableOperations`;
+      // this is the second line, for anything that reaches `safeCreate`
+      // another way.
+      final row = _docs.$.safeCreate({'id': 'd1', 'title': 'a', 'rev': 7});
+
+      expect(row.rev, 0);
     });
 
     test('shows as a read-only integer in the schema shape', () {

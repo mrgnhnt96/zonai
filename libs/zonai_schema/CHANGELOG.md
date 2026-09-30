@@ -19,6 +19,9 @@ decoded the row and set a nullable `updated_at` to `null`. A rule like
 `before.createdAt` with `after.createdAt` failed whenever the clock ticked in
 between. `safeCreate(data, stored: true)` now keeps stored timestamps; creates
 and `beforeCreate` still stamp them, and never trust a client-sent value.
+A stored `NULL` in a nullable `created_at` or `updated_at` stays `null` too,
+rather than becoming `now()`: a row written before the column existed has no
+creation time to report.
 
 **A user can no longer verify themselves or change their own email.** The
 default `AuthRowRules.canUpdate` allowed the row's owner any change. An app
