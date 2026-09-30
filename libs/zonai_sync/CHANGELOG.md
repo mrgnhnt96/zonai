@@ -9,3 +9,4 @@
   now holds child tables that declare no references. `status.unclaimed` is
   counted from the store after the claim commits, and an account-change abort
   no longer leaves the status on `pushing`.
+- `package:zonai_sync/testing.dart` exports `FakeZonai` for app tests. It is test-only and not exported from the main library.

@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
+import 'package:zonai_sync/testing.dart';
 import 'package:zonai_sync/zonai_sync.dart';
 
-import 'support/fake_zonai.dart';
 
 const notes = SyncTable('notes');
 

@@ -118,6 +118,10 @@ learn a guest id later, call `claimGuestRows()`.
 
 ## Tests
 
+Apps can test against the same fake: `import 'package:zonai_sync/testing.dart';`
+for `FakeZonai`. It is test-only and deliberately not exported from the main
+library.
+
 ```bash
 dart test                                              # engine, with an in-memory zonai fake
 ZONAI_E2E_BINARY=/path/to/zonai dart test --tags e2e   # against a real server (e2e/sync)
