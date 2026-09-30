@@ -19,6 +19,7 @@ import 'package:zonai/src/messengers/rate_limit_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai/src/push/push_caller.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
+import 'package:zonai_schema/src/types/built_in_emails.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 import 'package:zonai_schema/src/handlers/messages/message_io.dart'
@@ -959,8 +960,19 @@ class Mailman<S extends Request, R extends Response> {
       return;
     }
 
+    // One message at a time, each on its own: a chunk can carry several, and
+    // an error handling one used to abandon the rest -- including the reply a
+    // caller was waiting on, which then timed out as a 503 (issue #41).
     for (final map in maps) {
-      _listenToMessages(map);
+      try {
+        _listenToMessages(map);
+      } on Object catch (e, stack) {
+        logger.error(
+          '$_prefix: Failed to handle a message from the worker',
+          e,
+          stack,
+        );
+      }
     }
   }
 
@@ -1065,6 +1077,10 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
+  /// Built-in email kinds already warned about as unimplemented -- static, so
+  /// the warning is once per process rather than once per worker.
+  static final _warnedUnimplementedEmails = <BuiltInEmails>{};
+
   /// Dispatches a worker's built-in email request against the host's DB.
   ///
   /// Deliberately not awaited: the worker is not waiting for the mail to go
@@ -1107,10 +1123,20 @@ class Mailman<S extends Request, R extends Response> {
           ResetPasswordAuthPayload(email: request.to.address),
         );
 
+      // Not built yet. A request for one is the worker's default hook doing
+      // its job (`AuthExtension.onSignIn` asks for `loginNotice`), not a
+      // fault, so it must not fail anything: warn once per kind and move on.
+      // Throwing here failed the sign-in itself (issue #41).
       case .confirmEmailChange:
       case .magicLink:
       case .loginNotice:
-        throw UnimplementedError('${request.builtIn} not implemented');
+        if (_warnedUnimplementedEmails.add(request.builtIn)) {
+          logger.warn(
+            '$_prefix: built-in ${request.builtIn.name} email is not '
+            'implemented yet; not sent. (Said once per process.)',
+          );
+        }
+        return;
     }
 
     unawaited(
