@@ -15,6 +15,7 @@ import 'package:zonai/src/push/push_courier.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/src/handlers/extensions/db_extensions.dart';
+import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/operations/db_operations.dart';
 import 'package:zonai_schema/src/handlers/rules/db_rules.dart';
 import 'package:zonai_schema/src/internal/tables/push_jobs_table.dart';
@@ -152,6 +153,10 @@ final class RecordingExtension extends Extension<DeviceToken> {
         })
       >[];
 
+  /// When set, the hook also queues a write, as an app recording dead
+  /// devices would.
+  bool queueWrite = false;
+
   @override
   Future<void> onPushRejected(
     DeviceToken row,
@@ -159,6 +164,28 @@ final class RecordingExtension extends Extension<DeviceToken> {
     PushRejectionReason reason,
     Jwt? jwt,
   ) async {
+    if (queueWrite) {
+      // What `mutate.create.one` amounts to once it reaches the host: this
+      // fixture runs the extension in-process, where the worker-side `mutate`
+      // is not bound, so the write is put where Mailman puts the ones a
+      // worker's reply carries.
+      mutations.addAll([
+        CreateRecordRequest(
+          table: 'device_tokens',
+          objects: [
+            {'user_id': 'audit', 'label': 'rejected $token'},
+          ],
+          parent: PushRejectedExtensionRequest(
+            table: 'device_tokens',
+            object: const {},
+            token: token,
+            reason: reason,
+            jwt: jwt,
+          ),
+          jwt: jwt,
+        ),
+      ]);
+    }
     calls.add((
       id: row.id.value,
       token: token,
@@ -650,6 +677,31 @@ version: $kVersion
       expect(after[1].token, isNull);
       expect(after[0].token, 'tok-d000000');
       expect(after[2].token, 'tok-d000002');
+    });
+  });
+
+  test('a write queued by onPushRejected is persisted', () async {
+    extension.queueWrite = true;
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+      courier.rejectTokens.add('tok-d000001');
+
+      await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: CronJwt(),
+        caller: PushCaller.serverCode,
+      );
+      await zonaiDb.drainPushJobs();
+
+      final db = await zonaiDb.open();
+      final result = await db.execute(
+        'SELECT "label" FROM "device_tokens" WHERE "user_id" = ?',
+        ['audit'],
+      );
+      expect([for (final row in result.rows) row[0]], ['rejected tok-d000001']);
     });
   });
 

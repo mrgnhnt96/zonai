@@ -872,6 +872,11 @@ extension _PushX on ZonaiDb {
           jwt: CronJwt(),
         ),
       );
+      // What the hook queued (`mutate.*`) commits here, as after any other
+      // hook. Nothing else drains this path, so without it the writes were
+      // silently dropped. Inside the try: a failing write is the app's, and
+      // must not stop the fan-out any more than a throwing hook does.
+      await _executeEffects();
     } catch (e, stack) {
       // A throwing hook must not stop the prune, and must not stop the
       // fan-out. The token is dead either way, and a job that stalled because
