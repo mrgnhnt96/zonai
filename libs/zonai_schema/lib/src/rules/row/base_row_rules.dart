@@ -49,6 +49,35 @@ class BaseRowRules<S extends rd.Schema<R>, R> {
     return false;
   }
 
+  /// The rows [jwt] may see at all, as a filter the server adds to every read.
+  ///
+  /// A read -- `GET /db`, `/db/list`, `/db/count` and the three streams -- is
+  /// answered as if the caller's `where` also said `AND <this>`. A row outside
+  /// it is **invisible**: it is not returned, not counted, and never causes a
+  /// 403. [canView] still runs on every row inside it, so a scope narrows what
+  /// is checked and never replaces the check.
+  ///
+  /// Without one, a list whose page holds a single row [canView] refuses
+  /// fails as a whole with 403, so a caller has to know to filter to their own
+  /// rows. With one, the server filters:
+  ///
+  /// ```dart no-analyze
+  /// @override
+  /// Future<Where?> viewScope(Jwt? jwt) async {
+  ///   // No scope for these two: canView decides, and admins see every row.
+  ///   if (jwt == null || jwt.admin.isAdmin) return null;
+  ///   return Eq('owner_id', jwt.userId.value);
+  /// }
+  /// ```
+  ///
+  /// Keep it consistent with [canView]: a row the scope admits and [canView]
+  /// refuses still fails a list with 403. Writes are not scoped; an update or
+  /// delete is keyed to the rows its own rules authorized.
+  ///
+  /// `null`, the default, means no scope, which is the behaviour before this
+  /// existed.
+  Future<Where?> viewScope(Jwt? jwt) async => null;
+
   /// When `false`, the host may skip per-row IPC after table access succeeds
   /// (public tables whose row rules always allow). Defaults to `true` so
   /// row-level ACL stays fail-closed unless authors opt out.

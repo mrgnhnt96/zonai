@@ -273,12 +273,19 @@ class DbRules {
     final rowRules = rulesByTable[request.table]?.row;
     final skipRowChecks = rowRules != null && !rowRules.requiresPerRowCheck;
 
+    // Only a granted READ carries a scope: a refusal needs none, and writes
+    // are keyed to the rows their own rules authorized.
+    final scope = canAccess && (op == .view || op == .list || op == .count)
+        ? await rowRules?.viewScope(request.jwt)
+        : null;
+
     return TableRulesResponse(
       id: request.id,
       table: request.table,
       operation: request.operation,
       canAccess: canAccess,
       skipRowChecks: skipRowChecks,
+      scope: scope,
     );
   }
 

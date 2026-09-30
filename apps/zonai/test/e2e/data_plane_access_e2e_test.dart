@@ -422,6 +422,274 @@ void main() {
         );
       });
     }, timeout: const Timeout(Duration(minutes: 5)));
+
+    // A count used to check only the TABLE rule. `notes` lets anyone list and
+    // lets each user view only their own rows, so the table rule passes for
+    // everybody and the number returned was every matching row in the table
+    // -- other owners' included, under any `where` the caller chose.
+    group('A-1: a count counts only rows the caller may view', () {
+      Future<({String jwt, String id})> seed(
+        ZonaiDb db,
+        String prefix, {
+        required int mine,
+        required int theirs,
+      }) async {
+        final me = await user(db, '$prefix-me@example.com');
+        final other = await user(db, '$prefix-other@example.com');
+        final token = await adminToken(db, 'admin-$prefix@example.com');
+        for (final (owner, n) in [(me, mine), (other, theirs)]) {
+          for (var i = 0; i < n; i++) {
+            await db.create(
+              'notes',
+              CreatePayload(
+                object: {'title': prefix, 'owner_id': owner.id},
+                jwt: token,
+              ),
+            );
+          }
+        }
+        return me;
+      }
+
+      test('GET /db/count', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final me = await seed(db, 'a1-count', mine: 2, theirs: 3);
+
+          final count = await db.count(
+            'notes',
+            CountPayload(where: const Eq('title', 'a1-count'), jwt: me.jwt),
+          );
+
+          expect(count, 2, reason: 'three of the five rows are not viewable');
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+
+      test('the total of a list whose page is empty', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final me = await seed(db, 'a1-total', mine: 1, theirs: 4);
+
+          // An offset past the end: no row reaches the row rule, so nothing
+          // is refused, and the total was the only thing left to answer.
+          final listed = await db.list(
+            'notes',
+            ListPayload(
+              where: const Eq('title', 'a1-total'),
+              offset: 100,
+              jwt: me.jwt,
+            ),
+          );
+
+          expect(listed.items, isEmpty);
+          expect(listed.total, 1);
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+
+      test('a count stream', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final me = await seed(db, 'a1-stream', mine: 1, theirs: 2);
+
+          final first = await db
+              .streamCount(
+                'notes',
+                CountPayload(
+                  where: const Eq('title', 'a1-stream'),
+                  jwt: me.jwt,
+                ),
+              )
+              .first;
+
+          expect(first, 1);
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+
+      test('positive control: each owner counts their own rows', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          await seed(db, 'a1-owner', mine: 2, theirs: 3);
+          // `seed` names the other owner `<prefix>-other`; sign them in again.
+          final other = await user(db, 'a1-owner-other@example.com');
+
+          final count = await db.count(
+            'notes',
+            CountPayload(where: const Eq('title', 'a1-owner'), jwt: other.jwt),
+          );
+
+          // Not zero and not five: a count that filters by the caller, rather
+          // than one that stopped counting.
+          expect(count, 3);
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+    });
+
+    // `journal` is `notes` plus a `viewScope`: the owner-only rule stated as a
+    // filter, so a read is narrowed to the caller's rows instead of refused.
+    group('B-1: viewScope narrows every read', () {
+      Future<({String jwt, String id, String otherEntry})> seed(
+        ZonaiDb db,
+        String prefix, {
+        required int mine,
+        required int theirs,
+      }) async {
+        final me = await user(db, '$prefix-me@example.com');
+        final other = await user(db, '$prefix-other@example.com');
+        final token = await adminToken(db, 'admin-$prefix@example.com');
+        String? otherEntry;
+        for (final (owner, n) in [(me, mine), (other, theirs)]) {
+          for (var i = 0; i < n; i++) {
+            final created = await db.create(
+              'journal',
+              CreatePayload(
+                object: {'title': prefix, 'owner_id': owner.id},
+                jwt: token,
+              ),
+            );
+            if (owner == other) otherEntry = '${created['id']}';
+          }
+        }
+        return (jwt: me.jwt, id: me.id, otherEntry: otherEntry!);
+      }
+
+      test('a list returns only in-scope rows, and does not 403', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final me = await seed(db, 'b1-list', mine: 2, theirs: 3);
+
+          final listed = await db.list(
+            'journal',
+            ListPayload(where: const Eq('title', 'b1-list'), jwt: me.jwt),
+          );
+
+          expect(listed.items.map((e) => e['owner_id']), everyElement(me.id));
+          expect(listed.items, hasLength(2));
+          expect(listed.total, 2);
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+
+      test(
+        'control: the same list on `notes`, which has no scope, 403s',
+        () async {
+          if (!_runningOnDartVm) return;
+
+          await withDb((db) async {
+            final me = await user(db, 'b1-control-me@example.com');
+            final other = await user(db, 'b1-control-other@example.com');
+            final token = await adminToken(db, 'admin-b1-control@example.com');
+            for (final owner in [me, other]) {
+              await db.create(
+                'notes',
+                CreatePayload(
+                  object: {'title': 'b1-control', 'owner_id': owner.id},
+                  jwt: token,
+                ),
+              );
+            }
+
+            await expectLater(
+              db.list(
+                'notes',
+                ListPayload(
+                  where: const Eq('title', 'b1-control'),
+                  jwt: me.jwt,
+                ),
+              ),
+              throwsA(isA<RowAccessDeniedException>()),
+            );
+          });
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+      );
+
+      test(
+        'a read of an out-of-scope row is not found, not forbidden',
+        () async {
+          if (!_runningOnDartVm) return;
+
+          await withDb((db) async {
+            final me = await seed(db, 'b1-read', mine: 1, theirs: 1);
+
+            await expectLater(
+              db.read(
+                'journal',
+                ViewPayload(where: Eq('id', me.otherEntry), jwt: me.jwt),
+              ),
+              throwsA(isA<RecordNotFoundException>()),
+            );
+          });
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+      );
+
+      test('a count and a count stream count in-scope rows', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final me = await seed(db, 'b1-count', mine: 2, theirs: 3);
+          const where = Eq('title', 'b1-count');
+
+          expect(
+            await db.count('journal', CountPayload(where: where, jwt: me.jwt)),
+            2,
+          );
+          expect(
+            await db
+                .streamCount('journal', CountPayload(where: where, jwt: me.jwt))
+                .first,
+            2,
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+
+      test('a list stream carries only in-scope rows', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final me = await seed(db, 'b1-stream', mine: 1, theirs: 2);
+
+          final first = await db
+              .streamList(
+                'journal',
+                ListPayload(where: const Eq('title', 'b1-stream'), jwt: me.jwt),
+              )
+              .first;
+
+          expect(first.map((e) => e['owner_id']), [me.id]);
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+
+      test('a null scope, here an admin, sees every row', () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          await seed(db, 'b1-admin', mine: 2, theirs: 3);
+          final token = await adminToken(db, 'admin2-b1-admin@example.com');
+
+          final listed = await db.list(
+            'journal',
+            ListPayload(where: const Eq('title', 'b1-admin'), jwt: token),
+          );
+
+          expect(listed.items, hasLength(5));
+
+          // No scope and per-row checks required: the filtered count path,
+          // where canView admits an admin to every row.
+          expect(
+            await db.count(
+              'journal',
+              CountPayload(where: const Eq('title', 'b1-admin'), jwt: token),
+            ),
+            5,
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 5)));
+    });
   });
 }
 

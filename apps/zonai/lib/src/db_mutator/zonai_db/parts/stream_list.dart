@@ -6,12 +6,12 @@ extension _StreamListX on ZonaiDb {
     ListPayload payload,
   ) async* {
     final jwt = await _extractJwt(payload, allowApiToken: true);
-    await _requireTableAccess(table, .list, jwt);
+    final access = await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(
       ListOperationRequest(
         table: table,
-        where: payload.where,
+        where: _scoped(payload.where, access.scope),
         limit: payload.limit,
         offset: payload.offset,
         orderBy: payload.orderBy,

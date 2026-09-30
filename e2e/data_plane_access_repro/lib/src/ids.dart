@@ -50,3 +50,20 @@ final class NotesId implements z.Id {
 
   String toJson() => value;
 }
+
+final class JournalId implements z.Id {
+  const JournalId(this.value);
+
+  static const _suffix = 'jrnl';
+
+  factory JournalId.generate() =>
+      JournalId('${DateTime.now().microsecondsSinceEpoch}_$_suffix');
+
+  @override
+  final String value;
+
+  @override
+  String toString() => value;
+
+  String toJson() => value;
+}

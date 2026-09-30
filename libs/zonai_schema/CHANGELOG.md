@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+**`BaseRowRules.viewScope`: say which rows a caller may see as a filter.** The
+server ANDs it into every read (`GET /db`, `/db/list`, `/db/count` and the
+three streams), so a row outside it is invisible rather than a `403`: a list
+returns the caller's own rows, and a read of someone else's row is a `404`.
+`canView` still runs on every row inside it. Additive: the default is `null`,
+which is today's behaviour. `TableRulesResponse` gains an optional `scope`;
+a worker built before it sends none and is read as no scope.
+
+**Counts no longer reveal rows the caller cannot view.** `/db/count`, the
+`total` of `/db/list` and the count stream checked only the table rule, so on
+a table whose rows are private to their owner, anyone the table rule admitted
+could count every owner's rows under any filter. A count now counts only rows
+that pass `canView`. That uses a plain `COUNT` when the row rules declare a
+scope or `requiresPerRowCheck => false`, and otherwise reads the matching rows
+through `canView` 500 at a time. On a large table, declare a scope.
+
 **`$.revision(...)`: a revision counter the server maintains.** `0` on create
 and one higher on every update, so a client can update only the version it
 read (with `UpdateBody.expect`, where available). `INTEGER NOT NULL DEFAULT
