@@ -76,6 +76,7 @@ final class DeviceToken {
     required this.token,
     required this.label,
     this.platform,
+    this.rev = 0,
   });
 
   final DeviceTokenId id;
@@ -90,6 +91,10 @@ final class DeviceToken {
   /// A column the fan-out must never read. Its value is a canary: if it ever
   /// reaches the courier or an outcome, the projection has widened.
   final String label;
+
+  /// A `$.revision` column: pruning a token is a change to the row, and a
+  /// client holding the old revision must see that.
+  final int rev;
 }
 
 final class DeviceTokenTable extends schema.Table<DeviceToken> {
@@ -103,7 +108,8 @@ final class DeviceTokenTable extends schema.Table<DeviceToken> {
       userId = $.text('user_id', (s) => s.userId),
       token = $.deviceToken('token', (s) => s.token),
       label = $.text('label', (s) => s.label),
-      platform = $.text('platform', (s) => s.platform);
+      platform = $.text('platform', (s) => s.platform),
+      rev = $.revision('rev', (s) => s.rev);
 
   @override
   DeviceToken fromRow(RowReader read) => DeviceToken(
@@ -112,6 +118,7 @@ final class DeviceTokenTable extends schema.Table<DeviceToken> {
     token: read(token),
     label: read(label),
     platform: read(platform),
+    rev: read(rev),
   );
 
   final IdColumn<DeviceTokenId> id;
@@ -119,6 +126,7 @@ final class DeviceTokenTable extends schema.Table<DeviceToken> {
   final ColumnType<String?> token;
   final TextColumn label;
   final ColumnType<String?> platform;
+  final ColumnType<int> rev;
 }
 
 final deviceTokens = table('device_tokens', DeviceTokenTable.new);
@@ -410,7 +418,8 @@ version: $kVersion
     await db.execute(
       'CREATE TABLE "device_tokens" ('
       '"id" TEXT PRIMARY KEY, "user_id" TEXT NOT NULL, '
-      '"token" TEXT, "label" TEXT NOT NULL, "platform" TEXT)',
+      '"token" TEXT, "label" TEXT NOT NULL, "platform" TEXT, '
+      '"rev" INTEGER NOT NULL DEFAULT 0)',
     );
     await db.execute('DELETE FROM "_push_jobs"');
 
@@ -702,6 +711,33 @@ version: $kVersion
         ['audit'],
       );
       expect([for (final row in result.rows) row[0]], ['rejected tok-d000001']);
+    });
+  });
+
+  test('clearColumn bumps the revision of the row it clears', () async {
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+      courier.rejectTokens.add('tok-d000001');
+
+      await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: CronJwt(),
+        caller: PushCaller.serverCode,
+      );
+      await zonaiDb.drainPushJobs();
+
+      final db = await zonaiDb.open();
+      final result = await db.execute(
+        'SELECT "rev" FROM "device_tokens" ORDER BY "id"',
+      );
+      expect(
+        [for (final row in result.rows) row[0]],
+        [0, 1, 0],
+        reason: 'the cleared row changed; the others did not',
+      );
     });
   });
 

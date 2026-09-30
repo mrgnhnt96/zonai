@@ -69,6 +69,22 @@ void main() {
       expect(response.values, contains(0));
     });
 
+    test('a createMany stores revision 0 on every row', () async {
+      final response = await _dispatch(
+        CreateManyOperationRequest(
+          table: 'docs',
+          objects: [
+            {'title': 'a'},
+            {'title': 'b'},
+          ],
+          jwt: null,
+        ),
+      );
+
+      expect('"rev"'.allMatches(response.query), isNotEmpty);
+      expect(response.values.where((v) => v == 0), hasLength(2));
+    });
+
     test('an update increments it, whatever the update changed', () async {
       final response = await _dispatch(
         UpdateOperationRequest(
@@ -90,6 +106,22 @@ void main() {
             CreateOperationRequest(
               table: 'docs',
               object: {'title': 'a', 'rev': 7},
+              jwt: null,
+            ),
+          ),
+          throwsA(isA<ServerManagedColumnWriteException>()),
+        );
+      });
+
+      test('on createMany, from any one row', () async {
+        await expectLater(
+          _dispatch(
+            CreateManyOperationRequest(
+              table: 'docs',
+              objects: [
+                {'title': 'a'},
+                {'title': 'b', 'rev': 7},
+              ],
               jwt: null,
             ),
           ),

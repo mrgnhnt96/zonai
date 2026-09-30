@@ -111,6 +111,11 @@ UpdateOneBody(
 
 A create or update that sets the revision itself is **refused with a `400`**, not quietly ignored. A client that believed it wrote the value is exactly the one that needs to be told it didn't. The column is `INTEGER NOT NULL DEFAULT 0`, so adding it to a table that already has rows migrates them to revision `0`. The admin dashboard shows it read-only.
 
+What the revision does not see:
+
+- **A custom operation that writes with raindrop directly.** The increment is part of `TableOperations.update(...)`. A `custom` override that builds its own statement with `db.update(...)` skips it, and skips `updatedAt` too. Build the write with `update(updates, where: ...)` instead, and it gets both.
+- **A row deleted and created again with the same id.** The new row starts at `0`. A client that remembers revision `0` of the old row can't tell the two apart, so a sync that allows reused ids should key on something besides the revision, such as `createdAt`.
+
 ## Indexes
 
 Indexes are defined in a callback passed as the third argument to `table()`. Use `index()` for a regular index and `uniqueIndex()` for a unique index. Both take a name and then call `.on()` with the column(s) to index:
