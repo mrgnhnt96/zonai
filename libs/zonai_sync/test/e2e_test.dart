@@ -10,9 +10,14 @@ import 'package:zonai_sync/zonai_sync.dart';
 
 /// zonai_sync against a REAL zonai server (fixture: e2e/sync).
 ///
-/// Needs a compiled zonai binary whose version matches e2e/sync/zonai.yaml:
+/// Needs a compiled zonai binary:
 ///
 ///     ZONAI_E2E_BINARY=/path/to/zonai dart test --tags e2e
+///
+/// Any release works: every command runs with `--no-version-check` and
+/// `--no-schema-version-check`, like the CLI's own e2e harnesses. The version
+/// e2e/sync/zonai.yaml pins is not bumped per release, and it used to have to
+/// match, so each new CLI failed `compile` here until somebody edited it.
 ///
 /// Skipped (loudly) without it. The in-memory fake in engine_test.dart pins
 /// the engine's logic; this pins the ASSUMPTIONS the fake makes about zonai —
@@ -39,7 +44,11 @@ void main() {
   final serverLog = StringBuffer();
 
   Future<void> zonai(List<String> args) async {
-    final r = await Process.run(binary, args, workingDirectory: fixture.path);
+    final r = await Process.run(binary, [
+      ...args,
+      '--no-version-check',
+      '--no-schema-version-check',
+    ], workingDirectory: fixture.path);
     if (r.exitCode != 0) {
       fail('zonai ${args.join(' ')} failed:\n${r.stdout}\n${r.stderr}');
     }
