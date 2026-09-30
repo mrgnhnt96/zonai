@@ -1096,7 +1096,7 @@ void main() {
     });
 
     test(
-      'a held row holds a child table that declares no references',
+      'a row held by a WAITING parent holds a child table without references',
       () async {
         final phone = Device(
           server,
@@ -1111,16 +1111,69 @@ void main() {
           ],
         );
         await phone.write({'id': 'c1'}, 'courses');
-        server.failures.add(const SyncRemoteException(FailureKind.forbidden));
-        await phone.engine.sync(); // c1 dead
         await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
         await phone.write({'id': 'g1', 'student_id': 's1'}, 'grades');
+        // c1 backs off: transient, so everything under it waits.
+        server.failures.add(const SyncRemoteException(FailureKind.server));
         await phone.engine.sync();
         expect(server.calls, isNot(contains('create students/s1')));
         expect(server.calls, isNot(contains('create grades/g1')));
-        expect(phone.engine.currentStatus.deadLetters, hasLength(1));
+        expect(phone.engine.currentStatus.deadLetters, isEmpty);
       },
     );
+
+    test(
+      "a row held by a DEAD parent doesn't freeze a child table without "
+      'references',
+      () async {
+        // Round 5: one permanent dead letter must not stop unrelated
+        // grandchildren (the N2 design); only its own row subtree waits.
+        final phone = Device(
+          server,
+          tables: const [
+            SyncTable('courses'),
+            SyncTable(
+              'students',
+              parents: ['courses'],
+              references: {'course_id': 'courses'},
+            ),
+            SyncTable('grades', parents: ['students']),
+          ],
+        );
+        await phone.write({'id': 'c2'}, 'courses');
+        await phone.write({'id': 's2', 'course_id': 'c2'}, 'students');
+        await phone.engine.sync();
+        await phone.write({'id': 'c1'}, 'courses');
+        server.failures.add(const SyncRemoteException(FailureKind.forbidden));
+        await phone.engine.sync(); // c1 dead
+        await phone.write({'id': 's1', 'course_id': 'c1'}, 'students');
+        await phone.write({'id': 'g2', 'student_id': 's2'}, 'grades');
+        await phone.engine.sync();
+        expect(server.calls, isNot(contains('create students/s1')));
+        expect(server.calls, contains('create grades/g2'));
+      },
+    );
+
+    test('a claim never re-owns a row that has ever synced', () async {
+      // Belt to guestIds: even a wrong guest list cannot take a row the
+      // server already holds for someone (it has a base revision).
+      final store = MemorySyncStore();
+      await store.writeRow('notes', {'id': 'synced', 'owner_id': 'u1'});
+      await store.setBaseRev('notes', 'synced', 3);
+      await store.writeRow('notes', {'id': 'fresh', 'owner_id': 'u1'});
+      final engine = SyncEngine(
+        remote: server,
+        local: store,
+        tables: const [SyncTable('notes')],
+        account: () => 'u2',
+        syncOnWrite: false,
+        guestIds: (_) => {'u1'}, // wrong on purpose
+      );
+      server.user = 'u2';
+      await engine.sync();
+      expect(store.rows('notes')['synced']!.data['owner_id'], 'u1');
+      expect(server.tables['notes']!.keys, ['fresh']);
+    });
 
     group('unclaimed stays true', () {
       Future<MemorySyncStore> claimedStore(FakeZonai server) async {

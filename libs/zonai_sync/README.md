@@ -99,7 +99,10 @@ table declares `references`:
   **not** hold the child table, which would freeze it indefinitely. On zonai,
   a child of that dead parent gets a 422 (`ForeignKeyConstraintException`) and
   becomes its own dead letter, so once you fix the parent the child needs a
-  manual `retryDeadLetter` too. Declare `references` to avoid this.
+  manual `retryDeadLetter` too. Declare `references` to avoid this. The same
+  applies one level down: a grandchild table without references, under a child
+  row that a dead parent holds, is sent and gets the same 422. A backing-off
+  ancestor, by contrast, holds every descendant table.
 
 ### Data from before sign-in
 

@@ -244,16 +244,17 @@ final class SyncEngine {
     if (changedHands) await _refreshUnclaimed(account);
   }
 
-  Future<void> _claimLocalRows(
-    String account, {
-    bool onlyGuests = false,
-  }) async {
+  /// Returns how many rows it queued.
+  Future<int> _claimLocalRows(String account, {bool onlyGuests = false}) async {
+    var claimed = 0;
     final guests = guestIds?.call(account) ?? const <String>{};
     for (final table in _tables.where((t) => t.pushes)) {
       for (final id in await _local.rowIds(table.name)) {
         if (await _local.pendingFor(table.name, id) != null) continue;
         final existing = await _local.readRow(table.name, id);
-        if (existing == null) continue;
+        // A row with a base revision has been on the server, owned by
+        // whoever it names: never re-owned, whatever guestIds says.
+        if (existing == null || existing.baseRev != null) continue;
         final scope = table.scopeColumn;
         final named = scope == null ? null : existing.data[scope];
         final guest = named is String && guests.contains(named);
@@ -283,8 +284,10 @@ final class SyncEngine {
             baseRev: row.baseRev,
           ),
         );
+        claimed++;
       }
     }
+    return claimed;
   }
 
   /// Re-owns and uploads rows whose owner is one of [guestIds] for the
@@ -293,12 +296,11 @@ final class SyncEngine {
   Future<int> claimGuestRows() async {
     final account = _requireAccount();
     await _adoptAccount(account);
-    final before = (await _local.entries()).length;
+    var claimed = 0;
     await _local.transaction(() async {
       await _ensureStoreOwnedBy(account);
-      await _claimLocalRows(account, onlyGuests: true);
+      claimed = await _claimLocalRows(account, onlyGuests: true);
     });
-    final claimed = (await _local.entries()).length - before;
     await _refreshUnclaimed(account);
     await _publishCounts();
     if (claimed > 0 && syncOnWrite) unawaited(requestSync(force: true));
@@ -499,12 +501,13 @@ final class SyncEngine {
       }
       if (_isHeldBack(table, entry, stuck, blocked)) {
         // Held rows hold THEIR children too (a grade waits for a student
-        // that waits for a dead course). A held row is waiting, not dead, so
-        // it also holds child tables that declare no references: they cannot
-        // tell which parent row they need, and sending them now would only
-        // earn a 422 and a dead letter for a row that will be fine later.
+        // that waits for a dead course), row by row through `references`.
+        // They do NOT table-block a child table without references: when the
+        // cause is a waiting row, its own table is already blocked and the
+        // ancestor walk holds every descendant table; when the cause is a
+        // dead row, a table block would freeze unrelated rows until a human
+        // acts (see README, "Parents and children").
         stuck.add((entry.table, entry.rowId));
-        blocked.add(entry.table);
         continue;
       }
       // Every entry is re-checked: an account switch mid-pass must stop the
