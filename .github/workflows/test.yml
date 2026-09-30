@@ -877,7 +877,14 @@ jobs:
     # both transports included -- but a loaded dev machine is not a runner,
     # which is exactly why the ceiling moves with the fixture count rather
     # than with that number.
-    timeout-minutes: 18
+    #
+    # Raised from 18 with `anonymous_auth` and `sync`. On 2026-09-30 the
+    # Windows leg hit 18 twice in three runs on 0.10.0 (build ~5-7.5m, then
+    # E2E tests still running 9-12m later), while the one that finished spent
+    # 5.5m in E2E tests. A cancelled job keeps no log, so which fixture took
+    # the time was never visible. The step below now carries its own timeout,
+    # which fails the step and keeps the log instead.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -1040,6 +1047,9 @@ jobs:
 
       - name: E2E tests
         shell: bash
+        # Below the job's ceiling on purpose: a step timeout fails the step
+        # and keeps its log, where the job timeout cancels and loses it.
+        timeout-minutes: 20
         run: dart pub global run sip_cli:sip run test e2e
 
   # Prerequisite-carrying suites, kept out of `unit` on purpose. libs/resqlite
