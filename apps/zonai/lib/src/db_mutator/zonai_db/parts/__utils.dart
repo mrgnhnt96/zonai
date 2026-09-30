@@ -891,25 +891,24 @@ extension UtilsX on ZonaiDb {
       throw const DatabaseNotOpenException();
     }
 
-    final effects = <_SideEffect>[];
-    if (mutations.extract case final muts when muts.isNotEmpty) {
-      logger.debug('(SIDE EFFECT) Handling (${muts.length}) mutations');
-      final groupedEffects = await Future.wait([
-        for (final mut in muts) _getEffect(mut),
-      ]);
-
-      effects.addAll(groupedEffects.expand((e) => e).toList());
-    }
-
+    // Deliberately does NOT touch the queued worker mutations. It used to
+    // extract the whole queue here and then run
+    // `effects.whereType<PerformOperationResponse>()` over a `List<_SideEffect>`
+    // -- a type none of its elements has -- so every write a `before*` hook
+    // queued was drained by the next query (reads included) and dropped.
+    // Nothing failed and nothing logged.
+    //
+    // The queue belongs to [_executeEffects], which every mutating path calls
+    // after its main write and which already does what this could not: runs
+    // each effect's own rules and hooks, and drains what those queue in turn.
+    // Consequence: a before-hook's write commits after the main write, not in
+    // its transaction -- and if the main write fails, the caller throws before
+    // reaching [_executeEffects], so the queued write never lands.
     DatabaseResult? result;
     try {
       await db.transaction((tx) async {
         final (q, v) = query;
         result = await tx.execute(q, v);
-
-        for (final effect in effects.whereType<PerformOperationResponse>()) {
-          await tx.execute(effect.query, effect.values);
-        }
       });
     } catch (e) {
       return (e, null);
