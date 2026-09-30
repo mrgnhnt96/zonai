@@ -451,22 +451,30 @@ void main() {
         return me;
       }
 
-      test('GET /db/count', () async {
+      test('GET /db/count refuses, naming viewScope, instead of leaking '
+          'or scanning', () async {
         if (!_runningOnDartVm) return;
 
         await withDb((db) async {
           final me = await seed(db, 'a1-count', mine: 2, theirs: 3);
 
-          final count = await db.count(
-            'notes',
-            CountPayload(where: const Eq('title', 'a1-count'), jwt: me.jwt),
+          await expectLater(
+            db.count(
+              'notes',
+              CountPayload(where: const Eq('title', 'a1-count'), jwt: me.jwt),
+            ),
+            throwsA(
+              isA<CountRequiresViewScopeException>().having(
+                (e) => '$e',
+                'message',
+                contains('viewScope'),
+              ),
+            ),
           );
-
-          expect(count, 2, reason: 'three of the five rows are not viewable');
         });
       }, timeout: const Timeout(Duration(minutes: 5)));
 
-      test('the total of a list whose page is empty', () async {
+      test('a list omits its total rather than leaking it', () async {
         if (!_runningOnDartVm) return;
 
         await withDb((db) async {
@@ -484,46 +492,44 @@ void main() {
           );
 
           expect(listed.items, isEmpty);
-          expect(listed.total, 1);
+          expect(listed.total, isNull);
         });
       }, timeout: const Timeout(Duration(minutes: 5)));
 
-      test('a count stream', () async {
+      test('a count stream refuses too', () async {
         if (!_runningOnDartVm) return;
 
         await withDb((db) async {
           final me = await seed(db, 'a1-stream', mine: 1, theirs: 2);
 
-          final first = await db
-              .streamCount(
-                'notes',
-                CountPayload(
-                  where: const Eq('title', 'a1-stream'),
-                  jwt: me.jwt,
-                ),
-              )
-              .first;
-
-          expect(first, 1);
+          await expectLater(
+            db
+                .streamCount(
+                  'notes',
+                  CountPayload(
+                    where: const Eq('title', 'a1-stream'),
+                    jwt: me.jwt,
+                  ),
+                )
+                .first,
+            throwsA(isA<CountRequiresViewScopeException>()),
+          );
         });
       }, timeout: const Timeout(Duration(minutes: 5)));
 
-      test('positive control: each owner counts their own rows', () async {
+      test('an admin still gets a plain count', () async {
         if (!_runningOnDartVm) return;
 
         await withDb((db) async {
-          await seed(db, 'a1-owner', mine: 2, theirs: 3);
-          // `seed` names the other owner `<prefix>-other`; sign them in again.
-          final other = await user(db, 'a1-owner-other@example.com');
+          await seed(db, 'a1-admin', mine: 2, theirs: 3);
+          final token = await adminToken(db, 'admin2-a1-admin@example.com');
 
           final count = await db.count(
             'notes',
-            CountPayload(where: const Eq('title', 'a1-owner'), jwt: other.jwt),
+            CountPayload(where: const Eq('title', 'a1-admin'), jwt: token),
           );
 
-          // Not zero and not five: a count that filters by the caller, rather
-          // than one that stopped counting.
-          expect(count, 3);
+          expect(count, 5);
         });
       }, timeout: const Timeout(Duration(minutes: 5)));
     });

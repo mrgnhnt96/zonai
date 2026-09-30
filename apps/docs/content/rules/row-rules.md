@@ -94,7 +94,7 @@ Table rules run first. If the table rule denies, row rules never run and the req
 
 Row rules run once the rows involved have been read (for `create`, on the payload before the insert) — see [Request Pipeline](/core-concepts/request-pipeline). Semantics are per-row for `list` and `view` — if any row fails `canView`, the whole request fails, unless a [scope](#scoping-reads) keeps that row out of the read in the first place. Evaluation is **batched** (one rules call for the page), and tables that override `requiresPerRowCheck => false` skip row-rule work after table access succeeds.
 
-A **count** (`/db/count`, the `total` of `/db/list`, and the count stream) counts only rows the caller may view. On a table with per-row checks and no scope, zonai reads the matching rows and puts them through `canView`, one rules call per 500 rows. On a large table, declare a scope so the count is a plain `COUNT`.
+A **count** (`/db/count`, the `total` of `/db/list`, and the count stream) is one `COUNT` over rows the caller may see. That needs one of: a [scope](#scoping-reads), `requiresPerRowCheck => false`, or an admin caller. Otherwise `/db/count` and the count stream answer `400 count_requires_view_scope`, and `/db/list` returns its page with `total` left out (`null`). Zonai won't count by reading every row. `AuthRowRules` declares a default scope (a user sees their own row), so user tables count out of the box.
 
 For large result sets, keep row rules fast — avoid database queries inside them when possible.
 
@@ -129,6 +129,7 @@ A row outside the scope is **invisible**. It is not returned and not counted, an
 - Keep the two consistent. A row the scope admits and `canView` refuses still fails a list with `403`, and a count trusts the scope, so it would include that row.
 - `null`, the default, means no scope.
 - Writes are not scoped. An update or delete is keyed to the rows its own rules authorized.
+- `expand` doesn't apply the *related* table's scope. The related rows still go through that table's `canView`, so nothing it refuses is returned.
 
 ## Custom Operations
 

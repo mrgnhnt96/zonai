@@ -331,4 +331,22 @@ void main() {
       'lock out the admins the table already has', () async {
     expect(await adminRules.canSignIn(null, AuthType.password), isTrue);
   });
+
+  // Review of #45: a user table gets a default read scope, so counting and
+  // listing it with a total is one statement instead of refused.
+  group('viewScope default', () {
+    test('a signed-in user is scoped to their own row', () async {
+      final scope = await rules.viewScope(_jwtFor('user-1'));
+
+      expect(scope?.toJson(), const Eq('id', 'user-1').toJson());
+    });
+
+    test('an admin gets no scope', () async {
+      expect(await rules.viewScope(_adminJwt()), isNull);
+    });
+
+    test('an anonymous caller gets no scope (canView refuses them)', () async {
+      expect(await rules.viewScope(null), isNull);
+    });
+  });
 }

@@ -13,10 +13,21 @@ a worker built before it sends none and is read as no scope.
 **Counts no longer reveal rows the caller cannot view.** `/db/count`, the
 `total` of `/db/list` and the count stream checked only the table rule, so on
 a table whose rows are private to their owner, anyone the table rule admitted
-could count every owner's rows under any filter. A count now counts only rows
-that pass `canView`. That uses a plain `COUNT` when the row rules declare a
-scope or `requiresPerRowCheck => false`, and otherwise reads the matching rows
-through `canView` 500 at a time. On a large table, declare a scope.
+could count every owner's rows under any filter. A count is now a single
+`COUNT` over rows the caller may see, which needs one of: a `viewScope`, row
+rules with `requiresPerRowCheck => false`, or an admin caller.
+
+**Behaviour change.** For anyone else -- per-row checks, no scope, not an
+admin:
+
+- `/db/count` and the count stream **refuse** with `400
+  count_requires_view_scope`, naming the fix: declare `viewScope`.
+- `/db/list` returns its page with **`total` omitted**. `Paginated.total` is
+  now `int?`, which is a breaking change for code that reads it as `int`.
+
+**`AuthRowRules` has a default `viewScope`.** A signed-in user is scoped to
+their own row, and an admin or an anonymous caller gets none, so a user table
+counts, and lists with a total, in one statement out of the box.
 
 **`$.revision(...)`: a revision counter the server maintains.** `0` on create
 and one higher on every update, so a client can update only the version it

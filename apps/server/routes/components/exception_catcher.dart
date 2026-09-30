@@ -313,6 +313,16 @@ final class Exceptions implements LifecycleComponent {
           details: {'current': e.current},
         ).toEnvelope(),
       ),
+      // 400: a question this table cannot answer cheaply, and the message
+      // says exactly what to declare. It names only schema, never row data.
+      CountRequiresViewScopeException() => .handled(
+        statusCode: 400,
+        body: HttpError(
+          statusCode: 400,
+          code: 'count_requires_view_scope',
+          message: '$exception',
+        ).toEnvelope(),
+      ),
       PasswordUpdateForbiddenException() => .handled(
         statusCode: 403,
         body: {'error': '$exception'},

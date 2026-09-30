@@ -36,6 +36,20 @@ final class PreconditionFailedException extends CrudException {
       'Precondition failed for ${current.length} row(s) (table: $table)';
 }
 
+/// A count was asked of a table it cannot be answered for cheaply and
+/// honestly: the caller needs per-row checks, is not an admin, and the table's
+/// row rules declare no `viewScope`. Refused rather than answered by reading
+/// every matching row.
+final class CountRequiresViewScopeException extends CrudException {
+  const CountRequiresViewScopeException({required super.table});
+
+  @override
+  String toString() =>
+      'Counting "$table" needs a viewScope: declare viewScope on its row '
+      'rules so the count is one statement (see rules/row-rules, "Scoping '
+      'reads")';
+}
+
 final class RecordDeletedWhileStreamingException extends CrudException {
   const RecordDeletedWhileStreamingException({required super.table, this.id});
 
