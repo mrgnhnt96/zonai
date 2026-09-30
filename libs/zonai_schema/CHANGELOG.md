@@ -68,6 +68,11 @@ non-object value is a `400` (`invalid_expect`), never read as "no
 precondition". A server that predates this field ignores it, so a client
 relying on it must know its server.
 
+**Behaviour change, with or without `expect`:** an update's `beforeUpdate`
+hook now runs after the password-column check. A request that is refused
+with a `403` for writing a password column no longer reaches the hook, so a
+hook that queued a write or sent an email for such a request no longer does.
+
 ## 0.5.0
 
 **One server, development and production iOS builds.** An APNs token belongs
