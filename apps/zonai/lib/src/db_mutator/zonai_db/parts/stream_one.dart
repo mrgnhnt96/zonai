@@ -6,12 +6,12 @@ extension _StreamOneX on ZonaiDb {
     ViewPayload payload,
   ) async* {
     final jwt = await _extractJwt(payload, allowApiToken: true);
-    await _requireTableAccess(table, .view, jwt);
+    final access = await _requireTableAccess(table, .view, jwt);
 
     final operation = await _getOperation(
       ListOperationRequest(
         table: table,
-        where: payload.where,
+        where: _scoped(payload.where, access.scope),
         limit: 1,
         offset: null,
         jwt: jwt,
@@ -26,6 +26,9 @@ extension _StreamOneX on ZonaiDb {
       throw RecordReadFailedException(table: table, cause: readError);
     }
 
+    if (readResult.rows.isEmpty) {
+      throw RecordNotFoundException(table: table);
+    }
     final object = readResult.rows.single.toMap();
     await _requireRowAccess(table, .view, object, jwt);
 

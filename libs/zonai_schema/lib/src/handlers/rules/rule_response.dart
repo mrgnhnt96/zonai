@@ -2,6 +2,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/types/collection_actions.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
+import 'package:zonai_schema/src/types/where.dart';
 
 sealed class RuleResponse extends Response {
   const RuleResponse({
@@ -138,6 +139,7 @@ final class TableRulesResponse extends RuleResponse {
     required this.operation,
     required this.canAccess,
     this.skipRowChecks = false,
+    this.scope,
   }) : super(
          path: _path,
          payload: {
@@ -145,6 +147,7 @@ final class TableRulesResponse extends RuleResponse {
            'operation': operation,
            'canAccess': canAccess,
            'skipRowChecks': skipRowChecks,
+           if (scope != null) 'scope': scope.toJson(),
          },
        );
 
@@ -155,6 +158,10 @@ final class TableRulesResponse extends RuleResponse {
       operation: json['operation'],
       canAccess: json['canAccess'],
       skipRowChecks: json['skipRowChecks'] as bool? ?? false,
+      scope: switch (json['scope']) {
+        final Map<dynamic, dynamic> scope => Where.fromJson(scope),
+        _ => null,
+      },
     );
   }
 
@@ -168,6 +175,12 @@ final class TableRulesResponse extends RuleResponse {
   /// successful table-access check (see [BaseRowRules.requiresPerRowCheck]).
   final bool skipRowChecks;
 
+  /// [BaseRowRules.viewScope] for a read the caller may make, which the host
+  /// ANDs into the caller's `where`. `null` means no scope -- and is also what
+  /// a worker built before this field existed sends, so an old worker keeps
+  /// today's behaviour rather than failing the read.
+  final Where? scope;
+
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -175,6 +188,7 @@ final class TableRulesResponse extends RuleResponse {
       'operation': operation,
       'canAccess': canAccess,
       'skipRowChecks': skipRowChecks,
+      if (scope case final scope?) 'scope': scope.toJson(),
       ...super.toJson(),
     };
   }
@@ -182,7 +196,7 @@ final class TableRulesResponse extends RuleResponse {
   @override
   String toString() {
     return 'TableRulesResponse(table: $table, operation: $operation, '
-        'canAccess: $canAccess, skipRowChecks: $skipRowChecks)';
+        'canAccess: $canAccess, skipRowChecks: $skipRowChecks, scope: $scope)';
   }
 }
 

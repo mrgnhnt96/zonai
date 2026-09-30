@@ -26,24 +26,24 @@ extension _ListX on ZonaiDb {
       logger.trace('jwt_extract');
 
       step = 'table_access';
-      await _requireTableAccess(table, .list, jwt);
+      final access = await _requireTableAccess(table, .list, jwt);
       logger.trace('table_access');
 
       step = 'count_query';
-      final count = await _count(
-        table,
-        CountPayload(where: payload.where),
-        userJwt: jwt,
-        trace: false,
-        skipTableAccess: true,
-      );
+      // The total counts only rows this caller may view -- see
+      // [_CountX._visibleCount]. It used to count every matching row, which an
+      // empty page (an offset past the end) handed back with nothing refused.
+      // When no one-statement count is honest (no scope, per-row checks, not
+      // an admin) the total is OMITTED rather than bought with a table scan;
+      // the page itself is still checked row by row below.
+      final count = await _visibleCount(table, payload.where, jwt, access);
       logger.trace('count_query', extra: {'count': count});
 
       step = 'sql_build';
       final operation = await _getOperation(
         ListOperationRequest(
           table: table,
-          where: payload.where,
+          where: _scoped(payload.where, access.scope),
           limit: payload.limit,
           offset: payload.offset,
           orderBy: payload.orderBy,

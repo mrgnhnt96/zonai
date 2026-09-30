@@ -10,4 +10,10 @@ final class UserRowRules extends AuthRowRules<UserTable, User> {
   /// rows a failed sign-in may have created.
   @override
   Future<bool> canView(Jwt? jwt, User row) async => true;
+
+  /// `canView` above lets anyone see every row, so the read scope must say
+  /// the same. `AuthRowRules` defaults `viewScope` to the caller's own row,
+  /// which would otherwise narrow every list to one row, silently.
+  @override
+  Future<Where?> viewScope(Jwt? jwt) async => null;
 }

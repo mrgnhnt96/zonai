@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+**`BaseRowRules.viewScope`: say which rows a caller may see as a filter.** The
+server ANDs it into every read (`GET /db`, `/db/list`, `/db/count` and the
+three streams), so a row outside it is invisible rather than a `403`: a list
+returns the caller's own rows, and a read of someone else's row is a `404`.
+`canView` still runs on every row inside it. Additive: the default is `null`,
+which is today's behaviour. `TableRulesResponse` gains an optional `scope`;
+a worker built before it sends none and is read as no scope.
+
+**Counts no longer reveal rows the caller cannot view.** `/db/count`, the
+`total` of `/db/list` and the count stream checked only the table rule, so on
+a table whose rows are private to their owner, anyone the table rule admitted
+could count every owner's rows under any filter. A count is now a single
+`COUNT` over rows the caller may see, which needs one of: a `viewScope`, row
+rules with `requiresPerRowCheck => false`, or an admin caller.
+
+**Behaviour change.** For anyone else -- per-row checks, no scope, not an
+admin:
+
+- `/db/count` and the count stream **refuse** with `400
+  count_requires_view_scope`, naming the fix: declare `viewScope`.
+- `/db/list` returns its page with **`total` omitted**. `Paginated.total` is
+  now `int?`, which is a breaking change for code that reads it as `int`.
+- **If your `AuthRowRules` widens `canView`, widen `viewScope` to match**
+  (return `null`, or your own filter). The default below scopes a signed-in
+  user to their own row whatever `canView` says, so otherwise lists narrow to
+  the caller's own row and a `GET` of another user's row answers `404`, with
+  no error to say why. Row rules with `requiresPerRowCheck => false` are
+  never scoped: they have already declared every row visible.
+- An update refused on its `expect` reports back in `current` only the rows
+  a read by the caller could return, so rows outside the caller's scope are
+  never included.
+
+**`AuthRowRules` has a default `viewScope`.** A signed-in user is scoped to
+their own row, and an admin or an anonymous caller gets none, so a user table
+counts, and lists with a total, in one statement out of the box.
+
 **`$.revision(...)`: a revision counter the server maintains.** `0` on create
 and one higher on every update, so a client can update only the version it
 read (with `UpdateBody.expect`, where available). `INTEGER NOT NULL DEFAULT

@@ -15,12 +15,18 @@ extension _ReadX on ZonaiDb {
       logger.trace('jwt_extract');
 
       step = 'table_access';
-      await _requireTableAccess(table, .view, jwt);
+      final access = await _requireTableAccess(table, .view, jwt);
       logger.trace('table_access');
 
       step = 'sql_build';
       final operation = await _getOperation(
-        ReadOperationRequest(table: table, where: payload.where, jwt: jwt),
+        ReadOperationRequest(
+          table: table,
+          // A row outside the scope is not found rather than forbidden: to
+          // this caller it does not exist.
+          where: _scoped(payload.where, access.scope)!,
+          jwt: jwt,
+        ),
       );
       logger.trace('sql_build');
 

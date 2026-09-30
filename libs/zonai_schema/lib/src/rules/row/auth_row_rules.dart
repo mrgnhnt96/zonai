@@ -82,6 +82,17 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
     };
   }
 
+  /// A signed-in user sees their own account row; an admin and an anonymous
+  /// caller get no scope (an admin sees every row, and `canView` refuses an
+  /// anonymous one). This is what lets a user table count, and list with a
+  /// total, in one statement out of the box -- without it such a count is
+  /// refused, since counting honestly would mean reading every row.
+  @override
+  Future<Where?> viewScope(Jwt? jwt) async {
+    if (jwt == null || jwt.admin.isAdmin) return null;
+    return Eq(schema.id.name, jwt.userId.value);
+  }
+
   Future<bool> canView(Jwt? jwt, R row) async {
     if (jwt?.admin.isAdmin case true) {
       return true;

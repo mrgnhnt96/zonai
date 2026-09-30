@@ -390,11 +390,16 @@ void main() {
       if (!_runningOnDartVm) return;
 
       await _withDb(settings, appConfig, (db) async {
-        final observer = await db.signInAnonymously('users');
-        Future<int> anonymousRows() => db.count(
-          'users',
-          CountPayload(where: const Null('email'), jwt: observer.jwt),
-        );
+        // Every anonymous row in the table, read directly. `db.count` under a
+        // user's JWT is scoped to that user's own row by `AuthRowRules`'
+        // default `viewScope`, so it cannot see what this test is counting.
+        Future<int> anonymousRows() async {
+          final raw = await db.open();
+          final result = await raw.execute(
+            'SELECT COUNT(*) FROM "users" WHERE "email" IS NULL',
+          );
+          return result.rows.single[0]! as int;
+        }
 
         final before = await anonymousRows();
         debugFailAnonymousCredentialIssue = true;

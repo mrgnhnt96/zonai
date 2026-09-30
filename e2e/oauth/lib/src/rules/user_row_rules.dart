@@ -10,6 +10,12 @@ final class UserRowRules extends AuthRowRules<UserTable, User> {
   @override
   Future<bool> canView(Jwt? jwt, User row) async => true;
 
+  /// `canView` above lets anyone see every row, so the read scope must say
+  /// the same. `AuthRowRules` defaults `viewScope` to the caller's own row,
+  /// which would otherwise narrow every list to one row, silently.
+  @override
+  Future<Where?> viewScope(Jwt? jwt) async => null;
+
   // `UserTable` is `AsAdmin`, so `AuthRowRules.canSignUp` denies anonymous
   // sign-up by default -- see the doc comment there. This fixture's admin
   // invite tests create their acting admin over `POST /auth/sign-up` before

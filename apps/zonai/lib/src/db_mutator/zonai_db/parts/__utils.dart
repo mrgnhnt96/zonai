@@ -191,7 +191,9 @@ extension UtilsX on ZonaiDb {
     return result.rows.isNotEmpty;
   }
 
-  Future<void> _requireTableAccess(
+  /// Refuses unless [jwt] may perform [operation] on [table], and returns the
+  /// verdict -- including the read scope a read must apply (see [_scoped]).
+  Future<TableRulesResponse> _requireTableAccess(
     String table,
     TableOperation operation,
     Jwt? jwt,
@@ -217,6 +219,17 @@ extension UtilsX on ZonaiDb {
     // operation for that table and token skipped row rules too, including ones
     // whose own verdict said otherwise.
     _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = tableRules.skipRowChecks;
+    return tableRules;
+  }
+
+  /// [where] narrowed by a read [scope] (`BaseRowRules.viewScope`).
+  ///
+  /// The scope is ANDed in, never substituted: the caller's own filter still
+  /// applies, and a scope can only take rows away.
+  Where? _scoped(Where? where, Where? scope) {
+    if (scope == null) return where;
+    if (where == null) return scope;
+    return And([where, scope]);
   }
 
   /// The hard gate an API token passes before any rule is consulted.

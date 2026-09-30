@@ -159,6 +159,50 @@ void main() {
       return '${created['id']}';
     }
 
+    // `boards` lets any signed-in user view and update any row, but scopes
+    // reads to the caller's own. The rows a refused update reports back are a
+    // READ, so the scope applies: another owner's row must not come back in
+    // `current`, whatever `canView` says.
+    test(
+      'a refused update reports only rows inside the caller\'s viewScope',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          final owner = await user(db, 'scope-owner@example.com');
+          final other = await user(db, 'scope-other@example.com');
+          final created = await db.create(
+            'boards',
+            CreatePayload(
+              object: {'title': 'v2', 'owner_id': owner.id},
+              jwt: owner.jwt,
+            ),
+          );
+
+          await expectLater(
+            db.update(
+              'boards',
+              UpdatePayload(
+                where: Eq('id', '${created['id']}'),
+                limit: 1,
+                updates: [Update.column('title', .literal('v3'))],
+                expect: const Eq('title', 'v1'),
+                jwt: other.jwt,
+              ),
+            ),
+            throwsA(
+              isA<PreconditionFailedException>().having(
+                (e) => e.current,
+                'current',
+                isEmpty,
+              ),
+            ),
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
+
     test('an update whose expect holds is applied', () async {
       if (!_runningOnDartVm) return;
 

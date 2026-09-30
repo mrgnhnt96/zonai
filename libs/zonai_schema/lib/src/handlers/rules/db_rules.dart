@@ -273,12 +273,25 @@ class DbRules {
     final rowRules = rulesByTable[request.table]?.row;
     final skipRowChecks = rowRules != null && !rowRules.requiresPerRowCheck;
 
+    // Only a granted READ carries a scope: a refusal needs none, and writes
+    // are keyed to the rows their own rules authorized. Nor does one whose
+    // row rules skip per-row checks: they have already said every row is
+    // visible, and a scope -- an inherited default, say -- would silently
+    // narrow what they allow. The count is cheap there anyway.
+    final scope =
+        canAccess &&
+            !skipRowChecks &&
+            (op == .view || op == .list || op == .count)
+        ? await rowRules?.viewScope(request.jwt)
+        : null;
+
     return TableRulesResponse(
       id: request.id,
       table: request.table,
       operation: request.operation,
       canAccess: canAccess,
       skipRowChecks: skipRowChecks,
+      scope: scope,
     );
   }
 
