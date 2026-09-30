@@ -901,7 +901,7 @@ extension _PushX on ZonaiDb {
     required PushConfig config,
   }) async {
     final statements = <(String, List<Object?>)>[
-      ..._pruneStatements(
+      ...await _pruneStatements(
         job: job,
         target: target,
         rejected: rejected,
@@ -936,7 +936,7 @@ extension _PushX on ZonaiDb {
   /// `none` yields nothing at all — not a no-op update. The hook has already
   /// fired by the time this is called, which is what makes `none` a usable
   /// choice rather than a silent one.
-  List<(String, List<Object?>)> _pruneStatements({
+  Future<List<(String, List<Object?>)>> _pruneStatements({
     required PushJobEntry job,
     required ({String primaryKey, String tokenColumn}) target,
     required List<
@@ -944,7 +944,7 @@ extension _PushX on ZonaiDb {
     >
     rejected,
     required PushConfig config,
-  }) {
+  }) async {
     if (rejected.isEmpty) return const [];
     if (config.onPermanentRejection == OnPermanentRejection.none) {
       return const [];
@@ -964,13 +964,13 @@ extension _PushX on ZonaiDb {
     final tokens = [for (final row in rejected) row.token];
 
     return switch (config.onPermanentRejection) {
+      // Built by the operations worker, not by hand: clearing a token is an
+      // update to the row like any other, so it takes the table's
+      // server-managed columns with it -- a `$.revision` goes up, an
+      // `updatedAt` is stamped -- and a client holding the old revision sees
+      // that the row moved.
       OnPermanentRejection.clearColumn => [
-        (
-          'UPDATE "$table" SET "$tokenColumn" = NULL '
-              'WHERE "$pk" IN ($placeholders) '
-              'AND "$tokenColumn" IN ($placeholders)',
-          [...keys, ...tokens],
-        ),
+        await _clearTokensStatement(job, target, keys: keys, tokens: tokens),
       ],
       OnPermanentRejection.deleteRow => [
         (
@@ -982,6 +982,26 @@ extension _PushX on ZonaiDb {
       ],
       OnPermanentRejection.none => const [],
     };
+  }
+
+  Future<(String, List<Object?>)> _clearTokensStatement(
+    PushJobEntry job,
+    ({String primaryKey, String tokenColumn}) target, {
+    required List<String> keys,
+    required List<String> tokens,
+  }) async {
+    final operation = await _getOperation(
+      UpdateOperationRequest(
+        table: job.targetTable,
+        where: And([
+          In(target.primaryKey, keys),
+          In(target.tokenColumn, tokens),
+        ]),
+        updates: [Update.column(target.tokenColumn, .literal(null))],
+        jwt: null,
+      ),
+    );
+    return (operation.query, operation.values);
   }
 
   Future<void> _finishPushJob(PushJobEntry job, String? cursor) async {
