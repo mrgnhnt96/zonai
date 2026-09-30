@@ -303,6 +303,61 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
+
+    // `AuthRowRules` defaults `viewScope` to the caller's own row, which is
+    // right for the stock `canView` and wrong for an app that widened it:
+    // `users` here lets any signed-in user see every row, and the default
+    // scope would silently narrow a list to one. The fixture's row rules
+    // widen `viewScope` to match, which is the documented remedy.
+    test(
+      'a table that widens canView and viewScope lists every row to a user',
+      () async {
+        if (!_runningOnDartVm) {
+          return;
+        }
+
+        await withDb((db) async {
+          final stamp = DateTime.now().microsecondsSinceEpoch;
+          final me = await db.authenticate(
+            table,
+            SignUpPasswordAuthPayload(
+              email: 'me-$stamp@example.com',
+              password: realPassword,
+              object: const {'name': 'Me'},
+            ),
+          );
+          await db.authenticate(
+            table,
+            SignUpPasswordAuthPayload(
+              email: 'other-$stamp@example.com',
+              password: realPassword,
+              object: const {'name': 'Other'},
+            ),
+          );
+
+          final seen = await db.list(
+            table,
+            ListPayload(
+              where: Or([
+                Eq('email', 'me-$stamp@example.com'),
+                Eq('email', 'other-$stamp@example.com'),
+              ]),
+              jwt: me!.jwt,
+            ),
+          );
+
+          expect(
+            seen.items.map((row) => row['email']),
+            unorderedEquals([
+              'me-$stamp@example.com',
+              'other-$stamp@example.com',
+            ]),
+            reason: 'canView allows every row, so the list must too',
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
 }
 

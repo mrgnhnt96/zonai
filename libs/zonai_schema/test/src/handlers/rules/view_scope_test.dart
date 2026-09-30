@@ -52,6 +52,17 @@ final class _ScopedRowRules extends RowRules<_DocTable, _Doc> {
   Future<Where?> viewScope(Jwt? jwt) async => scope;
 }
 
+/// Declares every row visible (`requiresPerRowCheck => false`) AND a scope.
+/// The first statement is the stronger: a table whose rules already said
+/// "every row" must not be narrowed by a scope it also happens to have --
+/// an inherited default, say.
+final class _EveryRowScopedRules extends _ScopedRowRules {
+  const _EveryRowScopedRules(super.schema);
+
+  @override
+  bool get requiresPerRowCheck => false;
+}
+
 Future<TableRulesResponse> _ask(DbRules rules, String operation) async {
   final response = await rules.dispatch(
     TableRulesRequest(table: 'scope_docs', operation: operation, jwt: null),
@@ -130,6 +141,17 @@ void main() {
 
       expect(response.canAccess, isFalse);
       expect(response.scope, isNull);
+    });
+
+    test('not when the row rules skip per-row checks', () async {
+      final everyRow = DbRules(
+        rules: [_DocTableRules(docs), _EveryRowScopedRules(docs)],
+      );
+
+      final response = await _ask(everyRow, 'list');
+
+      expect(response.skipRowChecks, isTrue);
+      expect(response.scope, isNull, reason: 'every row is visible');
     });
 
     test('and a row rule that declares none sends none', () async {

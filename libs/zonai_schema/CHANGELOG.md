@@ -24,6 +24,15 @@ admin:
   count_requires_view_scope`, naming the fix: declare `viewScope`.
 - `/db/list` returns its page with **`total` omitted**. `Paginated.total` is
   now `int?`, which is a breaking change for code that reads it as `int`.
+- **If your `AuthRowRules` widens `canView`, widen `viewScope` to match**
+  (return `null`, or your own filter). The default below scopes a signed-in
+  user to their own row whatever `canView` says, so otherwise lists narrow to
+  the caller's own row and a `GET` of another user's row answers `404`, with
+  no error to say why. Row rules with `requiresPerRowCheck => false` are
+  never scoped: they have already declared every row visible.
+- An update refused on its `expect` reports back in `current` only the rows
+  a read by the caller could return, so rows outside the caller's scope are
+  never included.
 
 **`AuthRowRules` has a default `viewScope`.** A signed-in user is scoped to
 their own row, and an admin or an anonymous caller gets none, so a user table

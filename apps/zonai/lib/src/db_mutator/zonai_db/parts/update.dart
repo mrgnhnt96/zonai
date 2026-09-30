@@ -407,10 +407,68 @@ extension _UpdateX on ZonaiDb {
     ];
     if (failing.isEmpty) return;
 
-    final viewable = await _filterRowsAccess(table, .view, failing, jwt);
+    final viewable = await _inViewScope(
+      table,
+      await _filterRowsAccess(table, .view, failing, jwt),
+      jwt,
+      idColumn: idColumn,
+    );
     throw PreconditionFailedException(
       table: table,
       current: await _sanitizeRows(table, viewable, jwt: jwt),
     );
+  }
+
+  /// The [rows] a read by [jwt] could return: those inside the table's
+  /// `viewScope`, when it declares one.
+  ///
+  /// Reporting rows back is a read, and a read is narrowed by the scope even
+  /// where `canView` would allow more -- otherwise a refused update would be a
+  /// way to read rows a list or a `GET` hides. No table-level view access at
+  /// all means nothing comes back, and so does a scope on a table with no id
+  /// column to match the rows back by: fail closed rather than show rows the
+  /// scope might exclude.
+  Future<List<Map<String, Object?>>> _inViewScope(
+    String table,
+    List<Map<String, Object?>> rows,
+    Jwt? jwt, {
+    required String? idColumn,
+  }) async {
+    if (rows.isEmpty) return rows;
+    final access = await _tableRules(table, .view, jwt);
+    if (!access.canAccess) return const [];
+    final scope = access.scope;
+    if (scope == null) return rows;
+    if (idColumn == null) return const [];
+
+    final operation = await _getOperation(
+      ListOperationRequest(
+        table: table,
+        where: And([
+          In(idColumn, [
+            for (final row in rows)
+              if (row[idColumn] case final Object id) id,
+          ]),
+          scope,
+        ]),
+        limit: null,
+        offset: null,
+        jwt: jwt,
+      ),
+    );
+    final (error, result) = await _execute((operation.query, operation.values));
+    if (error != null || result == null) {
+      _throwDatabaseError(
+        error,
+        table: table,
+        failure: ([cause]) =>
+            RecordUpdateFailedException(table: table, cause: cause),
+      );
+    }
+    final inScope = {for (final row in result.rows) row.toMap()[idColumn]};
+    return [
+      for (final row in rows)
+        if (inScope.contains(row[idColumn])) row,
+    ];
   }
 }
