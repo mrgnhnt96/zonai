@@ -142,6 +142,7 @@ extension _PasswordX on ZonaiDb {
       // round. The slot is held through the hash and the INSERT and released
       // before the hooks and effects, which do not touch the writer.
       step = 'write_admit';
+      var lostRace = false;
       final slot = await _admitWrite();
       final Object? error;
       final OperationResult? result;
@@ -168,15 +169,49 @@ extension _PasswordX on ZonaiDb {
         );
         logger.trace('sql_build');
 
+        step = 'taken_build';
+        final taken = await _dispatchOperation<PerformOperationResponse>(
+          ViewAuthOperationRequest(
+            table: table,
+            jwt: jwt,
+            payload: PasswordAuthOperationPayload.get(email: payload.email),
+          ),
+        );
+        logger.trace('taken_build');
+
         // Serialize the INSERT so concurrent signups don't hit SQLite busy /
         // write storms. Argon2 already finished above, off the writer lock.
+        //
+        // The address is checked again here, on the writer chain, because the
+        // routing check in [_authenticatePassword] runs before the hash: two
+        // sign-ups for one new address both pass it. A table that mixes in
+        // OAuth has no unique email index to catch the second (see
+        // `authTable`), so without this both insert and the address has two
+        // rows. The one that loses the race is handled exactly as if it had
+        // arrived second -- as a sign-in -- so the documented contract holds
+        // (sign-up on an existing account signs it in, and never says the
+        // address is taken).
         step = 'sql_execute';
-        (error, result) = await _chainWrite(
-          () => _execute((operation.query, operation.values)),
-        );
+        (error, result) = await _chainWrite(() async {
+          final (takenError, existing) = await _execute((
+            taken.query,
+            taken.values,
+          ));
+          if (takenError != null) return (takenError, null);
+          if (existing?.rows.isNotEmpty ?? false) {
+            lostRace = true;
+            return (null, null);
+          }
+          return _execute((operation.query, operation.values));
+        });
         logger.trace('sql_execute');
       } finally {
         slot.release();
+      }
+
+      if (lostRace) {
+        logger.trace('lost_race');
+        return await _signInWithPassword(table, payload);
       }
 
       if (error != null || result == null) {

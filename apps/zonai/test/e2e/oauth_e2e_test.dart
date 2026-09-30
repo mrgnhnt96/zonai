@@ -923,6 +923,95 @@ void main() {
         );
       });
     });
+
+    // This table mixes PasswordAuth with OAuth, so it carries no unique email
+    // index: the sign-up path is the only thing that keeps a second row from
+    // being written for an address that already has one.
+    group('password sign-up refuses a taken address', () {
+      Future<void> provisionUnlinked(
+        ZonaiDb db,
+        String email,
+        String sub,
+      ) async {
+        final url = await db.startOAuth(
+          'users',
+          const StartOAuthAuthPayload(provider: 'stub-never'),
+        );
+        await db.completeOAuth(
+          CompleteOAuthAuthPayload(
+            state: Uri.parse(url).queryParameters['state']!,
+            code: OAuthStubServer.code(
+              sub: sub,
+              email: email,
+              emailVerified: true,
+            ),
+          ),
+        );
+      }
+
+      // A guard, not a repro: an address held by two rows is routed to
+      // sign-in, which refuses a password it cannot match. Pinned so the
+      // routing check can't later start reading two rows as "no account".
+      test('when the address already has more than one row', () async {
+        if (!_runningOnDartVm) return;
+        final stamp = DateTime.now().microsecondsSinceEpoch;
+        final email = 'taken-twice-$stamp@example.com';
+        await withDb((db) async {
+          await provisionUnlinked(db, email, 'taken-a-$stamp');
+          await provisionUnlinked(db, email, 'taken-b-$stamp');
+
+          await expectLater(
+            db.authenticate(
+              'users',
+              SignUpPasswordAuthPayload(
+                email: email,
+                password: 'Test1234!',
+                object: const {'name': 'Third Row'},
+              ),
+            ),
+            throwsA(isA<InvalidPasswordOrEmailException>()),
+          );
+        });
+      });
+
+      test('when two sign-ups for one new address race', () async {
+        if (!_runningOnDartVm) return;
+        final email =
+            'race-${DateTime.now().microsecondsSinceEpoch}@example.com';
+        await withDb((db) async {
+          Future<Object?> signUp() async {
+            try {
+              return await db.authenticate(
+                'users',
+                SignUpPasswordAuthPayload(
+                  email: email,
+                  password: 'Test1234!',
+                  object: const {'name': 'Racer'},
+                ),
+              );
+            } on Object catch (e) {
+              return e;
+            }
+          }
+
+          final outcomes = await Future.wait([signUp(), signUp()]);
+          final ids = [
+            for (final outcome in outcomes)
+              if (outcome case (
+                jwt: String _,
+                :final Map<String, Object?> user,
+              ))
+                user['id'],
+          ];
+
+          // The loser is answered as if it had arrived second: sign-up on an
+          // existing account signs that account in. Two ids here means the
+          // address now has two rows.
+          expect(ids, hasLength(2), reason: 'both get a session: $outcomes');
+          expect(ids.toSet(), hasLength(1), reason: 'one account, not two');
+        });
+      });
+    });
   });
 }
 
