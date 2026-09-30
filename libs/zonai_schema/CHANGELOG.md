@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**`$.revision(...)`: a revision counter the server maintains.** `0` on create
+and one higher on every update, so a client can update only the version it
+read (with `UpdateBody.expect`, where available). `INTEGER NOT NULL DEFAULT
+0`, so adding it to an existing table migrates the rows to `0`. A create or
+update that sets it is refused with a `400` (`ServerManagedColumnWriteException`)
+rather than silently ignored. Shown read-only in the dashboard and treated as
+server-set by the generated client. Additive.
+
 ## 0.5.0
 
 **One server, development and production iOS builds.** An APNs token belongs

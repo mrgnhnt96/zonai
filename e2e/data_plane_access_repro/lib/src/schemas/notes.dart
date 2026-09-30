@@ -10,6 +10,7 @@ final class Note {
     required this.title,
     required this.ownerId,
     required this.createdAt,
+    required this.rev,
     this.updatedAt,
   });
 
@@ -18,6 +19,7 @@ final class Note {
   final String ownerId;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final int rev;
 }
 
 final class NoteTable extends Table<Note> {
@@ -31,7 +33,8 @@ final class NoteTable extends Table<Note> {
       title = $.text('title', (s) => s.title),
       ownerId = $.text('owner_id', (s) => s.ownerId),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
-      updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
+      updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt),
+      rev = $.revision('rev', (s) => s.rev);
 
   @override
   Note fromRow(RowReader read) {
@@ -41,6 +44,7 @@ final class NoteTable extends Table<Note> {
       ownerId: read(ownerId),
       createdAt: read(createdAt),
       updatedAt: read(updatedAt),
+      rev: read(rev),
     );
   }
 
@@ -49,6 +53,7 @@ final class NoteTable extends Table<Note> {
   final TextColumn ownerId;
   final DateTimeColumn createdAt;
   final ColumnType<DateTime?> updatedAt;
+  final ColumnType<int> rev;
 }
 
 final notes = table('notes', NoteTable.new);

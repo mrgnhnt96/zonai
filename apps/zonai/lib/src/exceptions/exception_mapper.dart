@@ -123,6 +123,19 @@ SchemaException? tryParseSchemaException(String message) {
     );
   }
 
+  // Thrown inside the operations worker (`TableOperations`) when a create or
+  // update names a `$.revision` column, so it arrives here as message text too.
+  // A 400: the request asked for something the server does itself.
+  final serverManagedWrite = RegExp(
+    r'Column "([^"]+)" on "([^"]+)" is maintained by the server',
+  );
+  if (serverManagedWrite.firstMatch(message) case final match?) {
+    return ServerManagedColumnWriteException(
+      table: match.group(2)!,
+      columnName: match.group(1)!,
+    );
+  }
+
   final customOperationCollision = RegExp(
     r'Custom operation "([^"]+)" on "([^"]+)" is named after a classic',
   );

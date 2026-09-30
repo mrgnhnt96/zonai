@@ -137,6 +137,13 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         case UpdatedAtTransformer():
           inferredColumns.add(column.name);
           updateables.add(UpdateableColumn(column, _nowFor(column)));
+        case RevisionTransformer():
+          // Every update, whatever it changed: a revision says "this is not
+          // the row you read", and any write makes that true.
+          inferredColumns.add(column.name);
+          updateables.add(
+            UpdateableColumn(column, rd.SQL([column, const rd.RawSQL('+'), 1])),
+          );
         case final UpdatedWhenTransformer t:
           inferredColumns.add(column.name);
           watchedUpdateColumns.add((column, t));
@@ -160,6 +167,14 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         }
       }
     }
+
+    _refuseServerManagedWrites([
+      for (final update in updates)
+        ...switch (update) {
+          ColumnUpdate(:final column) => [column.split('.').first],
+          ObjectUpdate(:final object) => object.keys,
+        },
+    ]);
 
     updateLoop:
     for (final update in updates) {
@@ -238,6 +253,23 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         .update(schema)
         .setAll(updateables)
         .where(_whereFilter(where, table.name));
+  }
+
+  /// Refuses [columns] that name a column the server maintains (a
+  /// `$.revision`). Skipping them silently -- what happens to `updatedAt` --
+  /// leaves a client believing it set a value it did not, which for a
+  /// revision is the difference between a conflict detected and one missed.
+  void _refuseServerManagedWrites(Iterable<String> columns) {
+    for (final name in columns) {
+      for (final column in table.columns) {
+        if (column.name == name && column.transformer is RevisionTransformer) {
+          throw ServerManagedColumnWriteException(
+            table: table.name,
+            columnName: name,
+          );
+        }
+      }
+    }
   }
 
   /// `now`, encoded the way [UpdateableColumn] expects, for a server-managed
@@ -685,10 +717,18 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
   Query<dynamic> _query(PerformOperationRequest request) {
     return switch (request) {
       CountOperationRequest(:final where) => count(where: where).compiled(),
-      CreateOperationRequest(:final object) => insert(object).compiled(),
-      CreateManyOperationRequest(:final objects) => insertMany([
-        for (final object in objects) table.safeCreate(object),
-      ]).compiled(),
+      CreateOperationRequest(:final object) => () {
+        _refuseServerManagedWrites(object.keys);
+        return insert(object).compiled();
+      }(),
+      CreateManyOperationRequest(:final objects) => () {
+        for (final object in objects) {
+          _refuseServerManagedWrites(object.keys);
+        }
+        return insertMany([
+          for (final object in objects) table.safeCreate(object),
+        ]).compiled();
+      }(),
       UpdateOperationRequest(:final where, :final updates) => update(
         updates,
         where: where,
