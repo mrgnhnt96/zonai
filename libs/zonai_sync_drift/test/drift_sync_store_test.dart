@@ -60,6 +60,12 @@ final class NotesTable implements DriftSyncTable {
       db.customStatement('DELETE FROM notes WHERE id = ?', [id]);
 
   @override
+  Future<List<String>> ids() async => [
+    for (final r in await db.customSelect('SELECT id FROM notes').get())
+      r.read<String>('id'),
+  ];
+
+  @override
   Future<void> clear() => db.customStatement('DELETE FROM notes');
 
   Future<int> count() async =>
@@ -162,6 +168,12 @@ void main() {
         expect(await store.nextOutboxId(), greaterThan(first));
       },
     );
+
+    test('rowIds lists the table', () async {
+      await store.writeRow('notes', {'id': 'a'});
+      await store.writeRow('notes', {'id': 'b'});
+      expect(await store.rowIds('notes'), unorderedEquals(['a', 'b']));
+    });
 
     test('cursor and account round-trip', () async {
       const cursor = SyncCursor(updatedAt: 99, id: 'z', seq: 7);

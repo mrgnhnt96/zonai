@@ -21,6 +21,9 @@ abstract interface class DriftSyncTable {
 
   Future<void> delete(String id);
 
+  /// Ids of every local row.
+  Future<List<String>> ids();
+
   /// Deletes every row (sign-out, or a different account signing in).
   Future<void> clear();
 }
@@ -93,6 +96,9 @@ final class DriftSyncStore implements SyncLocalStore {
       [table, id],
     );
   }
+
+  @override
+  Future<List<String>> rowIds(String table) => _table(table).ids();
 
   @override
   Future<void> applyRemote(String table, RemoteRow row) async {
