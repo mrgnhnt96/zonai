@@ -331,10 +331,6 @@ jobs:
        github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
-    # `actions: read` downloads the triggering Compile run's artifacts.
-    permissions:
-      contents: read
-      actions: read
     timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     strategy:
       fail-fast: false
@@ -342,13 +338,10 @@ jobs:
         include:
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
-            target: linux-x64
           - os: macos-latest
             native_libs_artifact: native-libs-macos-arm64
-            target: macos-arm64
           - os: windows-latest
             native_libs_artifact: native-libs-windows-x64
-            target: windows-x64
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -466,35 +459,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
-      # REUSE THE TRIGGERING COMPILE RUN'S SERVER SOURCES instead of running
-      # revali again. Compile's `zonai compile` already generated
-      # apps/zonai/lib/gen/server for this commit and uploaded it
-      # (zonai-gen-sources-<target>, with include-hidden-files for .revali/).
-      # Only `server/` is restored, not the `web/` beside it in that artifact,
-      # so the tree matches what `bootstrap test` produces. With it in place,
-      # `bootstrap test-without-server` does the rest (version + native
-      # bindings). No Compile run for this commit (a branch dispatch), or any
-      # failure here, and the full `bootstrap test` below runs as before.
-      - name: Reuse the Compile run's server sources
-        id: compiled
-        continue-on-error: true
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMPILE_RUN_ID: ${{ github.event.workflow_run.id }}
-          TARGET: ${{ matrix.target }}
-        run: |
-          set -euo pipefail
-          status=0
-          bash tool/ci/restore_compile_artifact.sh \
-            "zonai-gen-sources-${TARGET}" apps/zonai/lib/gen server || status=$?
-          if [ "${status}" -eq 3 ]; then exit 0; fi
-          [ "${status}" -eq 0 ] || exit "${status}"
-          test -f apps/zonai/lib/gen/server/.revali/server/server.dart
-          echo "reused=true" >> "$GITHUB_OUTPUT"
-
       - name: Bootstrap lib/gen
-        if: steps.compiled.outputs.reused != 'true'
         shell: bash
         env:
           ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
@@ -508,22 +473,14 @@ jobs:
         # prerequisite `test cli` declares, and the description is stale.
         # Filed rather than fixed here: scripts.yaml belongs to another change.
         #
-        # This used to argue against restoring lib/gen from an artifact: modes
-        # are dropped on the round-trip, and gen/server/.revali needs
-        # include-hidden-files. Neither holds for the step above: gen/server is
-        # Dart source, where modes do not matter, and compile.yml uploads it
-        # with include-hidden-files (verify-release has restored it that way
-        # all along). The native libraries, where modes would matter, are
-        # still unpacked from the cache release's tarball, and any failure
-        # falls back to this full bootstrap.
+        # Always the full bootstrap here, unlike cli, which restores
+        # lib/gen/server from Compile instead of running revali. This job runs
+        # apps/server's suite, and its route-table tests read revali's output
+        # in apps/server/.revali -- which only running revali produces, and
+        # which they SKIP without (admin_invite_rate_limit_test and friends).
+        # Reusing Compile's copy here would trade those assertions for about a
+        # minute on a job that is not the slowest one.
         run: dart pub global run sip_cli:sip run bootstrap test
-
-      - name: Bootstrap lib/gen (server sources from Compile)
-        if: steps.compiled.outputs.reused == 'true'
-        shell: bash
-        env:
-          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
-        run: dart pub global run sip_cli:sip run bootstrap test-without-server
 
       - name: Unit tests
         shell: bash
@@ -881,8 +838,8 @@ jobs:
       # (zonai-gen-sources-<target>, with include-hidden-files for .revali/).
       # Only `server/` is restored, not the `web/` beside it in that artifact,
       # so the tree matches what `bootstrap test` produces. With it in place,
-      # `bootstrap test-without-server` does the rest (version + native
-      # bindings). No Compile run for this commit (a branch dispatch), or any
+      # `bootstrap test-without-server` does the rest (version, the web-assets
+      # stub, native bindings). Not done in `unit`: see the note there. No Compile run for this commit (a branch dispatch), or any
       # failure here, and the full `bootstrap test` below runs as before.
       - name: Reuse the Compile run's server sources
         id: compiled
