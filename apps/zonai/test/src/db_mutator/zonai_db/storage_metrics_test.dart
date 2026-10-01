@@ -341,12 +341,29 @@ void main() {
     // live on the dev server as `../playground/.zonai/data/zonai.sqlite` --
     // resolvable only against the server's working directory, which is
     // precisely what the operator reading the field does not have.
-    final originalCwd = io.Directory.current;
+    //
+    // The project sits under the working directory and is loaded by a
+    // relative basePath, which hands the collector relative paths exactly as
+    // a null basePath does. This test used to `chdir` into the temp project
+    // instead, but the working directory belongs to the whole test process,
+    // and the suites running beside this one in other isolates resolved their
+    // own relative paths against it: client_package_exports_test went looking
+    // for libs/ above the temp directory on run 36893148796.
+    final relativeRoot = io.Directory(
+      p.join('.dart_tool', 'storage_metrics_relative'),
+    )..createSync(recursive: true);
+    final relativeProject = relativeRoot.createTempSync('project_');
     try {
-      io.Directory.current = projectRoot;
+      final relativeBase = p.relative(relativeProject.path);
+      io.File(
+        p.join(relativeBase, 'zonai.yaml'),
+      ).writeAsStringSync('name: test\n');
+      io.Directory(
+        p.join(relativeBase, '.zonai', 'migrations'),
+      ).createSync(recursive: true);
 
       final relativeSettings = await runMergedScopedFuture(
-        () async => Settings.load(),
+        () async => Settings.load(relativeBase),
         override: {fsProvider.overrideWith(LocalFileSystem.new)},
       );
       await runMergedScopedFuture(
@@ -403,7 +420,7 @@ void main() {
         },
       );
     } finally {
-      io.Directory.current = originalCwd;
+      deleteTempDirectory(relativeProject);
     }
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

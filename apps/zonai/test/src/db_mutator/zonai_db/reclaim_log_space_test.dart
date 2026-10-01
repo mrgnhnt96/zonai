@@ -98,14 +98,11 @@ void main() {
     required int keep,
   }) async {
     final db = await zonaiDb.open();
-    final padding = 'x' * 4000;
-    for (var i = 0; i < total; i++) {
-      await db.execute(
-        'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
-        '"trace_id") VALUES (?, ?, ?, ?, ?)',
-        ['id$i', 'info', padding, i, 't'],
-      );
-    }
+    await db.execute(
+      '$_seqCte INSERT INTO "_log" ("id", "level", "message", "timestamp", '
+      '"trace_id") SELECT \'id\' || "i", \'info\', ?2, "i", \'t\' FROM "n"',
+      [total, 'x' * 4000],
+    );
     await db.execute('DELETE FROM "_log" WHERE "timestamp" < ?', [
       total - keep,
     ]);
@@ -131,14 +128,11 @@ void main() {
       '("id" TEXT PRIMARY KEY, "seq" INTEGER, "payload" TEXT)',
       const [],
     );
-    final padding = 'x' * 4000;
-    for (var i = 0; i < total; i++) {
-      await db.execute(
-        'INSERT INTO "main"."_bloat" ("id", "seq", "payload") '
-        'VALUES (?, ?, ?)',
-        ['id$i', i, padding],
-      );
-    }
+    await db.execute(
+      '$_seqCte INSERT INTO "main"."_bloat" ("id", "seq", "payload") '
+      'SELECT \'id\' || "i", "i", ?2 FROM "n"',
+      [total, 'x' * 4000],
+    );
     await db.execute('DELETE FROM "main"."_bloat" WHERE "seq" < ?', [
       total - keep,
     ]);
@@ -502,3 +496,14 @@ class _CapturingSink implements StreamConsumer<List<int>> {
 
   String get text => utf8.decode(bytes);
 }
+
+/// Rows `0` to `?1 - 1` as `"n"("i")`, for seeding a table in one statement.
+/// The row count binds to `?1`, so a statement using it puts its own values
+/// from `?2` on.
+///
+/// One statement is one commit. The seeds here used to insert row by row, a
+/// commit and an fsync each, and this suite took 84s on a windows-latest
+/// runner (run 36809321033) for work that is about VACUUM, not about writes.
+const _seqCte =
+    'WITH RECURSIVE "n"("i") AS (SELECT 0 WHERE ?1 > 0 UNION ALL '
+    'SELECT "i" + 1 FROM "n" WHERE "i" + 1 < ?1)';

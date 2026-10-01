@@ -188,10 +188,15 @@ void main() {
         'CREATE TABLE "logdb"."_log" ("id" INTEGER PRIMARY KEY, "m" TEXT)',
       );
 
-      final padding = 'x' * 4000;
-      for (var i = 0; i < 500; i++) {
-        await db.execute('INSERT INTO "_log" ("m") VALUES (?)', [padding]);
-      }
+      // One statement, so one commit: 500 autocommit INSERTs cost 500 fsyncs,
+      // which on a windows-latest runner ran this test past its two-minute
+      // timeout (run 36893148796). The rows are what VACUUM needs, not the
+      // commits.
+      await db.execute(
+        'WITH RECURSIVE "n"("i") AS (SELECT 1 UNION ALL SELECT "i" + 1 FROM '
+        '"n" WHERE "i" < 500) INSERT INTO "_log" ("m") SELECT ? FROM "n"',
+        ['x' * 4000],
+      );
       await db.execute('PRAGMA logdb.wal_checkpoint(TRUNCATE)');
       final before = logFile.lengthSync();
       expect(before, greaterThan(1024 * 1024));
