@@ -217,7 +217,7 @@ AppConfig main() {
         await zonaiDb.dispose();
       }
     });
-  });
+  }, timeout: _seedingTimeout);
 
   test('deletes the files, not just the rows', () async {
     if (!rs.isInstalled) {
@@ -249,7 +249,7 @@ AppConfig main() {
         await zonaiDb.dispose();
       }
     });
-  });
+  }, timeout: _seedingTimeout);
 
   test('a photo inside the grace period survives, even mid-page', () async {
     if (!rs.isInstalled) {
@@ -302,5 +302,12 @@ AppConfig main() {
         await zonaiDb.dispose();
       }
     });
-  });
+  }, timeout: _seedingTimeout);
 }
+
+/// Each test writes and then deletes 600-1,250 real files, one at a time. On a
+/// windows-latest runner that is slow enough to exceed the 30s default on a busy
+/// runner: the 1,250-photo test timed out on run 36885995810, and its cleanup,
+/// still running after the timeout, deleted files under the next test's count.
+/// The default is a hang guard, and this work is bounded, not hung.
+const _seedingTimeout = Timeout(Duration(minutes: 2));
