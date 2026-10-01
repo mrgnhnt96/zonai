@@ -528,6 +528,22 @@ bootstrap:
       - |
         echo "Generating native Argon2 library"
         ${{ argon2.gen }}
+  test-without-server:
+    (description): >-
+      `bootstrap test` minus the server artifacts, for a CI job that restored
+      apps/zonai/lib/gen/server from its Compile run instead of running revali
+      again (test.yml's unit and cli jobs). Not for local use: without that
+      restored tree the suite fails to load. Keep the steps in step with
+      `bootstrap test` above.
+    (bail):
+    (command):
+      - ${{ version.gen }}
+      - |
+        echo "Generating resqlite native library"
+        ${{ resqlite.gen }}
+      - |
+        echo "Generating native Argon2 library"
+        ${{ argon2.gen }}
 
 zonai:
   # compiles server, web, and cli in 1 executable

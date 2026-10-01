@@ -331,6 +331,10 @@ jobs:
        github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
+    # `actions: read` downloads the triggering Compile run's artifacts.
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     strategy:
       fail-fast: false
@@ -338,10 +342,13 @@ jobs:
         include:
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
+            target: linux-x64
           - os: macos-latest
             native_libs_artifact: native-libs-macos-arm64
+            target: macos-arm64
           - os: windows-latest
             native_libs_artifact: native-libs-windows-x64
+            target: windows-x64
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -459,7 +466,35 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
+      # REUSE THE TRIGGERING COMPILE RUN'S SERVER SOURCES instead of running
+      # revali again. Compile's `zonai compile` already generated
+      # apps/zonai/lib/gen/server for this commit and uploaded it
+      # (zonai-gen-sources-<target>, with include-hidden-files for .revali/).
+      # Only `server/` is restored, not the `web/` beside it in that artifact,
+      # so the tree matches what `bootstrap test` produces. With it in place,
+      # `bootstrap test-without-server` does the rest (version + native
+      # bindings). No Compile run for this commit (a branch dispatch), or any
+      # failure here, and the full `bootstrap test` below runs as before.
+      - name: Reuse the Compile run's server sources
+        id: compiled
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPILE_RUN_ID: ${{ github.event.workflow_run.id }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          status=0
+          bash tool/ci/restore_compile_artifact.sh \
+            "zonai-gen-sources-${TARGET}" apps/zonai/lib/gen server || status=$?
+          if [ "${status}" -eq 3 ]; then exit 0; fi
+          [ "${status}" -eq 0 ] || exit "${status}"
+          test -f apps/zonai/lib/gen/server/.revali/server/server.dart
+          echo "reused=true" >> "$GITHUB_OUTPUT"
+
       - name: Bootstrap lib/gen
+        if: steps.compiled.outputs.reused != 'true'
         shell: bash
         env:
           ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
@@ -473,13 +508,22 @@ jobs:
         # prerequisite `test cli` declares, and the description is stale.
         # Filed rather than fixed here: scripts.yaml belongs to another change.
         #
-        # Each consuming job bootstraps for itself rather than one bootstrap job
-        # publishing lib/gen as an artifact: artifact round-trips drop file
-        # modes (compile.yml records this, which is why it tars) and would need
-        # include-hidden-files for gen/server/.revali. With the cache release
-        # hit, the native build is skipped and this is cheap; the artifact
-        # version buys minutes at the price of a new way to be mysteriously red.
+        # This used to argue against restoring lib/gen from an artifact: modes
+        # are dropped on the round-trip, and gen/server/.revali needs
+        # include-hidden-files. Neither holds for the step above: gen/server is
+        # Dart source, where modes do not matter, and compile.yml uploads it
+        # with include-hidden-files (verify-release has restored it that way
+        # all along). The native libraries, where modes would matter, are
+        # still unpacked from the cache release's tarball, and any failure
+        # falls back to this full bootstrap.
         run: dart pub global run sip_cli:sip run bootstrap test
+
+      - name: Bootstrap lib/gen (server sources from Compile)
+        if: steps.compiled.outputs.reused == 'true'
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run bootstrap test-without-server
 
       - name: Unit tests
         shell: bash
@@ -597,7 +641,7 @@ jobs:
   # L2+L3 -- the CLI's own suite, including its compiled-binary e2e tests.
   # 504 tests, and the reason this workflow exists.
   cli:
-    name: cli (${{ matrix.os }}, ${{ matrix.shard }}/3)
+    name: cli (${{ matrix.os }}, ${{ matrix.shard }}/4)
     # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
     # job, which bills nothing.
     if: >-
@@ -605,6 +649,10 @@ jobs:
        github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
+    # `actions: read` downloads the triggering Compile run's artifacts.
+    permissions:
+      contents: read
+      actions: read
     # 35 rather than the 10 the short jobs take: MEASURED 11.6m (ubuntu) / 14.0m (windows) completing normally on run
     # 31839671048, so a 10-minute ceiling would convert "503 passed, 4 failed"
     # into a contentless timeout and still bill the 10 minutes.
@@ -663,7 +711,7 @@ jobs:
     # other leg is near its ceiling -- e2e, unit, docs and static all still
     # finish in single digits against 10-18.
     #
-    # SHARDED 3 ways on 2026-10-01. With the e2e suites compiling the CLI once
+    # SHARDED 3 ways on 2026-10-01, then 4 once setup was cut (below). With the e2e suites compiling the CLI once
     # (#70) the legs were down to windows 22m21s / ubuntu 19m26s on run
     # 36809321033 -- still the longest jobs in the workflow by ~10 minutes, and
     # 17-19 of those minutes were `CLI tests` running two suites at a time on a
@@ -675,16 +723,24 @@ jobs:
     # and libsodium from C): windows 9m30s-10m23s, ubuntu 7m24s-8m05s. 25 is
     # ~2.4x the slowest shard -- room for the suite to grow and for a cache
     # miss, without letting a wedged shard bill 45 minutes at 2x.
+    #
+    # 4 SHARDS, not 3: zonai is a public repo on standard runners, so Actions
+    # minutes are free and the only cost of a shard is its ~2-3m of repeated
+    # setup in wall-clock-parallel. Setup shrank once Compile's server sources
+    # were reused (revali no longer runs here), which is what made a fourth
+    # shard worth it. Should the repo go private, every shard bills that
+    # setup again -- at 2x on windows -- and fewer shards is the cheaper shape.
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         # The shard count is also in the job name above; keep the two in step.
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
         os: [ubuntu-latest, windows-latest]
         include:
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
+            target: linux-x64
           # TEMPORARILY REMOVED -- macos-latest, 2026-08-14. NOT because the
           # suite fails there: every test file that reported on macOS gave
           # results IDENTICAL to ubuntu's. It is removed because `CLI tests`
@@ -707,6 +763,7 @@ jobs:
           #   native_libs_artifact: native-libs-macos-arm64
           - os: windows-latest
             native_libs_artifact: native-libs-windows-x64
+            target: windows-x64
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -818,7 +875,35 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
+      # REUSE THE TRIGGERING COMPILE RUN'S SERVER SOURCES instead of running
+      # revali again. Compile's `zonai compile` already generated
+      # apps/zonai/lib/gen/server for this commit and uploaded it
+      # (zonai-gen-sources-<target>, with include-hidden-files for .revali/).
+      # Only `server/` is restored, not the `web/` beside it in that artifact,
+      # so the tree matches what `bootstrap test` produces. With it in place,
+      # `bootstrap test-without-server` does the rest (version + native
+      # bindings). No Compile run for this commit (a branch dispatch), or any
+      # failure here, and the full `bootstrap test` below runs as before.
+      - name: Reuse the Compile run's server sources
+        id: compiled
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPILE_RUN_ID: ${{ github.event.workflow_run.id }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          status=0
+          bash tool/ci/restore_compile_artifact.sh \
+            "zonai-gen-sources-${TARGET}" apps/zonai/lib/gen server || status=$?
+          if [ "${status}" -eq 3 ]; then exit 0; fi
+          [ "${status}" -eq 0 ] || exit "${status}"
+          test -f apps/zonai/lib/gen/server/.revali/server/server.dart
+          echo "reused=true" >> "$GITHUB_OUTPUT"
+
       - name: Bootstrap lib/gen
+        if: steps.compiled.outputs.reused != 'true'
         shell: bash
         env:
           ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
@@ -827,10 +912,17 @@ jobs:
         # against a stale one. That means the job owes it.
         run: dart pub global run sip_cli:sip run bootstrap test
 
+      - name: Bootstrap lib/gen (server sources from Compile)
+        if: steps.compiled.outputs.reused == 'true'
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run bootstrap test-without-server
+
       - name: CLI tests
         shell: bash
         env:
-          ZONAI_TEST_SHARD: ${{ matrix.shard }}/3
+          ZONAI_TEST_SHARD: ${{ matrix.shard }}/4
         run: dart pub global run sip_cli:sip run test cli
 
   # L3 -- drives the e2e/ fixture projects through a real compiled binary.
@@ -1002,26 +1094,12 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
-          run_id="${COMPILE_RUN_ID}"
-          if [ -z "${run_id}" ]; then
-            run_id="$(gh run list --repo "${GITHUB_REPOSITORY}" \
-              --workflow compile.yml --commit "${GITHUB_SHA}" --status success \
-              --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
-          fi
-          if [ -z "${run_id}" ]; then
-            echo "no successful Compile run for ${GITHUB_SHA} -- building zonai in this job"
-            exit 0
-          fi
-          echo "reusing Compile run ${run_id}"
-
-          # Unpacked aside and copied in: `gh run download` refuses to
-          # overwrite, and VERSION is tracked.
           restore() {
-            local unpacked="${RUNNER_TEMP}/compile-artifacts/$1"
-            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" \
-              --name "$1" --dir "${unpacked}"
-            mkdir -p "$2"
-            cp -R "${unpacked}/." "$2"
+            local status=0
+            bash tool/ci/restore_compile_artifact.sh "$@" || status=$?
+            # 3: no Compile run for this commit, so build here instead.
+            if [ "${status}" -eq 3 ]; then exit 0; fi
+            return "${status}"
           }
           restore "zonai-${TARGET}" build
           restore release-version .
