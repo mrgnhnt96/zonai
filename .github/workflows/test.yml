@@ -1127,7 +1127,57 @@ jobs:
         # Below the job's ceiling on purpose: a step timeout fails the step
         # and keeps its log, where the job timeout cancels and loses it.
         timeout-minutes: 20
-        run: dart pub global run sip_cli:sip run test e2e
+        # THE STEP TIMEOUT ABOVE HAS NOT BEEN ENOUGH ON WINDOWS. This step
+        # stalled on 3 of the 10 windows runs before 2026-10-01 (36776555674,
+        # 36806136842, 36885995810) where it normally takes ~5.5m, and in each
+        # the 20-minute step timeout never fired: the job sat past its own
+        # ceiling until cancelled, and the runner uploaded no log at all
+        # (BlobNotFound). Which fixture stalled is still unknown.
+        #
+        # So the run bounds itself, below the step timeout, and keeps its own
+        # copy of the output for the upload below. `tail` streams that copy
+        # into the job log while it runs. On Windows the processes still alive
+        # afterwards are listed too: Git Bash's `kill` does not reach a native
+        # process's children, so a stopped `zonai serve` may leave its worker
+        # executables behind, and that is the first suspect.
+        run: |
+          mkdir -p test-logs
+          : > test-logs/e2e.log
+          tail -F test-logs/e2e.log &
+          tail_pid=$!
+          # GNU timeout: on PATH in Git Bash and ubuntu; Homebrew's coreutils
+          # names it gtimeout on macOS. Without either the run is unbounded,
+          # as it was before.
+          bound=()
+          for candidate in timeout gtimeout; do
+            if command -v "${candidate}" >/dev/null 2>&1; then
+              bound=("${candidate}" --kill-after=60 17m)
+              break
+            fi
+          done
+          status=0
+          "${bound[@]}" dart pub global run sip_cli:sip run test e2e \
+            > test-logs/e2e.log 2>&1 || status=$?
+          sleep 2
+          kill "${tail_pid}" 2>/dev/null || true
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            tasklist //v > test-logs/tasklist.txt 2>&1 || true
+            echo "processes still running that may be ours:"
+            grep -iE 'zonai|db_|dart' test-logs/tasklist.txt || echo "  (none)"
+          fi
+          if [ "${status}" -eq 124 ] || [ "${status}" -eq 137 ]; then
+            echo "::error::test e2e ran past 17 minutes and was stopped. The last fixture step in the log is where it stalled; the e2e-test-log artifact has the full output."
+          fi
+          exit "${status}"
+
+      - name: Upload e2e test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-log-${{ matrix.os }}
+          retention-days: 10
+          path: test-logs/
+          if-no-files-found: warn
 
   # Prerequisite-carrying suites, kept out of `unit` on purpose. libs/resqlite
   # needs its own native build into its own .dart_tool/lib -- NOT the
