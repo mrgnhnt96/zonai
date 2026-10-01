@@ -6,6 +6,7 @@ import 'package:zonai/gen/version.dart';
 
 import 'package_roots.dart';
 import 'temp_directory.dart';
+import 'zonai_cli.dart';
 
 /// A throwaway project with a compiled `db_config.exe`, for tests that
 /// construct `ZonaiDb()` directly and need real JWT/config resolution.
@@ -85,12 +86,7 @@ AppConfig main() {
       );
     }
 
-    final zonaiEntry = p.normalize(
-      p.join(Directory.current.path, 'bin', 'zonai.dart'),
-    );
-    final compile = await Process.run(Platform.resolvedExecutable, [
-      'run',
-      zonaiEntry,
+    final compile = await runZonaiCli(const [
       'compile',
       '--no-version-check',
       '--no-schema-version-check',

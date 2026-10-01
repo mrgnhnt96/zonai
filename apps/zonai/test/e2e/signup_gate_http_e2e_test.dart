@@ -14,6 +14,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 
 import '../../lib/gen/server/.revali/server/server.dart' as gen_server;
 import '../support/temp_directory.dart';
+import '../support/zonai_cli.dart';
 
 /// HTTP-layer proof, over a REAL socket against the actual generated server
 /// (`apps/zonai/lib/gen/server`, the same code `zonai compile`/`zonai serve`
@@ -287,12 +288,8 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(Settings settings) {
 }
 
 Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final zonaiEntry = p.normalize(
-    p.join(Directory.current.path, 'bin', 'zonai.dart'),
-  );
-  final result = await Process.run(
-    Platform.resolvedExecutable,
-    ['run', zonaiEntry, ...args],
+  final result = await runZonaiCli(
+    args,
     workingDirectory: projectRoot.path,
     environment: _forceWorkersEnv,
   );
