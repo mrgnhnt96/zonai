@@ -668,10 +668,14 @@ jobs:
     # 36809321033 -- still the longest jobs in the workflow by ~10 minutes, and
     # 17-19 of those minutes were `CLI tests` running two suites at a time on a
     # 4-vCPU runner. tool/ci/test_cli.sh deals the test files out by file, so
-    # each shard runs a third of the suite after the same ~3.5m of setup. The
-    # 45 above is left alone until a sharded run has been measured; tighten it
-    # then, by the rule this block has followed every time.
-    timeout-minutes: 45
+    # each shard runs a third of the suite after the same ~3.5m of setup.
+    #
+    # TIGHTENED from 45 to 25 once measured. Sharded, on run 36894968660 (with
+    # the native-libs cache refreshed, so bootstrap no longer rebuilds resqlite
+    # and libsodium from C): windows 9m30s-10m23s, ubuntu 7m24s-8m05s. 25 is
+    # ~2.4x the slowest shard -- room for the suite to grow and for a cache
+    # miss, without letting a wedged shard bill 45 minutes at 2x.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
