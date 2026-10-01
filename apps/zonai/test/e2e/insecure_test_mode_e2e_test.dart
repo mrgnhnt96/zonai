@@ -14,6 +14,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 import '../support/temp_directory.dart';
+import '../support/zonai_cli.dart';
 
 /// The emailed-challenge backdoor, closed.
 ///
@@ -397,12 +398,8 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
 }
 
 Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final zonaiEntry = p.normalize(
-    p.join(Directory.current.path, 'bin', 'zonai.dart'),
-  );
-  final result = await Process.run(
-    Platform.resolvedExecutable,
-    ['run', zonaiEntry, ...args],
+  final result = await runZonaiCli(
+    args,
     workingDirectory: projectRoot.path,
     environment: const {'ZONAI_FORCE_WORKERS': '1'},
   );

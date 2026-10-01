@@ -14,6 +14,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 
 import '../../../support/package_roots.dart';
 import '../../../support/temp_directory.dart';
+import '../../../support/zonai_cli.dart';
 
 /// `_cleanup_unreferenced_photos` used to decide what to delete by reading
 /// everything first: every `_photos` row, and every row *and every column* of
@@ -109,12 +110,7 @@ AppConfig main() {
       throw StateError('dart pub get failed:\n${pubGet.stderr}');
     }
 
-    final zonaiEntry = p.normalize(
-      p.join(io.Directory.current.path, 'bin', 'zonai.dart'),
-    );
-    final compile = await io.Process.run(io.Platform.resolvedExecutable, [
-      'run',
-      zonaiEntry,
+    final compile = await runZonaiCli(const [
       'compile',
       '--no-version-check',
       '--no-schema-version-check',

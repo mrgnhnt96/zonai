@@ -15,6 +15,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 import '../support/oauth_stub_server.dart';
 import '../support/temp_directory.dart';
+import '../support/zonai_cli.dart';
 
 /// End-to-end proof for oauth-admin-add's premise: `zonai db admin add`
 /// (`ZonaiDb.createAdmin`) can create a row on an `AsAdmin` table that mixes
@@ -297,12 +298,8 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
 }
 
 Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final zonaiEntry = p.normalize(
-    p.join(Directory.current.path, 'bin', 'zonai.dart'),
-  );
-  final result = await Process.run(
-    Platform.resolvedExecutable,
-    ['run', zonaiEntry, ...args],
+  final result = await runZonaiCli(
+    args,
     workingDirectory: projectRoot.path,
     environment: _forceWorkersEnv,
   );
