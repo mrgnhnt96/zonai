@@ -448,8 +448,10 @@ test:
       L2+L3 -- the CLI's own suite, including its compiled-binary e2e
       tests. Needs `sip run bootstrap test` first so lib/gen exists; this
       target does not run it for you, so it fails loudly rather than
-      passing against a stale or missing lib/gen.
-    (command): cd apps/zonai && dart test
+      passing against a stale or missing lib/gen. Set
+      ZONAI_TEST_SHARD=<index>/<total> to run one file-sharded slice of it,
+      which is how CI spreads it over several runners.
+    (command): bash tool/ci/test_cli.sh
   e2e:
     (description): >-
       L3 -- drives the e2e/ fixture projects through a real compiled binary

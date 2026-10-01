@@ -597,7 +597,7 @@ jobs:
   # L2+L3 -- the CLI's own suite, including its compiled-binary e2e tests.
   # 504 tests, and the reason this workflow exists.
   cli:
-    name: cli (${{ matrix.os }})
+    name: cli (${{ matrix.os }}, ${{ matrix.shard }}/3)
     # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
     # job, which bills nothing.
     if: >-
@@ -662,10 +662,22 @@ jobs:
     # completes locally on the same commit (9m27s for 1122 tests), and no
     # other leg is near its ceiling -- e2e, unit, docs and static all still
     # finish in single digits against 10-18.
+    #
+    # SHARDED 3 ways on 2026-10-01. With the e2e suites compiling the CLI once
+    # (#70) the legs were down to windows 22m21s / ubuntu 19m26s on run
+    # 36809321033 -- still the longest jobs in the workflow by ~10 minutes, and
+    # 17-19 of those minutes were `CLI tests` running two suites at a time on a
+    # 4-vCPU runner. tool/ci/test_cli.sh deals the test files out by file, so
+    # each shard runs a third of the suite after the same ~3.5m of setup. The
+    # 45 above is left alone until a sharded run has been measured; tighten it
+    # then, by the rule this block has followed every time.
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
+        # The shard count is also in the job name above; keep the two in step.
+        shard: [1, 2, 3]
+        os: [ubuntu-latest, windows-latest]
         include:
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
@@ -813,6 +825,8 @@ jobs:
 
       - name: CLI tests
         shell: bash
+        env:
+          ZONAI_TEST_SHARD: ${{ matrix.shard }}/3
         run: dart pub global run sip_cli:sip run test cli
 
   # L3 -- drives the e2e/ fixture projects through a real compiled binary.
