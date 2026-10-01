@@ -49,9 +49,33 @@ Future<String> _compileIfStale() async {
   final depfile = '$kernel.d';
   if (_isFresh(kernel, depfile)) return kernel;
 
+  // One compile at a time. Without the lock, two suites starting together
+  // both compiled, and on Windows the later rename failed with "Access is
+  // denied": the first suite was already running a CLI from that kernel, and
+  // Windows will not replace a file another process has open (cli windows
+  // shard 3 on run 36885995810). Closing the file releases the lock.
+  //
+  // POSIX locks belong to the process, so suites in one test runner are not
+  // serialized by this there. They do not need to be: a rename over an open
+  // file is fine on POSIX, and two identical compiles cost only time.
+  final lock = await File('$kernel.lock').open(mode: FileMode.append);
+  try {
+    await lock.lock(FileLock.blockingExclusive);
+    // Another suite may have compiled it while this one waited.
+    if (_isFresh(kernel, depfile)) return kernel;
+    return await _compile(packageRoot, kernel: kernel, depfile: depfile);
+  } finally {
+    await lock.close();
+  }
+}
+
+Future<String> _compile(
+  String packageRoot, {
+  required String kernel,
+  required String depfile,
+}) async {
   // Compile beside the target and rename into place, so a suite running
-  // concurrently never loads a half-written kernel. Two suites starting
-  // together may both compile; the later rename wins and both are identical.
+  // concurrently never loads a half-written kernel.
   final tag = '$pid-${Object().hashCode.toRadixString(36)}';
   final tempKernel = '$kernel.$tag.tmp';
   final tempDepfile = '$depfile.$tag.tmp';
@@ -74,7 +98,15 @@ Future<String> _compileIfStale() async {
   // Kernel first: a reader that sees the new kernel with the old depfile
   // compares old inputs against a newer kernel, which can only say fresh
   // for a kernel that is.
-  File(tempKernel).renameSync(kernel);
+  try {
+    File(tempKernel).renameSync(kernel);
+  } on FileSystemException {
+    // Windows, with a stale kernel still loaded by a CLI some other suite is
+    // running. Its replacement waits for a later compile; this suite runs
+    // from its own copy.
+    File(tempDepfile).deleteSync();
+    return tempKernel;
+  }
   File(tempDepfile).renameSync(depfile);
   return kernel;
 }
