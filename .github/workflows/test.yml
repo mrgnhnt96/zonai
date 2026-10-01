@@ -857,6 +857,11 @@ jobs:
        github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
+    # `actions: read` is for downloading the triggering Compile run's
+    # artifacts -- see "Reuse the Compile run's binary" below.
+    permissions:
+      contents: read
+      actions: read
     # 18 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048 with FOUR served
     # fixtures, and its dominant step is an AOT compile whose duration is
     # variable -- 10 would be a coin flip and a timeout here would read as a
@@ -882,12 +887,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `target` names compile.yml's artifacts for the same platform.
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
+            target: linux-x64
           - os: macos-latest
             native_libs_artifact: native-libs-macos-arm64
+            target: macos-arm64
           - os: windows-latest
             native_libs_artifact: native-libs-windows-x64
+            target: windows-x64
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -955,6 +964,79 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
           fi
+
+      # REUSE THE BINARY THE TRIGGERING COMPILE RUN ALREADY BUILT, rather than
+      # building it a second time. `Build zonai` below was this job's most
+      # expensive step -- 6m13s of the windows leg's 12m47s on run 36809321033
+      # -- and it rebuilt, with the same command and the same pinned SDK, the
+      # exact binary Compile had uploaded minutes earlier. Testing Compile's
+      # artifact is also the stronger check: it is the binary the release ships,
+      # not a second build of the same commit.
+      #
+      # `zonai compile` left more than the binary behind, and run_e2e.sh's
+      # build_smoke fixture needs the rest: `zonai build` links the project
+      # against apps/zonai's own sources, so it reads lib/gen. The same three
+      # pieces verify-release.yml's build-command job restores, from the same
+      # run: the release-version files, the generated server and web sources,
+      # and the native bindings, generated here from the cached libraries the
+      # step above extracted (the same cache compile.yml embeds from).
+      #
+      # A workflow_dispatch run has no triggering Compile, so it looks for a
+      # successful one on this commit; a branch usually has none, and then
+      # nothing is reused and `Build zonai` runs exactly as before. So does any
+      # failure in here -- continue-on-error, and `reused` is only written once
+      # every piece has arrived. A partial restore is harmless: `zonai compile`
+      # regenerates all of it.
+      - name: Reuse the Compile run's binary
+        id: compiled
+        if: steps.native-libs.outputs.found == 'true'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPILE_RUN_ID: ${{ github.event.workflow_run.id }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          run_id="${COMPILE_RUN_ID}"
+          if [ -z "${run_id}" ]; then
+            run_id="$(gh run list --repo "${GITHUB_REPOSITORY}" \
+              --workflow compile.yml --commit "${GITHUB_SHA}" --status success \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          fi
+          if [ -z "${run_id}" ]; then
+            echo "no successful Compile run for ${GITHUB_SHA} -- building zonai in this job"
+            exit 0
+          fi
+          echo "reusing Compile run ${run_id}"
+
+          # Unpacked aside and copied in: `gh run download` refuses to
+          # overwrite, and VERSION is tracked.
+          restore() {
+            local unpacked="${RUNNER_TEMP}/compile-artifacts/$1"
+            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" \
+              --name "$1" --dir "${unpacked}"
+            mkdir -p "$2"
+            cp -R "${unpacked}/." "$2"
+          }
+          restore "zonai-${TARGET}" build
+          restore release-version .
+          restore "zonai-gen-sources-${TARGET}" apps/zonai/lib/gen
+          (
+            cd apps/zonai
+            dart run tool/generate_resqlite_native.dart
+            dart run tool/generate_argon2_native.dart
+          )
+
+          for entry in build/zonai* \
+            apps/zonai/lib/gen/server/.revali/server/server.dart \
+            apps/zonai/lib/gen/web/web_assets.dart \
+            apps/zonai/lib/gen/native/resqlite_native.g.dart \
+            apps/zonai/lib/gen/native/argon2_native.g.dart; do
+            [ -f "${entry}" ] || { echo "missing ${entry} after restore" >&2; exit 1; }
+          done
+          chmod +x build/zonai*
+          echo "reused=true" >> "$GITHUB_OUTPUT"
 
       # Only on the cache-miss path. When the pre-built native libraries
       # download above succeeds, the build runs with
@@ -1031,8 +1113,10 @@ jobs:
       #
       # Same invocation compile.yml uses to produce the release binary, so there
       # is one way to build zonai on CI rather than two that can drift. It is
-      # also the expensive step in this job by a wide margin.
+      # also the expensive step in this job by a wide margin -- which is why it
+      # is skipped when the step above restored Compile's build.
       - name: Build zonai
+        if: steps.compiled.outputs.reused != 'true'
         shell: bash
         env:
           ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
