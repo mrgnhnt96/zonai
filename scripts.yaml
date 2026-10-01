@@ -530,14 +530,17 @@ bootstrap:
         ${{ argon2.gen }}
   test-without-server:
     (description): >-
-      `bootstrap test` minus the server artifacts, for a CI job that restored
-      apps/zonai/lib/gen/server from its Compile run instead of running revali
-      again (test.yml's unit and cli jobs). Not for local use: without that
-      restored tree the suite fails to load. Keep the steps in step with
-      `bootstrap test` above.
+      `bootstrap test` minus revali, for a CI job that restored
+      apps/zonai/lib/gen/server from its Compile run instead (test.yml's cli
+      job). Not for local use: without that restored tree the suite fails to
+      load. It writes the web-assets stub `server.copy-to-cli` would have, and
+      not apps/server/.revali -- revali's own output, which only apps/server's
+      suite reads, so the unit job keeps the full `bootstrap test`. Keep the
+      steps in step with `bootstrap test` above.
     (bail):
     (command):
       - ${{ version.gen }}
+      - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
       - |
         echo "Generating resqlite native library"
         ${{ resqlite.gen }}
