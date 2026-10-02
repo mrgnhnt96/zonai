@@ -99,6 +99,16 @@ final class ZonaiDocsLayout extends DocsLayout {
 
   @override
   Iterable<Component> buildHead(Page page) sync* {
+    // Amplitude Browser SDK. The loader must run before init, so it is yielded
+    // first. The key is the public, ingestion-scoped project API key and is
+    // meant to ship in client source. Session Replay is left off (free tier).
+    yield script(src: 'https://cdn.amplitude.com/script/15288b16e4a64d54978fa9d86adddad1.js');
+    // `content` is emitted as RawText, so this JS renders unescaped.
+    yield const script(
+      content: "window.amplitude.init('15288b16e4a64d54978fa9d86adddad1', "
+          "{ serverZone: 'US', autocapture: true });",
+    );
+
     yield* super.buildHead(page);
     yield Style(styles: _styles);
 
