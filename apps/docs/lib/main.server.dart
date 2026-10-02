@@ -112,6 +112,12 @@ final class ZonaiDocsLayout extends DocsLayout {
     yield* super.buildHead(page);
     yield Style(styles: _styles);
 
+    // Docs search-term analytics. The search dialog (and its input) mounts
+    // lazily on the client, so this listens at the document level and filters
+    // to the search input by id, debounces, and fires one Amplitude event per
+    // settled query. Inlined raw the same way the Amplitude snippet is.
+    yield script(content: _searchTrackingScript);
+
     final pageData = page.data.page;
     final siteData = page.data.site;
 
@@ -296,6 +302,41 @@ final class _GitHubLink extends StatelessComponent {
     );
   }
 }
+
+/// Sends one `docs_search` Amplitude event per settled search query.
+///
+/// The search input (`#docs-search-input`, from `components/search.dart`)
+/// mounts lazily when the dialog opens, so this binds a single capture-phase
+/// `input` listener on `document` and filters to that input. The query is
+/// debounced ~800ms; after it settles the event fires only when the trimmed
+/// query is at least two characters and differs from the last one sent, so a
+/// given query is reported at most once. Guards `window.amplitude` being
+/// undefined (the init script may not have loaded, or loaded behind consent).
+const _searchTrackingScript = '''
+(function () {
+  var SELECTOR = '#docs-search-input';
+  var DEBOUNCE_MS = 800;
+  var timer = null;
+  var lastSent = null;
+
+  document.addEventListener('input', function (event) {
+    var target = event.target;
+    if (!target || typeof target.matches !== 'function' || !target.matches(SELECTOR)) return;
+
+    var query = (target.value || '').trim();
+    if (timer) { clearTimeout(timer); timer = null; }
+
+    timer = setTimeout(function () {
+      timer = null;
+      if (query.length < 2) return;
+      if (query === lastSent) return;
+      if (!window.amplitude || typeof window.amplitude.track !== 'function') return;
+      lastSent = query;
+      window.amplitude.track('docs_search', { search_term: query });
+    }, DEBOUNCE_MS);
+  }, true);
+})();
+''';
 
 const _homeIcon =
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" '
