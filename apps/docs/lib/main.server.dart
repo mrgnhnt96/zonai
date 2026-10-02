@@ -303,7 +303,8 @@ final class _GitHubLink extends StatelessComponent {
   }
 }
 
-/// Sends one `docs_search` Amplitude event per settled search query.
+/// Sends one `docs_search` Amplitude event per settled search query, carrying
+/// the number of results that query produced.
 ///
 /// The search input (`#docs-search-input`, from `components/search.dart`)
 /// mounts lazily when the dialog opens, so this binds a single capture-phase
@@ -312,12 +313,45 @@ final class _GitHubLink extends StatelessComponent {
 /// query is at least two characters and differs from the last one sent, so a
 /// given query is reported at most once. Guards `window.amplitude` being
 /// undefined (the init script may not have loaded, or loaded behind consent).
+///
+/// Results render asynchronously — the index is fetched on first open and the
+/// dialog re-renders off the input frame — so once a query settles this polls
+/// the results container (`.search-results .search-hit`, the result anchors
+/// from `components/search.dart`; the no-results/loading state renders a
+/// `.search-empty` with no such anchors, i.e. a count of 0) every ~150ms until
+/// the count holds steady across two consecutive reads or a ~1500ms cap is
+/// hit, then sends `result_count` with the event. `lastSent` is set when the
+/// query settles, before polling, so an in-flight poll cannot be started twice
+/// for the same query.
 const _searchTrackingScript = '''
 (function () {
   var SELECTOR = '#docs-search-input';
+  var RESULT_SELECTOR = '.search-results .search-hit';
   var DEBOUNCE_MS = 800;
+  var POLL_MS = 150;
+  var MAX_POLLS = 10;
   var timer = null;
   var lastSent = null;
+
+  function countResults() {
+    return document.querySelectorAll(RESULT_SELECTOR).length;
+  }
+
+  function sendWhenStable(query) {
+    var polls = 0;
+    var prev = -1;
+    (function poll() {
+      if (!window.amplitude || typeof window.amplitude.track !== 'function') return;
+      var count = countResults();
+      if (count === prev || polls >= MAX_POLLS) {
+        window.amplitude.track('docs_search', { search_term: query, result_count: count });
+        return;
+      }
+      prev = count;
+      polls++;
+      setTimeout(poll, POLL_MS);
+    })();
+  }
 
   document.addEventListener('input', function (event) {
     var target = event.target;
@@ -332,7 +366,7 @@ const _searchTrackingScript = '''
       if (query === lastSent) return;
       if (!window.amplitude || typeof window.amplitude.track !== 'function') return;
       lastSent = query;
-      window.amplitude.track('docs_search', { search_term: query });
+      sendWhenStable(query);
     }, DEBOUNCE_MS);
   }, true);
 })();
