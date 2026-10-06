@@ -69,7 +69,7 @@ A few things here commonly cause problems:
 
 - **Defaults are silent.** If a key is missing, `String.fromEnvironment` returns its `defaultValue` (or `''`) and nothing warns you. A plausible but wrong value, such as your email address where Resend expects the literal `resend`, fails at SMTP `AUTH`, not at build time.
 - **There is no fallback between env files.** `--flavor prod` loads `.env.prod` and nothing else. If that file is missing, the build has no defines at all, even when a plain `.env` exists.
-- **Credentials are compile-time only.** The workers never read the process environment for SMTP settings, so a secret you set in your host's runtime secret store does nothing here. Change `.env` and recompile. The compiled executables contain these values, so treat `.zonai/executables/` and `build/` as sensitive.
+- **Compiled values are readable from the binary.** Whatever `.env` holds at compile time is in the executables in plain text, so treat `.zonai/executables/` and `build/` as sensitive. To keep the credentials out, leave `SMTP_USERNAME` and `SMTP_PASSWORD` out of `.env` and set them in the process environment instead. When `email` is configured, the server reads both at startup and they win over the compiled values; see [Overriding a baked-in secret at runtime](/configuration/environment-variables#overriding-a-baked-in-secret-at-runtime). Host, port, sender and `ssl` are not read at runtime: change those in `.env` and recompile.
 - **Cron workers get the same defines**, so a cron that sends mail reads `SMTP_*` exactly as the config worker does.
 
 ## Port and TLS must agree

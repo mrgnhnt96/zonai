@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**`SMTP_USERNAME` and `SMTP_PASSWORD` can be set at runtime.** The SMTP
+credentials were compiled into the config worker like every other `.env`
+value, so `strings` on a release bundle recovered them. When `AppConfig.email`
+is set, `AppConfig.withSecretsFromEnvironment` now reads both from the process
+environment, and they win over the compiled values, the same way `JWT_SECRET`
+does. An empty value is ignored. Without an `email` config they change
+nothing. Host, port, sender and `ssl` are still compile-time only.
+
 ## 0.6.0
 
 **Re-run `zonai compile` after upgrading.** Workers now send and parse new
