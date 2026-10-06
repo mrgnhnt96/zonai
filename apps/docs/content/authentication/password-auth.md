@@ -128,7 +128,7 @@ POST /auth/verify-email
 Authorization: Bearer <accessToken>
 ```
 
-The email goes to the address on the signed-in user's own row, so no body is needed. An admin token may instead name another account with a body of `{"email": "...", "table": "users"}`; a non-admin's body is ignored. Returns `200 OK` with an empty body.
+The email goes to the address on the signed-in user's own row, so no body is needed. An admin token may instead name another account with a body of `{"email": "...", "table": "users"}`; a non-admin's body is ignored. Returns `200 OK` with an empty body. A second request for the same address within a minute answers `429`.
 
 Typically you call `email.send.verifyEmail(user)` in the `onSignUp` extension hook instead of requiring clients to call this endpoint. Use the endpoint for "resend".
 
