@@ -113,7 +113,7 @@ class Config {
       dir.createSync(recursive: true);
     }
 
-    await ConfigGenerator(configs: files).create();
+    if (!await ConfigGenerator(configs: files).create()) return 1;
 
     final result = await process.runDart([
       'compile',

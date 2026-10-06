@@ -240,7 +240,10 @@ class AuthHandler {
     VerifyEmailAuthBody? body,
   }) async {
     final token = _parseBearerAuthorization(authorization);
-    zonaiDB.sendVerifyEmailAuthenticated(token, switch (body) {
+    // Awaited, like every other send here. Unawaited, each failure (the
+    // one-minute cooldown, "not your address", no bearer) escaped as an
+    // unhandled async error and the caller got a 200 regardless.
+    await zonaiDB.sendVerifyEmailAuthenticated(token, switch (body) {
       VerifyEmailAuthBody() => SendVerifyEmailAuthPayload(
         email: body.email,
         table: body.table,

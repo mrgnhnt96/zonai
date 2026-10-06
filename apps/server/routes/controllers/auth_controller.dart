@@ -15,6 +15,7 @@ import '../components/auth_header_rate_limit.dart';
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 import '../components/oauth_rate_limit.dart';
+import '../components/optional_body_rate_limit.dart';
 
 // TODO: Tighten up the return types so that we don't need to dynamically access
 // the `accessToken` key
@@ -163,7 +164,12 @@ class AuthController {
     );
   }
 
-  @BodyRateLimit<VerifyEmailAuthBody>(RateLimitOperation.sendVerifyEmail)
+  // Optional, not `BodyRateLimit`: with no body this is "verify my own
+  // address", and `BodyRateLimit` refuses an absent body with a 400 before the
+  // handler runs. See `OptionalBodyRateLimit`.
+  @OptionalBodyRateLimit<VerifyEmailAuthBody>(
+    RateLimitOperation.sendVerifyEmail,
+  )
   @Post('verify-email')
   Future<void> sendVerifyEmail({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
