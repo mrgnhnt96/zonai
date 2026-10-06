@@ -5,6 +5,7 @@ import 'package:zonai/src/deps/revali.dart';
 import '../../../../gen/server/lib/config/server_binding.dart';
 import '../../../deps/logger.dart';
 import '../../../domain/constants.dart';
+import '../../../domain/stale_workers.dart';
 import '../../../native/resqlite_native.dart';
 import '../../../utils/server_health.dart';
 
@@ -71,6 +72,9 @@ class ServerController {
     }
 
     _debug('Starting compiled server...');
+    // The same check `zonai serve` makes: compile whatever changed while no
+    // server was running, before it spawns the old build.
+    await ensureWorkersFresh(serveWorkers(), release: false, allowStale: false);
     _debug('Installing resqlite native library...');
     final nativeInstall = Stopwatch()..start();
     await ensureResqliteNativeInstalled();
