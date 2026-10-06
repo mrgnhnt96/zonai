@@ -105,7 +105,8 @@ final class ZonaiDocsLayout extends DocsLayout {
     yield script(src: 'https://cdn.amplitude.com/script/15288b16e4a64d54978fa9d86adddad1.js');
     // `content` is emitted as RawText, so this JS renders unescaped.
     yield const script(
-      content: "window.amplitude.init('15288b16e4a64d54978fa9d86adddad1', "
+      content:
+          "window.amplitude.init('15288b16e4a64d54978fa9d86adddad1', "
           "{ serverZone: 'US', autocapture: true });",
     );
 
