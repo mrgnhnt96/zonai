@@ -3,6 +3,7 @@ import 'package:file/file.dart';
 import '../../deps/args.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
+import '../../deps/settings.dart';
 
 class ConfigGenerator {
   const ConfigGenerator({required this.configs});
@@ -12,16 +13,22 @@ class ConfigGenerator {
   static String get executablePath =>
       fs.path.join('.dart_tool', 'zonai', 'db_config.dart');
 
-  Future<void> create() async {
+  /// Writes the config worker's entry point, returning `false` when no config
+  /// file could be chosen (the reason is already logged).
+  ///
+  /// The caller must not compile on `false`: the entry point was not written,
+  /// and compiling the missing file only adds a second, misleading error
+  /// ("db_config.dart file not found") under the real one.
+  Future<bool> create() async {
     logger.debug('Starting config generator');
 
     final dartConfigs = configs
         .where((f) => fs.path.extension(f.path) == '.dart')
         .toList();
-    if (dartConfigs.isEmpty) return;
+    if (dartConfigs.isEmpty) return false;
 
     final configFile = _resolveConfigFile(dartConfigs);
-    if (configFile == null) return;
+    if (configFile == null) return false;
 
     final root = fs.currentDirectory.path;
     final outDir = fs.directory(fs.path.join('.dart_tool', 'zonai'));
@@ -41,6 +48,7 @@ class ConfigGenerator {
 
     logger.debug('Generated config file: ${out.path}');
     logger.debug('  - $alias: $importPath');
+    return true;
   }
 
   File? _resolveConfigFile(List<File> files) {
@@ -52,7 +60,10 @@ class ConfigGenerator {
 
     final flavor = args.getOrNull<String>('flavor');
     if (flavor == null) {
-      logger.error('Missing `flavor` argument, run with `--flavor <flavor>`');
+      logger.error(
+        'Missing `flavor` argument, run with `--flavor <flavor>`. '
+        '${_whatWasFound(sorted)}',
+      );
       return null;
     }
 
@@ -62,7 +73,9 @@ class ConfigGenerator {
     ];
 
     if (matches.isEmpty) {
-      logger.error('No config file found for flavor "$flavor"');
+      logger.error(
+        'No config file found for flavor "$flavor". ${_whatWasFound(sorted)}',
+      );
       return null;
     }
 
@@ -75,6 +88,24 @@ class ConfigGenerator {
     }
 
     return matches.first;
+  }
+
+  /// The files that were considered and the flavor each one names, and the
+  /// rule that makes a helper file count as a config.
+  ///
+  /// A helper beside the config (`email_env.dart`) used to produce only "No
+  /// config file found for flavor" -- with one config and one helper there
+  /// are two candidates, so a flavor is required, and neither is named for it.
+  String _whatWasFound(List<File> files) {
+    final found = [
+      for (final file in files)
+        '${fs.path.relative(file.path)} (flavor "${_flavorFor(file)}")',
+    ].join(', ');
+    return 'Found ${files.length} config files under '
+        '${settings.configPath}: $found. Every .dart file there is read as a '
+        'config, and its flavor comes from its name: `prod.dart` or '
+        '`db_config.prod.dart` is flavor "prod". Move helpers that are not '
+        'configs out of ${settings.configPath}.';
   }
 
   /// Flavor from `dev.dart` or trailing segment of `db_config.dev.dart`.
