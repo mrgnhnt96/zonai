@@ -37,12 +37,22 @@ class ZonaiClient {
   ///
   /// Use this when you need full control over the [Server]'s HTTP client,
   /// storage, or base URL.
+  ///
+  /// Registers the [Interceptor] that sends the stored token, exactly as the
+  /// default constructor does, unless [server] already carries one. It used to
+  /// be added only by the default constructor, so a client built here stored
+  /// a token from [Auth.setToken] and never sent it.
   ZonaiClient.server({required Server server})
     : _server = server,
       auth = Auth(auth: server.auth, storage: server.storage),
       email = Emails(email: server.email),
       photos = Photos(photos: server.photos),
-      db = Db(db: server.db);
+      db = Db(db: server.db) {
+    final interceptors = server.client.interceptors;
+    if (!interceptors.any((interceptor) => interceptor is Interceptor)) {
+      interceptors.insert(0, Interceptor(auth: auth));
+    }
+  }
 
   /// Creates a [ZonaiClient] with optional [baseUrl] and [storageDirectory].
   ///
@@ -73,9 +83,7 @@ class ZonaiClient {
       ),
     );
 
-    client._server.client.interceptors
-      ..add(Interceptor(auth: client.auth))
-      ..addAll(extraInterceptors);
+    client._server.client.interceptors.addAll(extraInterceptors);
 
     return client;
   }

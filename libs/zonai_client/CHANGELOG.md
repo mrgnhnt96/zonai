@@ -1,3 +1,11 @@
+## Unreleased
+
+- **`ZonaiClient.server(...)` sends the stored token.** Only the default
+  constructor registered the interceptor that adds `Authorization: Bearer`,
+  so a client built with `.server` stored a token from `auth.setToken` and
+  never sent it, and every call answered `403`. `.server` now registers it
+  too, unless the `Server` already has one.
+
 ## 0.3.0
 
 - **Requires `zonai_schema` 0.6.0** (`>=0.6.0 <0.7.0`). `Db.update`'s `expect`
