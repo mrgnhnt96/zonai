@@ -8,6 +8,22 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.10.2
+
+- **`POST /auth/verify-email` works without a body again.** Sending the
+  signed-in caller a verification email for their own address, which is what
+  `zonai_client`'s `auth.sendVerifyEmail()` does with no arguments, answered
+  `400` before reaching the handler. It now sends the email. Failures such as
+  the one-minute cooldown (`429`) now reach the caller instead of being
+  swallowed behind a `200`.
+- **Clearer error when a helper file breaks flavor selection.** Every `.dart`
+  file under the config path counts as a config, so a helper next to your
+  config (say `email_env.dart`) made `zonai build --flavor prod` fail with
+  "No config file found for flavor" and then a misleading "db_config.dart
+  file not found". The error now lists the files it found and the flavor each
+  name gives, explains the naming rule, and tells you to move helpers out.
+  The misleading second error is gone.
+
 ## 0.10.1
 
 - **`zonai serve` no longer breaks its workers when many files change at
