@@ -20,9 +20,11 @@ It assumes you know what `zonai build` produces and what `--release` means. See
 - **One host, never two.** Zonai keeps everything in one SQLite file, so a second instance would
   mean a second database. Platforms that scale to zero or wipe the disk on restart (static hosting,
   serverless functions, scale-to-zero containers) can't run it.
-- **It's free.** Oracle's Always Free tier includes Ampere A1 capacity, a persistent boot volume and
-  generous outbound transfer. A zonai server and its workers use well under 100 MB of memory, so
-  the smallest A1 shape is plenty. Check Oracle's current Always Free limits when you sign up.
+- **It's free.** Oracle's Always Free tier includes Ampere A1 capacity (2 OCPUs and 12 GB of memory
+  per tenancy, as of 2026-08-18), a persistent boot volume and generous outbound transfer. A zonai
+  server and its workers use well under 100 MB of memory, so 1 OCPU and 6 GB is plenty. Check
+  [Oracle's Always Free limits](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm)
+  when you sign up. They have changed before.
 - **It's ordinary Linux.** No image, no platform config: copy a directory, restart a service.
   Compare [Deploying to Fly.io](/deployment/fly-io) if you'd rather have a managed platform.
 
@@ -52,7 +54,8 @@ Creating the account needs a person and a card. Always Free resources are never 
    network and memory over a week), and an idle zonai server looks exactly like that. Set a budget
    alert at $1 to catch any mistake early.
 3. **Create a compute instance:** image **Ubuntu 24.04**, shape **VM.Standard.A1.Flex** with 1 OCPU
-   and 6 GB, and your SSH public key. If a create fails with "Out of host capacity", try another
+   and 6 GB, and your SSH public key. Use no more than that, so a second app still fits in the free
+   allowance. If a create fails with "Out of host capacity", try another
    availability domain, or try again later.
 4. **Give it a reserved public IPv4.** A reserved IP outlives the instance, so your DNS name, and
    the URL your app ships with, survive rebuilding the host.
@@ -60,8 +63,8 @@ Creating the account needs a person and a card. Always Free resources are never 
    needs 80 for the certificate challenge. This is the cloud firewall. The host has its own,
    handled in [step 3](#3-prepare-the-host).
 
-Keep each app in its own compartment, and give each app its own VM. The A1 allowance has room for
-several small VMs, and separate hosts mean separate deploys, reboots and blast radius.
+Keep each app in its own compartment, and give each app its own VM: separate hosts mean separate
+deploys, reboots and blast radius. At 1 OCPU and 6 GB each, the free A1 allowance holds two.
 
 Everything in this step can also be scripted with the OCI CLI. Make the script find each resource
 by name before creating it, so it's safe to re-run.
@@ -137,7 +140,8 @@ for port in 80 443; do
   iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null ||
     iptables -I INPUT 5 -p tcp --dport "$port" -j ACCEPT
 done
-netfilter-persistent save
+# Oracle's Ubuntu images ship netfilter-persistent; other images may not.
+if command -v netfilter-persistent >/dev/null; then netfilter-persistent save; fi
 ```
 
 ## 4. The systemd unit
@@ -218,17 +222,21 @@ From your dev machine, after [step 2](#2-build-an-arm64-bundle):
 ```bash
 host=ubuntu@203.0.113.7
 
-# Back up first (step 7), then swap the bundle in. Never touch .zonai/data.
-ssh "$host" sudo systemctl start myapp-backup.service
-rsync -a --delete --exclude '.zonai/data' --rsync-path='sudo rsync' build/ "$host:/opt/myapp/"
-ssh "$host" 'sudo chown -R myapp:myapp /opt/myapp && sudo systemctl restart myapp'
+# Back up first (step 7). Then stop, swap the bundle in, and start, so the
+# server and its workers always come from the same bundle. Never touch .zonai/data.
+ssh "$host" 'sudo systemctl start myapp-backup.service && sudo systemctl stop myapp'
+# -rlpt, not -a: without -o/-g, files rsync writes as root stay root-owned, so
+# nothing running as myapp can replace its own executable. Only .zonai, which
+# holds the data directory, belongs to myapp.
+rsync -rlpt --delete --exclude '.zonai/data' --rsync-path='sudo rsync' build/ "$host:/opt/myapp/"
+ssh "$host" 'sudo chown -R myapp:myapp /opt/myapp/.zonai && sudo systemctl start myapp'
 
 # Only call it deployed once it answers through the public name.
 curl -fsS https://api.example.com/health
 ```
 
-Pending migrations apply when the server opens the database, so a new bundle with new migrations
-needs no separate step. See [Running the Server](/deployment/running-the-server#what-happens-at-startup).
+The downtime is a few seconds. Pending migrations apply when the server opens the database, so a
+new bundle with new migrations needs no separate step. See [Running the Server](/deployment/running-the-server#what-happens-at-startup).
 
 A deploy script that does the above and then exercises a real request (sign in, read a row) catches
 far more than `/health` does. Check `/health` against the public DNS name, not your local resolver,
@@ -324,6 +332,20 @@ root-only `EnvironmentFile` like `/etc/myapp/smtp.env`, not in the build's `.env
 values are readable from the binary. The config worker runs on the host at startup, so your config
 can read them from `Platform.environment` there.
 
+**Where the links in auth emails point.** A reset or verification link is
+`{baseUrl}{path}?s=<token>`, and the default paths, `/auth/reset-password` and `/auth/verify-email`,
+are not pages zonai serves. Opened in a browser they fail. You serve those pages:
+
+1. Override `resetPasswordConfig()` and `verifyEmailConfig()` in the table's operations to point at
+   paths on your site. See [Auth Email Links](/operations/auth-operations#auth-email-links).
+2. Each page reads `s` from its URL and posts it to `POST /auth/confirm`, as
+   `{"type": "confirmResetPassword", "token": ..., "newPassword": ...}` or
+   `{"type": "confirmVerifyEmail", "token": ...}`. See
+   [Password Auth](/authentication/password-auth#password-reset).
+3. If the pages live on your own domain, the same Caddy can serve them, and forward only
+   `/auth/confirm` to zonai. The pages then stay same-origin, so a strict Content Security Policy
+   holds and the API needs no CORS.
+
 ## Checklist
 
 - [ ] Account upgraded to Pay As You Go, with a $1 budget alert
@@ -331,7 +353,7 @@ can read them from `Platform.environment` there.
 - [ ] Bundle built for `linux`/`arm64`; `file build/zonai` says aarch64
 - [ ] No secret in the build's `.env.prod`; secrets in a root-only `EnvironmentFile`
 - [ ] A copy of `PASSWORD_SECRET` somewhere safe
-- [ ] `baseUrl` is the public `https://` URL
+- [ ] `baseUrl` is the public `https://` URL, and the reset and verify links open pages you serve
 - [ ] `https://<your name>/health` answers through public DNS
 - [ ] The backup timer is enabled, one backup has been restored as a test, and backups leave the host
 - [ ] Rebooted once, and the service, Caddy and the timer all came back
