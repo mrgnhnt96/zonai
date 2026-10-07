@@ -427,6 +427,11 @@ const List<NavGroup> navigation = [
       ),
       NavItem('Cross-Compilation', '/deployment/cross-compilation', summary: 'Building a Linux binary from macOS.'),
       NavItem('Deploying to Fly.io', '/deployment/fly-io', summary: 'A complete, worked deployment on Fly.io.'),
+      NavItem(
+        'Deploying to Oracle Cloud',
+        '/deployment/oracle-cloud',
+        summary: 'A free ARM VM with systemd, Caddy and backups.',
+      ),
     ],
   ),
 ];

@@ -177,6 +177,7 @@ Served at `/_` by every Zonai server, in dev and production alike; there is no f
 - [Environment & Secrets](https://docs.zonai.dev/deployment/environment-and-secrets)
 - [Cross-Compilation](https://docs.zonai.dev/deployment/cross-compilation)
 - [Deploying to Fly.io](https://docs.zonai.dev/deployment/fly-io)
+- [Deploying to Oracle Cloud](https://docs.zonai.dev/deployment/oracle-cloud)
 
 ## API
 
