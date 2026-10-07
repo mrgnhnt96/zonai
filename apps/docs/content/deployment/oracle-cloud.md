@@ -109,7 +109,9 @@ ln -sf "$lib" "$(dirname "$lib")/libsqlite3.so"
 
 # A system user that owns the app and nothing else.
 id myapp >/dev/null 2>&1 || useradd --system --home-dir /opt/myapp --shell /usr/sbin/nologin myapp
-install -d -o myapp -g myapp -m 0750 /opt/myapp /opt/myapp/.zonai /opt/myapp/.zonai/data
+# The bundle is root's; the service can read it but only ever writes its data.
+install -d -o root -g myapp -m 0750 /opt/myapp /opt/myapp/.zonai
+install -d -o myapp -g myapp -m 0750 /opt/myapp/.zonai/data
 install -d -o myapp -g myapp -m 0750 /var/backups/myapp
 install -d -o root -g root -m 0700 /etc/myapp
 ```
@@ -225,11 +227,11 @@ host=ubuntu@203.0.113.7
 # Back up first (step 7). Then stop, swap the bundle in, and start, so the
 # server and its workers always come from the same bundle. Never touch .zonai/data.
 ssh "$host" 'sudo systemctl start myapp-backup.service && sudo systemctl stop myapp'
-# -rlpt, not -a: without -o/-g, files rsync writes as root stay root-owned, so
-# nothing running as myapp can replace its own executable. Only .zonai, which
-# holds the data directory, belongs to myapp.
+# -rlpt, not -a: without -o/-g, files rsync writes as root stay root-owned
+# instead of taking your dev machine's uid. Nothing running as myapp can then
+# replace its own executable or compiled rules. Only .zonai/data belongs to myapp.
 rsync -rlpt --delete --exclude '.zonai/data' --rsync-path='sudo rsync' build/ "$host:/opt/myapp/"
-ssh "$host" 'sudo chown -R myapp:myapp /opt/myapp/.zonai && sudo systemctl start myapp'
+ssh "$host" 'sudo systemctl start myapp'
 
 # Only call it deployed once it answers through the public name.
 curl -fsS https://api.example.com/health
