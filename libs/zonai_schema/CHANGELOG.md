@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.1
 
 **`SMTP_USERNAME` and `SMTP_PASSWORD` can be set at runtime.** The SMTP
 credentials were compiled into the config worker like every other `.env`

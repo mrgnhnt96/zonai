@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.1
 
 - **`ZonaiClient.server(...)` sends the stored token.** Only the default
   constructor registered the interceptor that adds `Authorization: Bearer`,

@@ -10,6 +10,17 @@ do, and what stopped being broken. The commit list is already one click away.
 
 ## 0.10.2
 
+- **`zonai serve` no longer serves workers older than their sources.** An
+  edit made while the server was down, such as a row rule's `canDelete`, used
+  to be served from the old build until something else triggered a compile.
+  In dev, `serve` and `zonai dev` now compile those workers at startup.
+  `serve --release` compiles nothing, so it refuses to start and names the
+  stale workers. Run `zonai compile`, or pass `--allow-stale-workers` to serve
+  them as they are. A `build/` bundle carries no sources and is never refused.
+- **SMTP credentials can stay out of the binary.** With `zonai_schema` 0.6.1,
+  `SMTP_USERNAME` and `SMTP_PASSWORD` in the process environment override the
+  compiled-in values when `email` is configured, like `JWT_SECRET` already
+  does. Run `dart pub upgrade zonai_schema` and recompile to pick it up.
 - **`POST /auth/verify-email` works without a body again.** Sending the
   signed-in caller a verification email for their own address, which is what
   `zonai_client`'s `auth.sendVerifyEmail()` does with no arguments, answered
