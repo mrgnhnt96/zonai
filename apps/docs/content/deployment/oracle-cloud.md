@@ -329,10 +329,12 @@ up an email domain, an approved sender, and the SPF, DKIM and DMARC records it g
 create a user whose only permission is to send as that sender, and generate SMTP credentials for it.
 Configure zonai as in [SMTP Setup](/email/smtp-setup).
 
-Keep the SMTP credentials out of the bundle the same way as the signing secrets: put them in a
-root-only `EnvironmentFile` like `/etc/myapp/smtp.env`, not in the build's `.env`. Compiled-in
-values are readable from the binary. The config worker runs on the host at startup, so your config
-can read them from `Platform.environment` there.
+Keep the SMTP credentials out of the bundle the same way as the signing secrets. Leave
+`SMTP_USERNAME` and `SMTP_PASSWORD` out of the build's `.env.prod`, and add them to
+`/etc/myapp/secrets.env` instead, which the unit already loads. Host, port and sender stay in
+`.env.prod`. When `email` is configured, the server reads the two credentials from the process
+environment at startup, and they win over anything compiled in. See
+[Overriding a baked-in secret at runtime](/configuration/environment-variables#overriding-a-baked-in-secret-at-runtime).
 
 **Where the links in auth emails point.** A reset or verification link is
 `{baseUrl}{path}?s=<token>`, and the default paths, `/auth/reset-password` and `/auth/verify-email`,
