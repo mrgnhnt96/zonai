@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+**Breaking: a mail server with no credentials refuses to start.** With
+`AppConfig.email` set, `validate()` now rejects an empty `username` (unless
+the host is loopback or `allowInsecure` is set, which is what a local catcher
+like Mailhog uses), an empty `password` whenever there is a username, and an
+empty `host`. The messages name `SMTP_USERNAME` and `SMTP_PASSWORD`. Before,
+such a server started and then failed every reset and verification email in
+the background. A server relaying through a remote SMTP host with no login
+must now log in.
+
 ## 0.6.1
 
 **`SMTP_USERNAME` and `SMTP_PASSWORD` can be set at runtime.** The SMTP

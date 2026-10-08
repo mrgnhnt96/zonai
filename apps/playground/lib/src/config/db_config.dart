@@ -15,13 +15,18 @@ AppConfig main() {
       defaultValue: 'playground-jwt-secret-Gf7YbQ5nTz9KwMr2VxHd4CsLp8Ja',
     ),
     baseUrl: 'http://localhost:8080',
-    email: EmailConfig(
-      host: 'smtp.gmail.com',
-      port: 587,
-      username: 'you@example.com',
-      password: const String.fromEnvironment('GMAIL_APP_PASSWORD'),
-      from: EmailAddress(address: 'you@example.com', name: 'Link'),
-    ),
+    // Only with a password: a configured mail server with none refuses to
+    // start (AppConfig.validate), and most runs of the playground send no mail.
+    email: switch (const String.fromEnvironment('GMAIL_APP_PASSWORD')) {
+      '' => null,
+      final password => EmailConfig(
+        host: 'smtp.gmail.com',
+        port: 587,
+        username: 'you@example.com',
+        password: password,
+        from: EmailAddress(address: 'you@example.com', name: 'Link'),
+      ),
+    },
     photos: PhotosConfig(
       // 100 bytes
       maxBytes: 100,
