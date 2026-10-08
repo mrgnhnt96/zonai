@@ -30,6 +30,8 @@ Changing a secret this way requires recompiling and redeploying (`zonai build` /
 
 `JWT_SECRET`, `PASSWORD_SECRET`, `PREVIOUS_JWT_SECRETS` and `PREVIOUS_PASSWORD_SECRETS` are also read from the **process environment** when the server starts, and the process environment wins over the compiled-in value. An empty or whitespace-only value is ignored rather than applied, so a wrapper script that expands an unset variable cannot blank out a working config. The two `PREVIOUS_*` variables take a comma-separated list.
 
+When `AppConfig.email` is set, `SMTP_USERNAME` and `SMTP_PASSWORD` are read the same way and replace the `EmailConfig`'s `username` and `password`. They never create an email config on their own: with no `email` in the config they are ignored. Every email Zonai sends, auth emails included, uses the overridden values.
+
 This matters because a compiled binary contains its defines in plain text — `strings` on the artifact recovers the signing key, and anyone who can read the artifact can then mint tokens for any user. Leaving the secrets out of `.env` entirely and injecting them through the environment ships a binary that contains no secret at all:
 
 ```bash

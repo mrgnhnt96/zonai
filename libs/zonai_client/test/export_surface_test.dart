@@ -8,6 +8,8 @@ import 'package:analyzer/dart/analysis/results.dart';
 // it is the one place that imports both -- and the sweep below needs just the
 // three *Declaration nodes.
 import 'package:analyzer/dart/ast/ast.dart' hide Literal;
+import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 // The historical incident (see project memory `project-zonai-client-storage-export`):
@@ -204,6 +206,36 @@ void main() {
       expect('$refusal', isNot(contains('tok')));
     });
 
+    // Reported against zonai_client 0.3.0: an app could not ask for a
+    // verification email or a password reset through the barrel alone, and
+    // had to depend on zonai_schema to name the body. Group 3 below is what
+    // keeps the list complete; this keeps the two reported calls compiling.
+    test('the verify-email and reset-password bodies are constructible', () {
+      final Future<void> Function({VerifyEmailAuthBody? body, String? authorization}) verify =
+          ZonaiClient(storage: ZonaiStorage.memory()).auth.sendVerifyEmail;
+      expect(verify, isNotNull);
+
+      const verifyBody = VerifyEmailAuthBody(email: 'a@example.test', table: 'users');
+      expect(verifyBody.toJson(), {'email': 'a@example.test', 'table': 'users'});
+
+      const ResetPasswordAuthBody reset = SendResetPasswordAuthBody(
+        email: 'a@example.test',
+        table: 'users',
+      );
+      expect(reset.toJson(), containsPair('table', 'users'));
+
+      const VerifyAuthBody confirm = ConfirmVerifyEmailAuthBody(token: 'tok');
+      expect(confirm.toJson(), containsPair('token', 'tok'));
+    });
+
+    test('what Auth.jwt returns is nameable', () {
+      final Future<Jwt?> Function() read = () =>
+          ZonaiClient(storage: ZonaiStorage.memory()).auth.jwt;
+      expect(read, isNotNull);
+      // The two id types a caller reads off it.
+      expect(<Type>[JwtId, UnknownId], hasLength(2));
+    });
+
     test('the five client types reachable from ZonaiClient are nameable', () {
       // Memory storage, not `ZonaiStorage.none()`: constructing a client writes
       // through to storage, and the no-op one asserts on save.
@@ -296,7 +328,139 @@ void main() {
       );
     });
   });
+
+  // ---------------------------------------------------------------------
+  // Group 3: derived sweep of the schema re-export. Group 2 only reads
+  // zonai_client's own lib/src, so the hand-written `show` list on the
+  // `package:zonai_schema/payloads.dart` re-export is invisible to it -- and
+  // that list had drifted: `Auth.sendVerifyEmail` takes a
+  // `VerifyEmailAuthBody`, the server refuses the call without one (400
+  // MissingArgumentException), and a consumer could not name the type
+  // without depending on zonai_schema directly (reported against
+  // zonai_client 0.3.0).
+  //
+  // So this reads the signatures instead. Every zonai_schema type that a
+  // public member of an exported zonai_client class takes or returns must be
+  // reachable from the barrel, and so must:
+  //   - the types its public constructors take, since a caller has to build
+  //     it, and
+  //   - every concrete subtype declared beside it, since an abstract or sealed
+  //     parameter type (`ResetPasswordAuthBody`) is only usable through the
+  //     subtype a caller actually constructs (`SendResetPasswordAuthBody`).
+  // ---------------------------------------------------------------------
+  group('every zonai_schema type a client signature needs is reachable', () {
+    test('sweep', () async {
+      final packageRoot = _packageRoot();
+      final barrelPath = p.join(packageRoot, 'lib', 'zonai_client.dart');
+      final collection = AnalysisContextCollection(includedPaths: [p.join(packageRoot, 'lib')]);
+      final resolved = await collection
+          .contextFor(barrelPath)
+          .currentSession
+          .getResolvedLibrary(barrelPath);
+      if (resolved is! ResolvedLibraryResult) {
+        fail('Could not resolve lib/zonai_client.dart as a library: $resolved');
+      }
+      final exported = resolved.element.exportNamespace.definedNames2;
+
+      final missing = <String, String>{};
+      final visited = <InterfaceElement>{};
+
+      void require(InterfaceElement element, String why) {
+        final name = element.displayName;
+        if (exported.containsKey(name) || _schemaExclusions.containsKey(name)) return;
+        missing.putIfAbsent(name, () => why);
+      }
+
+      late final void Function(InterfaceElement, String) reach;
+
+      void visitType(DartType type, String why) {
+        switch (type) {
+          case InterfaceType(:final element, :final typeArguments):
+            for (final argument in typeArguments) {
+              visitType(argument, why);
+            }
+            if (_isSchema(element)) reach(element, why);
+          case FunctionType(:final returnType, :final formalParameters):
+            visitType(returnType, why);
+            for (final parameter in formalParameters) {
+              visitType(parameter.type, why);
+            }
+          case RecordType(:final positionalFields, :final namedFields):
+            for (final field in [...positionalFields, ...namedFields]) {
+              visitType(field.type, why);
+            }
+          default:
+        }
+      }
+
+      reach = (element, why) {
+        require(element, why);
+        if (!visited.add(element)) return;
+
+        for (final constructor in element.constructors) {
+          if (constructor.isPrivate) continue;
+          for (final parameter in constructor.formalParameters) {
+            visitType(parameter.type, 'a parameter of ${element.displayName}');
+          }
+        }
+
+        for (final sibling in element.library.classes) {
+          if (sibling == element || sibling.isPrivate || sibling.isAbstract) continue;
+          if (sibling.allSupertypes.any((type) => type.element == element)) {
+            reach(sibling, 'a concrete ${element.displayName}');
+          }
+        }
+      };
+
+      for (final element in exported.values) {
+        if (element is! InterfaceElement) continue;
+        if (!element.library.uri.toString().startsWith('package:zonai_client/')) continue;
+
+        final owner = element.displayName;
+        for (final constructor in element.constructors) {
+          if (constructor.isPrivate) continue;
+          for (final parameter in constructor.formalParameters) {
+            visitType(parameter.type, 'a parameter of $owner()');
+          }
+        }
+        for (final method in element.methods) {
+          if (method.isPrivate) continue;
+          final where = '$owner.${method.displayName}';
+          visitType(method.returnType, where);
+          for (final parameter in method.formalParameters) {
+            visitType(parameter.type, where);
+          }
+        }
+        for (final getter in element.getters) {
+          if (getter.isPrivate) continue;
+          visitType(getter.returnType, '$owner.${getter.displayName}');
+        }
+      }
+
+      expect(
+        missing.entries.map((e) => '${e.key} (needed by ${e.value})').toList()..sort(),
+        isEmpty,
+        reason:
+            'These zonai_schema types are needed to call the public client API but '
+            'are not reachable from package:zonai_client/zonai_client.dart. Add them '
+            "to the barrel's `show` list, or to _schemaExclusions with a reason.",
+      );
+    });
+  });
 }
+
+bool _isSchema(InterfaceElement element) =>
+    element.library.uri.toString().startsWith('package:zonai_schema/');
+
+/// zonai_schema types the group-3 sweep reaches that are deliberately not
+/// re-exported, each with the reason.
+const _schemaExclusions = <String, String>{
+  // Both are concrete `Where`s, and both would shadow dart:core's `Null` in
+  // every library that imports the barrel. `Where.isNull` / `Where.isNotNull`
+  // build them without naming them; see the comment on the barrel's `show` list.
+  'Null': 'shadows dart:core Null; built through Where.isNull',
+  'NotNull': 'built through Where.isNotNull; exported only beside Null',
+};
 
 /// Declarations that are deliberately not reachable from
 /// `package:zonai_client/zonai_client.dart`, each with the evidence for why.

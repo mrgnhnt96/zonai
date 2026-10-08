@@ -193,6 +193,72 @@ void main() {
       expect(resolved.jwtExpiresIn, const Duration(minutes: 7));
       expect(resolved.passwordSecret, _strongPassword);
     });
+
+    // The SMTP credentials were compiled in like every other `.env` value, so
+    // `strings` on a release bundle recovered them -- the same exposure the
+    // JWT override closed, left open for the mail server (reported by a
+    // consumer shipping password reset on v0.10.1).
+    group('SMTP credentials', () {
+      const email = EmailConfig(
+        host: 'smtp.example.test',
+        port: 587,
+        username: 'compiled-user',
+        password: 'compiled-password',
+        from: EmailAddress(address: 'noreply@example.test', name: 'Example'),
+        ssl: true,
+      );
+
+      AppConfig withEmail() => AppConfig(
+        appName: 'Mail',
+        jwtSecret: _strongJwt,
+        passwordSecret: _strongPassword,
+        email: email,
+      );
+
+      test('the environment beats the compiled-in username and password', () {
+        final resolved = withEmail().withSecretsFromEnvironment(const {
+          'SMTP_USERNAME': 'runtime-user',
+          'SMTP_PASSWORD': 'runtime-password',
+        });
+
+        expect(resolved.email?.username, 'runtime-user');
+        expect(resolved.email?.password, 'runtime-password');
+      });
+
+      test('the rest of the email config is carried over untouched', () {
+        final resolved = withEmail().withSecretsFromEnvironment(const {
+          'SMTP_PASSWORD': 'runtime-password',
+        });
+
+        final resolvedEmail = resolved.email!;
+        expect(resolvedEmail.host, 'smtp.example.test');
+        expect(resolvedEmail.port, 587);
+        expect(resolvedEmail.username, 'compiled-user');
+        expect(resolvedEmail.ssl, isTrue);
+        expect(resolvedEmail.allowInsecure, isFalse);
+        expect(resolvedEmail.from.toJson(), email.from.toJson());
+      });
+
+      test('an empty or whitespace value is ignored, not applied', () {
+        final resolved = withEmail().withSecretsFromEnvironment(const {
+          'SMTP_USERNAME': '',
+          'SMTP_PASSWORD': '  ',
+        });
+
+        expect(resolved.email?.username, 'compiled-user');
+        expect(resolved.email?.password, 'compiled-password');
+      });
+
+      // A password alone is not a mail server: with no host there is nothing
+      // to send it to, so it must not conjure an email config into existence.
+      test('without an email config, SMTP variables change nothing', () {
+        final resolved = _config().withSecretsFromEnvironment(const {
+          'SMTP_PASSWORD': 'runtime-password',
+        });
+
+        expect(resolved.email, isNull);
+      });
+    });
   });
 
   group('AppConfig.jwtExpiresIn', () {

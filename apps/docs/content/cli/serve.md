@@ -27,6 +27,7 @@ production, run `./zonai serve --release` from a
 | `--flavor <name>`     | Config flavor — picks the config file and `.env.<name>`         | (none)                               |
 | `--release`           | Production mode — no watchers, no recompiling, no shortcuts     | `false`                              |
 | `--no-auto-migrate`   | Dev only: don't generate migrations from schema changes         | `false`                              |
+| `--allow-stale-workers` | With `--release`: serve workers older than their sources instead of refusing to start | `false`              |
 | `-c, --config <path>` | Path to a custom `zonai.yaml`                                   | Auto-detected                        |
 
 Pending migration SQL is always applied when the database opens, with or
@@ -36,7 +37,9 @@ watching `schemasPath` and generating new migrations.
 ## Dev Mode
 
 In dev mode (the default), Zonai watches worker source directories and recompiles
-affected **worker** binaries. When ops/rules are linked into the project entry
+affected **worker** binaries. At startup it also compiles any worker whose
+sources changed since its last compile, so an edit made while the server was
+down is not served from the old build. When ops/rules are linked into the project entry
 (see above), restart `serve` after editing them so the new code loads.
 
 **Keyboard shortcuts in dev mode:**
@@ -57,6 +60,18 @@ exist. Build them first with `zonai build --release` (typical:
 `cd build && ./zonai serve --release`) or `zonai compile --release`. The full
 list of differences is under
 [Release mode](/deployment/building-for-production#release-mode).
+
+Because nothing is recompiled, `serve --release` **refuses to start** when a
+worker's executable is older than its sources, naming the workers. Otherwise it
+would serve the old build, and enforce the old rules, with nothing to say so.
+Run `zonai compile`, then serve again, or pass `--allow-stale-workers` to serve
+them as they are.
+
+What counts as a worker's sources: its own directory (`rulesPath`,
+`configPath`, and so on, plus `schemasPath` for operations), the `.env` file in
+use, and `pubspec.lock`. Like the dev watchers, it does not follow imports, so
+a helper elsewhere in `lib/` that only one worker imports is not tracked. A
+`build/` bundle carries no sources, so it is never refused.
 
 ## Examples
 
