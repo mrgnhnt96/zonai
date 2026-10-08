@@ -217,6 +217,10 @@ final class AppConfig {
   /// lets a deployment ship a binary that contains no secret at all and inject
   /// them the way every other runtime does.
   ///
+  /// The names read: `JWT_SECRET`, `PASSWORD_SECRET`, `PREVIOUS_JWT_SECRETS`,
+  /// `PREVIOUS_PASSWORD_SECRETS`, and -- when [email] is configured --
+  /// `SMTP_USERNAME` and `SMTP_PASSWORD`.
+  ///
   /// [environment] is passed in rather than read from `Platform.environment`
   /// so this file stays free of `dart:io` (`zonai_schema` is also compiled for
   /// the web dashboard). Callers on the server pass `Platform.environment`.
@@ -250,7 +254,21 @@ final class AppConfig {
       ),
       previousJwtSecrets: pickList('PREVIOUS_JWT_SECRETS', previousJwtSecrets),
       baseUrl: baseUrl,
-      email: email,
+      // Only the credentials: host, port and sender are not secrets, and a
+      // password with no configured server has nowhere to go, so an absent
+      // [email] stays absent.
+      email: switch (email) {
+        final email? => EmailConfig(
+          host: email.host,
+          port: email.port,
+          username: pick('SMTP_USERNAME', email.username),
+          password: pick('SMTP_PASSWORD', email.password),
+          from: email.from,
+          ssl: email.ssl,
+          allowInsecure: email.allowInsecure,
+        ),
+        null => null,
+      },
       push: push,
       jwtExpiresIn: jwtExpiresIn,
       photos: photos,
