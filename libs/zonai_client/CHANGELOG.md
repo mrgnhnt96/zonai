@@ -5,6 +5,14 @@
   so a client built with `.server` stored a token from `auth.setToken` and
   never sent it, and every call answered `403`. `.server` now registers it
   too, unless the `Server` already has one.
+- **The auth bodies and `Jwt` are exported.** `Auth.sendVerifyEmail` takes a
+  `VerifyEmailAuthBody` and `Auth.sendResetPassword` a `SendResetPasswordAuthBody`,
+  but neither was reachable from `package:zonai_client/zonai_client.dart`, so an
+  app had to depend on `zonai_schema` to ask for either email. Also newly
+  exported: `AdminSendResetPasswordAuthBody`, `ConfirmResetPasswordAuthBody`,
+  `ConfirmVerifyEmailAuthBody`, `VerifyOtpAuthBody`, `VerifyMagicLinkAuthBody`,
+  `EmailAddress`, `SendAdminInviteEmail`, and `Jwt`, `JwtId` and `UnknownId`
+  (what `Auth.jwt` returns). Additive.
 
 ## 0.3.0
 

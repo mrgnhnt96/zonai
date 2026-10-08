@@ -39,6 +39,7 @@ export 'package:zonai_schema/payloads.dart'
         AddAll,
         AdminSendMagicLinkAuthBody,
         AdminSendOtpAuthBody,
+        AdminSendResetPasswordAuthBody,
         AdminSignInAuthBody,
         AdminVerifyMagicLinkAuthBody,
         AdminVerifyOtpAuthBody,
@@ -46,6 +47,8 @@ export 'package:zonai_schema/payloads.dart'
         AuthBody,
         AuthSession,
         ColumnUpdate,
+        ConfirmResetPasswordAuthBody,
+        ConfirmVerifyEmailAuthBody,
         Contains,
         CountBody,
         CreateBody,
@@ -54,6 +57,7 @@ export 'package:zonai_schema/payloads.dart'
         DeleteBody,
         DeleteOneBody,
         Email,
+        EmailAddress,
         EndsWith,
         Eq,
         GetBody,
@@ -76,10 +80,12 @@ export 'package:zonai_schema/payloads.dart'
         Remove,
         RemoveAll,
         ResetPasswordAuthBody,
+        SendAdminInviteEmail,
         SendMagicLinkAuthBody,
         SendMagicLinkEmail,
         SendOtpAuthBody,
         SendOtpEmail,
+        SendResetPasswordAuthBody,
         SendResetPasswordEmail,
         SendVerifyEmailEmail,
         SignInAuthBody,
@@ -94,9 +100,19 @@ export 'package:zonai_schema/payloads.dart'
         UpdateOneBody,
         UpdateValue,
         VerifyAuthBody,
+        VerifyEmailAuthBody,
+        VerifyMagicLinkAuthBody,
+        VerifyOtpAuthBody,
         Where;
 
 export 'package:zonai_schema/src/types/paginated.dart' show Paginated;
+
+// What `Auth.jwt` returns, and the types of its `userId` and `jwtId`. These
+// live outside payloads.dart, whose library also exports Raindrop's native
+// column builders, so they come from their own files, which are web-safe.
+export 'package:zonai_schema/src/types/id.dart' show UnknownId;
+export 'package:zonai_schema/src/types/jwt.dart' show Jwt;
+export 'package:zonai_schema/src/types/jwt_id.dart' show JwtId;
 
 export 'src/utils/zonai_storage_memory.dart'
     show ZonaiMemoryStorage, ZonaiNoStorage, ZonaiStorage;
