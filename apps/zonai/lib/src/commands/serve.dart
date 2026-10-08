@@ -7,6 +7,7 @@ import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/stale_workers.dart';
 import 'package:zonai/src/utils/serve_guard.dart';
 
 import 'dev/actions/project_init.dart';
@@ -35,7 +36,11 @@ Options:
                           localhost)
       --port=<number>     HTTP port (default: zonai.yml port, then 8080)
       --flavor=<name>     Config flavor to load
-      --release           Production mode: no file watchers, no recompiling
+      --release           Production mode: no file watchers, no recompiling.
+                          Refuses to start when a worker is older than its
+                          sources; run `zonai compile` first
+      --allow-stale-workers
+                          With --release, serve such workers anyway
       --no-auto-migrate   Do not apply pending migrations on startup
   -c, --config=<path>     Path to zonai.yml
 
@@ -105,6 +110,15 @@ void _compileWorkers() {
 }
 
 Future<int> _startServing() async {
+  // Before anything else starts: dev compiles what changed while the server
+  // was down, and --release refuses rather than serve old rules.
+  final fresh = await ensureWorkersFresh(
+    serveWorkers(),
+    release: args.release,
+    allowStale: args['allow-stale-workers'] == true,
+  );
+  if (!fresh) return 1;
+
   await ensureResqliteNativeInstalled();
 
   keyboardInput.watch();
