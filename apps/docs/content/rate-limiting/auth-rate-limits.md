@@ -63,11 +63,11 @@ All methods are `async` and return `Future<RateLimitPolicy?>`. Return `null` to 
 
 | Method | Why | What actually applies |
 |--------|-----|-----------------------|
-| `sendOtpPolicy()`, `sendMagicLinkPolicy()` | Sends go through `POST /auth` | `authenticatePolicy()` |
+| `sendOtpPolicy()`, `sendMagicLinkPolicy()` | Sends go through `POST /auth`; the upgrade routes count under `__auth_header__` | `authenticatePolicy()`, or the shared `__auth_header__` limit for `/auth/upgrade` |
 | `logoutPolicy()`, `logoutAllPolicy()` | `DELETE /auth` and `DELETE /auth/all` are not rate limited | nothing |
 | `adminSignInPolicy()` | No route checks it | — |
 | `adminAuthenticatePolicy()` | `POST /auth/admin` shares one counter across all tables | fixed 10/15min per IP |
-| `confirmPolicy()` | `POST /auth/confirm` shares one counter across all tables | fixed 100/min per IP |
+| `confirmPolicy()` | `POST /auth/confirm` and `POST /auth/upgrade/confirm` each share one counter across all tables | fixed 100/min per IP |
 | `refreshTokenPolicy()` | `POST /auth/refresh` shares one counter across all tables | fixed 100/min per IP |
 
 ## Endpoints That Carry No Table
@@ -78,6 +78,8 @@ Some endpoints are counted per IP under a shared, synthetic key instead of per a
 |----------|---------------------------------------|-------|
 | `POST /auth/confirm` (the body is a token, or an email and a code) | `__auth_confirm__` | 100/min |
 | `POST /auth/refresh` (the token's table claim is not verified yet) | `__auth_header__` | 100/min |
+| `POST /auth/upgrade` (sends a code to the new address; same reason) | `__auth_header__` | 100/min |
+| `POST /auth/upgrade/confirm` (checks that code; same reason) | `__auth_header__` | 100/min |
 | `POST /auth/admin` (the admin table is resolved on the server) | `__admin_auth__` | 10/15min |
 | `POST /auth/reset-password` for an admin | `__admin_auth__` | 100/min |
 | `GET`/`POST /auth/oauth/callback/:provider` | `oauth` | 60/min |

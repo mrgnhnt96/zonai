@@ -297,9 +297,11 @@ Future<RateLimitPolicy?> sendVerifyEmailPolicy() async =>
 ```
 
 OTP codes and magic links are sent through `POST /auth`, so `authenticatePolicy()` is the limit
-that applies to them, not `sendOtpPolicy()`. `POST /auth/confirm` shares one per-IP counter across
-all tables and can't be tightened per table. Both points are explained in
-[Auth Rate Limits](/rate-limiting/auth-rate-limits).
+that applies to them. `sendOtpPolicy()` and `confirmPolicy()` don't: `POST /auth/confirm`,
+`POST /auth/upgrade` and `POST /auth/upgrade/confirm` each count against a per-IP counter shared
+by all tables, at the framework default, and no table's override reaches them. A code itself
+allows three wrong guesses before it is used up. See
+[Auth Rate Limits](/rate-limiting/auth-rate-limits#endpoints-that-carry-no-table).
 
 ## 6. Deploy
 
