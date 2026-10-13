@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
 **Breaking: a mail server with no credentials refuses to start.** With
 `AppConfig.email` set, `validate()` now rejects an empty `username` (unless
