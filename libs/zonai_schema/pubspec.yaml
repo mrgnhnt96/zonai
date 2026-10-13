@@ -21,7 +21,9 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  revali_core: ^3.0.0
+  # 3.1.0 is the first to export HttpError (payloads/update_body.dart). The
+  # constraint allowed 3.0.0, so a consumer whose lock held it failed to compile.
+  revali_core: ^3.1.0
   clock: ^1.1.2
   cron: ^0.6.2
   crypto: ^3.0.7

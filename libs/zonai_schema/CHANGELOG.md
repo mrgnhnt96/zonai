@@ -11,6 +11,12 @@ such a server started and then failed every reset and verification email in
 the background. A server relaying through a remote SMTP host with no login
 must now log in.
 
+**Requires `revali_core` 3.1.0.** `payloads/update_body.dart` uses
+`HttpError`, which `revali_core` first exports in 3.1.0, but the constraint
+allowed `^3.0.0`. A project whose lock already held 3.0.0 kept it, and
+`zonai compile` failed with `Undefined name 'HttpError'`. A fresh resolve
+picked a newer version and never saw it. The constraint is now `^3.1.0`.
+
 ## 0.6.1
 
 **`SMTP_USERNAME` and `SMTP_PASSWORD` can be set at runtime.** The SMTP
