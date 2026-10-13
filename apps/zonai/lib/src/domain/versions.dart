@@ -27,8 +27,20 @@ bool isBreakingCliUpgrade({required String from, required String to}) {
   return !VersionConstraint.compatibleWith(fromVersion).allows(toVersion);
 }
 
+/// How long to wait before attempt [attempt] + 1 of a GitHub request: one
+/// second, then two.
+Duration _defaultRetryDelay(int attempt) =>
+    Duration(seconds: 1 << (attempt - 1));
+
 class Versions {
-  const Versions();
+  const Versions({this.retryDelay = _defaultRetryDelay});
+
+  /// Backoff between attempts of a GitHub request (see [_get]). Injected so a
+  /// test does not sleep.
+  final Duration Function(int attempt) retryDelay;
+
+  /// Attempts per GitHub request, the first included.
+  static const _maxAttempts = 3;
 
   String get current => kVersion;
 
@@ -152,7 +164,9 @@ class Versions {
     final response = await _downloadAsset(asset);
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to download binary for $assetName');
+      throw Exception(
+        'Failed to download binary for $assetName: ${_describe(response)}',
+      );
     }
 
     await _installExecutableFromArchive(targetDestination, response.bodyBytes);
@@ -181,7 +195,10 @@ class Versions {
 
     final response = await _downloadAsset(asset);
     if (response.statusCode != 200) {
-      throw Exception('Failed to download native libraries for $assetName');
+      throw Exception(
+        'Failed to download native libraries for $assetName: '
+        '${_describe(response)}',
+      );
     }
 
     final archive = ZipDecoder().decodeBytes(response.bodyBytes);
@@ -250,7 +267,9 @@ class Versions {
     final response = await _downloadAsset(asset);
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to download update for $assetName');
+      throw Exception(
+        'Failed to download update for $assetName: ${_describe(response)}',
+      );
     }
 
     await _installExecutableFromArchive(
@@ -370,7 +389,7 @@ class Versions {
     );
 
     if (response.statusCode != 200) {
-      throw _releaseRequestError('latest release', response.statusCode);
+      throw _releaseRequestError('latest release', response);
     }
 
     final releases = json.decode(response.body) as List<dynamic>;
@@ -399,21 +418,73 @@ class Versions {
     );
 
     if (response.statusCode != 200) {
-      throw _releaseRequestError(tag, response.statusCode);
+      throw _releaseRequestError(tag, response);
     }
 
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
   Future<http.Response> _githubGet(Uri uri) {
-    return http.get(uri, headers: _githubHeaders);
+    return _get(uri, _githubHeaders);
   }
 
   Future<http.Response> _downloadAsset(Map<String, dynamic> asset) {
-    return http.get(
-      Uri.parse(asset['url'] as String),
-      headers: {..._githubHeaders, 'Accept': 'application/octet-stream'},
-    );
+    return _get(Uri.parse(asset['url'] as String), {
+      ..._githubHeaders,
+      'Accept': 'application/octet-stream',
+    });
+  }
+
+  /// A GET against GitHub, retried when the failure is usually transient.
+  ///
+  /// A 429, a 5xx or a dropped connection is tried again, up to
+  /// [_maxAttempts] in all, with [retryDelay] between attempts. Anything else
+  /// comes back at once for the caller to report. That includes a 403 from an
+  /// exhausted rate limit, which a few seconds of waiting won't fix.
+  ///
+  /// Asset downloads failed intermittently with no retry, and the message
+  /// didn't say what GitHub had answered (reported from a deploy on v0.10.2).
+  Future<http.Response> _get(Uri uri, Map<String, String> headers) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        final response = await http.get(uri, headers: headers);
+        final transient =
+            response.statusCode == 429 || response.statusCode >= 500;
+        if (!transient || attempt >= _maxAttempts) return response;
+        logger.debug(
+          'GitHub answered ${response.statusCode} for $uri; '
+          'retrying (attempt $attempt of $_maxAttempts)',
+        );
+      } on Exception catch (error) {
+        // SocketException, http.ClientException, a TLS handshake failure.
+        if (attempt >= _maxAttempts) rethrow;
+        logger.debug(
+          'Request to $uri failed ($error); '
+          'retrying (attempt $attempt of $_maxAttempts)',
+        );
+      }
+      await Future<void>.delayed(retryDelay(attempt));
+    }
+  }
+
+  /// The status GitHub answered and the first line of its body, for an error
+  /// message. A 403 from an exhausted API rate limit says so, because the fix
+  /// for that is a token, not another try.
+  String _describe(http.Response response) {
+    final firstLine = response.body.split('\n').first.trim();
+    final shown = firstLine.length > 200
+        ? '${firstLine.substring(0, 200)}...'
+        : firstLine;
+    final rateLimited =
+        response.statusCode == 403 &&
+        response.headers['x-ratelimit-remaining'] == '0';
+    return [
+      'HTTP ${response.statusCode}',
+      if (shown.isNotEmpty) shown,
+      if (rateLimited)
+        'GitHub API rate limit reached; set GITHUB_TOKEN or GH_TOKEN to '
+            'raise it',
+    ].join(': ');
   }
 
   Map<String, String> get _githubHeaders {
@@ -427,15 +498,15 @@ class Versions {
     return {'Authorization': 'Bearer $token'};
   }
 
-  Exception _releaseRequestError(String release, int statusCode) {
-    if (statusCode == 404 && _githubHeaders.isEmpty) {
+  Exception _releaseRequestError(String release, http.Response response) {
+    if (response.statusCode == 404 && _githubHeaders.isEmpty) {
       return Exception(
         'Failed to get release $release. '
         'This repository is private; set GITHUB_TOKEN or GH_TOKEN.',
       );
     }
 
-    return Exception('Failed to get release $release');
+    return Exception('Failed to get release $release: ${_describe(response)}');
   }
 
   Map<String, dynamic> _findAsset(
