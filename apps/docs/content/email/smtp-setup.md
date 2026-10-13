@@ -43,7 +43,7 @@ AppConfig(
 | ---------- | -------------- | -------- | ------------------------------------------------------------------------------------ |
 | `host`     | `String`       | Yes      | SMTP server hostname or IP                                                           |
 | `port`     | `int`          | Yes      | SMTP port. It must match `ssl`; see [Port and TLS](#port-and-tls-must-agree)         |
-| `username` | `String`       | Yes      | SMTP auth username. Some providers use a fixed string here, not your address. `''` sends without logging in |
+| `username` | `String`       | Yes      | SMTP auth username. Some providers use a fixed string here, not your address. `''` sends without logging in, which only a local catcher accepts: on any other host the server refuses to start |
 | `password` | `String`       | Yes      | SMTP auth password or API key                                                        |
 | `from`     | `EmailAddress` | Yes      | Default sender. An `Email` can override it per message                               |
 | `ssl`      | `bool`         | No       | `true` = implicit TLS (port 465). `false` (the default) = STARTTLS (port 587)        |

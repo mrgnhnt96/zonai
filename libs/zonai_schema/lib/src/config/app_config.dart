@@ -185,6 +185,8 @@ final class AppConfig {
       }
     }
 
+    if (email case final email?) errors.addAll(_emailErrors(email));
+
     if (errors.isNotEmpty) {
       throw StateError(
         'AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}',
@@ -276,6 +278,42 @@ final class AppConfig {
       externalIdps: externalIdps,
     );
   }
+
+  /// What makes [email] unable to send, if anything.
+  ///
+  /// The courier sends in the background, so a mail server it cannot log in
+  /// to fails every reset and verification email with only a log line --
+  /// the server itself starts and looks healthy. That is the same mistake as
+  /// an empty `JWT_SECRET`, which has always refused to start, and it is most
+  /// likely in exactly the deployment `withSecretsFromEnvironment` exists for:
+  /// a release build that leaves the credentials to an environment that is
+  /// missing them.
+  ///
+  /// A local catcher (Mailhog, Mailpit) takes mail with no login, so an empty
+  /// username is accepted on a loopback host, or with
+  /// [EmailConfig.allowInsecure], which such a catcher needs anyway and a real
+  /// provider never does. A username without a password is refused
+  /// everywhere: the courier logs in whenever there is a username.
+  static List<String> _emailErrors(EmailConfig email) {
+    final host = email.host.trim();
+    final local = email.allowInsecure || _isLoopback(host);
+    return [
+      if (host.isEmpty) 'email.host is empty',
+      if (email.username.isEmpty && !local)
+        'email.username is empty — set SMTP_USERNAME in the server\'s '
+            'environment. Only a local catcher (a loopback host, or '
+            'allowInsecure) may send without logging in',
+      if (email.username.isNotEmpty && email.password.isEmpty)
+        'email.password is empty — set SMTP_PASSWORD in the server\'s '
+            'environment',
+    ];
+  }
+
+  static bool _isLoopback(String host) =>
+      host == 'localhost' ||
+      host == '::1' ||
+      host == '[::1]' ||
+      host.startsWith('127.');
 
   /// Shortest accepted secret. HS256's key is 256 bits, and a secret shorter
   /// than its own MAC output is the weakest link in the signature.

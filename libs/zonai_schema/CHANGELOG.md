@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Breaking: a mail server with no credentials refuses to start.** With
+`AppConfig.email` set, `validate()` now rejects an empty `username` (unless
+the host is loopback or `allowInsecure` is set, which is what a local catcher
+like Mailhog uses), an empty `password` whenever there is a username, and an
+empty `host`. The messages name `SMTP_USERNAME` and `SMTP_PASSWORD`. Before,
+such a server started and then failed every reset and verification email in
+the background. A server relaying through a remote SMTP host with no login
+must now log in.
+
 **Requires `revali_core` 3.1.0.** `payloads/update_body.dart` uses
 `HttpError`, which `revali_core` first exports in 3.1.0, but the constraint
 allowed `^3.0.0`. A project whose lock already held 3.0.0 kept it, and
