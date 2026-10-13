@@ -67,7 +67,23 @@ Keep each app in its own compartment, and give each app its own VM: separate hos
 deploys, reboots and blast radius. At 1 OCPU and 6 GB each, the free A1 allowance holds two.
 
 Everything in this step can also be scripted with the OCI CLI. Make the script find each resource
-by name before creating it, so it's safe to re-run.
+by name before creating it, so it's safe to re-run. Give the script its own IAM user and group
+rather than a key on your admin user, with a policy scoped to the app's compartment:
+
+```
+Allow group myapp-deployers to manage all-resources in compartment myapp
+Allow group myapp-deployers to inspect compartments in tenancy
+Allow group myapp-deployers to read objectstorage-namespaces in tenancy
+```
+
+Two OCI CLI behaviours that break naive scripts:
+
+- A `list` with no results prints **nothing**, not an empty JSON array, so `jq '.data | length'`
+  yields an empty string rather than `0`. Treat empty output as zero, or a "create if missing"
+  check can silently skip the create.
+- Until the API key file ends with the `OCI_API_KEY` label line the CLI asks for, it prints a
+  warning to **stdout**, which breaks JSON parsing. Add the line, or the warning lands inside every
+  result.
 
 ## 2. Build an `arm64` bundle
 
@@ -93,6 +109,15 @@ Leave `JWT_SECRET`, `PASSWORD_SECRET` and any other secret out of the build's `.
 compiled in, `strings` on the binary recovers it. If none is, the server refuses to start until
 the host supplies them, which is what you want. See
 [Environment & Secrets](/deployment/environment-and-secrets).
+
+To check, scan the bundle with `strings`, not `grep`: the executables are AOT-compiled, and a plain
+`grep` doesn't reliably see inside them. Use a value you know is compiled in, such as your
+`baseUrl`, as a positive control. If the scan can't find that, it can't find a secret either.
+
+```bash
+find build -type f -exec strings {} + | grep -c 'https://api.example.com'   # must be > 0
+find build -type f -exec strings {} + | grep -c '<a secret value>'          # must be 0
+```
 
 ## 3. Prepare the host
 
@@ -198,6 +223,11 @@ systemctl enable myapp.service
 ```
 api.example.com {
 	encode zstd gzip
+
+	# The admin dashboard at /_ — see below.
+	@admin path /_ /_/*
+	respond @admin 404
+
 	reverse_proxy 127.0.0.1:8080
 }
 ```
@@ -216,6 +246,60 @@ issues a certificate for it. List both names on the site line (`api.example.com,
 
 Set `baseUrl` in your config to the public `https://` URL. Links in auth emails are built from it.
 See [Server Binding](/deployment/server-binding#baseurl-vs-binding).
+
+**Tell zonai it is behind a proxy.** Every request now reaches zonai from Caddy, so without this
+the client address is always `127.0.0.1`. Every rate limit then becomes **one counter shared by
+everyone**: a single abuser is never limited on their own, and one busy minute can lock every user
+out of sign-up at once. Read the client address from `X-Forwarded-For`:
+
+```dart in:app-config
+trustedProxy: TrustedProxyConfig(
+  headers: ['x-forwarded-for'],
+  // useLeftmostIp: false, the default. Rightmost is the address Caddy added.
+),
+```
+
+Caddy's `reverse_proxy` replaces a client-supplied `X-Forwarded-For` unless you configure
+`trusted_proxies`, so the rightmost address is the real client and a spoofed header gets nowhere.
+See [Trusted Proxies](/rate-limiting/trusted-proxies).
+
+**The admin dashboard.** Every zonai server serves its admin UI at
+[`/_`](/dashboard/overview). Its data needs an admin sign-in, but the page and its sign-in form are
+public on any name that forwards `/_`. The Caddyfile above answers `/_` with a 404. Reach the
+dashboard through an SSH tunnel instead:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 ubuntu@203.0.113.7
+# then open http://127.0.0.1:8080/_
+```
+
+Admin invite links open `/_/admin/invite?token=…` on `baseUrl`, so with `/_` blocked, an invited
+admin accepts through the tunnel too. Drop the two `@admin` lines if you'd rather keep the
+dashboard public.
+
+**Tighten the auth rate limits.** Every auth route defaults to 100 requests per minute per IP. For
+the routes that send email, that is enough for one IP to mail strangers in bulk and use up the
+monthly Email Delivery allowance. Override them on the auth table, in its
+[`AuthTableRateLimits`](/rate-limiting/auth-rate-limits):
+
+```dart
+@override
+Future<RateLimitPolicy?> authenticatePolicy() async =>
+    const RateLimitPolicy(maxRequests: 5, window: Duration(minutes: 15));
+
+@override
+Future<RateLimitPolicy?> sendResetPasswordPolicy() async =>
+    const RateLimitPolicy(maxRequests: 5, window: Duration(hours: 1));
+
+@override
+Future<RateLimitPolicy?> sendVerifyEmailPolicy() async =>
+    const RateLimitPolicy(maxRequests: 5, window: Duration(hours: 1));
+```
+
+OTP codes and magic links are sent through `POST /auth`, so `authenticatePolicy()` is the limit
+that applies to them, not `sendOtpPolicy()`. `POST /auth/confirm` shares one per-IP counter across
+all tables and can't be tightened per table. Both points are explained in
+[Auth Rate Limits](/rate-limiting/auth-rate-limits).
 
 ## 6. Deploy
 
@@ -269,9 +353,15 @@ if [ "$(sqlite3 "$tmp" 'PRAGMA integrity_check;')" != ok ]; then
   echo "backup: integrity_check failed" >&2
   exit 1
 fi
-gzip -9 -c "$tmp" > "$dir/zonai-$stamp.sqlite.gz"
+out="$dir/zonai-$stamp.sqlite.gz"
+gzip -9 -c "$tmp" > "$out"
 rm -f "$tmp" "$tmp-wal" "$tmp-shm"
 ls -1t "$dir"/zonai-*.sqlite.gz | tail -n +15 | xargs -r rm -f
+
+# Off the host, when a write-only upload URL is configured (see below).
+if [ -n "${BACKUP_UPLOAD_URL:-}" ]; then
+  curl -fsS --retry 3 -X PUT --upload-file "$out" "${BACKUP_UPLOAD_URL%/}/$(basename "$out")"
+fi
 ```
 
 Install it with `install -m 0755 myapp-backup /usr/local/sbin/`, and run it daily with a timer, as
@@ -286,6 +376,8 @@ Description=myapp database backup
 Type=oneshot
 User=myapp
 Group=myapp
+# Optional, root-only: BACKUP_UPLOAD_URL=<the pre-authenticated request URL>
+EnvironmentFile=-/etc/myapp/backup.env
 ExecStart=/usr/local/sbin/myapp-backup
 NoNewPrivileges=true
 ProtectSystem=strict
@@ -315,8 +407,19 @@ systemctl enable --now myapp-backup.timer
 ```
 
 **Ship them off the host.** A backup on the same disk doesn't survive losing the host. Set this up
-on day one, not after the first scare. Oracle's Always Free Object Storage is the obvious target.
-Even a periodic `rsync` to another machine is far better than nothing.
+on day one, not after the first scare. Oracle's Always Free Object Storage works, and the host
+never needs OCI credentials:
+
+1. Create a **private** bucket in the app's compartment, and turn on **object versioning**.
+2. Create a **pre-authenticated request** on the bucket with access type **"Permit object writes"**
+   (AnyObjectWrite), and a long expiry, such as five years. Note its expiry.
+3. Put the URL in `/etc/myapp/backup.env` (root, `0600`) as `BACKUP_UPLOAD_URL=...`. The backup
+   script above uploads every verified backup to it.
+
+The URL can only write. It can't list, read or delete. With versioning on, a leaked URL can't
+destroy older backups either, because an overwrite keeps the previous version. To restore, download
+the object in the console or with the OCI CLI from your own machine, then follow the steps below.
+Renew the pre-authenticated request before it expires.
 
 **Restore:** stop the service, keep the current database aside, unzip the backup over
 `zonai.sqlite`, check it with `PRAGMA integrity_check`, and start the service again. Remove any
@@ -358,6 +461,10 @@ are not pages zonai serves. Opened in a browser they fail. You serve those pages
 - [ ] No secret in the build's `.env.prod`; secrets in a root-only `EnvironmentFile`
 - [ ] A copy of `PASSWORD_SECRET` somewhere safe
 - [ ] `baseUrl` is the public `https://` URL, and the reset and verify links open pages you serve
+- [ ] `trustedProxy` reads `x-forwarded-for`, so rate limits count each client separately
+- [ ] `/_` is blocked at Caddy, or you've decided to keep the dashboard public
+- [ ] Auth rate limits tightened for the routes that send email
 - [ ] `https://<your name>/health` answers through public DNS
-- [ ] The backup timer is enabled, one backup has been restored as a test, and backups leave the host
+- [ ] The backup timer is enabled, one backup has been restored as a test, and backups reach a
+      versioned bucket
 - [ ] Rebooted once, and the service, Caddy and the timer all came back
