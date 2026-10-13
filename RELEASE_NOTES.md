@@ -8,6 +8,28 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.10.3
+
+- **`zonai build`, `zonai update` and friends retry GitHub downloads.** A
+  `429`, a `5xx` or a dropped connection is tried again up to three times
+  instead of failing the build, which fixes intermittent
+  `Failed to download binary` errors. Every download error now ends with the
+  HTTP status GitHub answered, and a rate-limited `403` tells you to set
+  `GITHUB_TOKEN` or `GH_TOKEN`.
+- **A mail server with no credentials refuses to start** (`zonai_schema`
+  0.7.0, breaking). With `email` configured, a missing `SMTP_USERNAME` on a
+  remote host, or a username with no `SMTP_PASSWORD`, now fails at startup
+  the way an empty `JWT_SECRET` does, instead of failing every reset and
+  verification email in the background. Local catchers (a loopback host, or
+  `allowInsecure`) still need no login. Move to `zonai_schema: ^0.7.0` and
+  recompile to pick it up.
+- **`zonai compile` no longer fails with `Undefined name 'HttpError'`.**
+  `zonai_schema` 0.7.0 requires `revali_core` 3.1.0, so a lock file still
+  holding 3.0.0 is upgraded instead of breaking the build.
+- **Oracle Cloud deployment guide hardened:** trusted proxy setup so rate
+  limits are per client, the admin dashboard kept off the public internet,
+  tighter limits on routes that send email, and off-host backups.
+
 ## 0.10.2
 
 - **`zonai serve` no longer serves workers older than their sources.** An

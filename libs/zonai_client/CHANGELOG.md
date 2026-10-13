@@ -1,3 +1,9 @@
+## 0.3.2
+
+- **Allows `zonai_schema` 0.7.0.** The constraint is now `>=0.6.0 <0.8.0`.
+  Nothing in this package changed; 0.7.0's breaking change is to server-side
+  SMTP config validation, which the client never uses.
+
 ## 0.3.1
 
 - **`ZonaiClient.server(...)` sends the stored token.** Only the default
