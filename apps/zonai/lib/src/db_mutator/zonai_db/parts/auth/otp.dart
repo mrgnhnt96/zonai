@@ -17,11 +17,11 @@ extension _OtpX on ZonaiDb {
 
     final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
-    if (isAdmin) {
-      if (!hasAuthRecord) {
-        throw UserNotFoundAuthException(table: table);
-      }
-    }
+    // An admin send never signs anyone up, so an address with no admin row
+    // gets no code. It answers like a send that went out, as
+    // `_sendResetPassword` does, so the reply says nothing about which
+    // addresses are admins.
+    if (isAdmin && !hasAuthRecord) return;
 
     final operation = switch (hasAuthRecord) {
       true => AuthOperation.signIn,

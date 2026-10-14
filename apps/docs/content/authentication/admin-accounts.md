@@ -186,6 +186,12 @@ POST /auth/admin
 
 The response contains an `accessToken` with elevated claims.
 
+An admin table with `OtpAuth` or `MagicLinkAuth` requests its code or link
+from the same endpoint, with `"type": "adminSendOtp"` or
+`"type": "adminSendMagicLink"` and an `email`. The request answers `200 OK`
+whether or not the address belongs to an admin, and only an existing admin is
+emailed: an admin send never creates an account.
+
 ## Admin JWT Claims
 
 Tokens issued via `POST /auth/admin` include elevated claims accessible in rules and extensions:
