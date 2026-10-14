@@ -57,9 +57,18 @@ final class StoredPhoto {
     required this.key,
     required this.size,
     required this.modified,
+    this.etag,
   });
 
   final String key;
   final int size;
   final DateTime modified;
+
+  /// The backend's own tag for these exact bytes, unquoted, when it keeps
+  /// one.
+  ///
+  /// A bucket's `LastModified` only has second precision, so a photo replaced
+  /// within the same second would keep its size-and-time tag; the bucket's
+  /// ETag changes with the bytes.
+  final String? etag;
 }

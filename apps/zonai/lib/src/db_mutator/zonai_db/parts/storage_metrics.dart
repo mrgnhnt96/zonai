@@ -129,7 +129,7 @@ extension _StorageMetricsX on ZonaiDb {
       );
     }
 
-    final photosUsage = await photoStorage.usage();
+    final photosUsage = await (await _photoStorage()).usage();
 
     return StorageMetrics(
       databases: databases,

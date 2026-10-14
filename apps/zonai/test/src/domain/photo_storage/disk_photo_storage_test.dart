@@ -1,6 +1,6 @@
 import 'package:file/memory.dart';
 import 'package:test/test.dart';
-import 'package:zonai/src/domain/photo_storage/local_photo_storage.dart';
+import 'package:zonai/src/domain/photo_storage/disk_photo_storage.dart';
 import 'package:zonai/src/domain/photo_storage/photo_storage.dart';
 import 'package:zonai/src/exceptions/photo_exception.dart';
 
@@ -17,7 +17,7 @@ void main() {
 
   setUp(() {
     fs = MemoryFileSystem();
-    storage = LocalPhotoStorage(fs: fs, root: root);
+    storage = DiskPhotoStorage(fs: fs, root: root);
   });
 
   Future<List<int>> read(String key) =>

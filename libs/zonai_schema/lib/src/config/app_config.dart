@@ -45,6 +45,11 @@ final class AppConfig {
     jwtExpiresIn: json['jwtExpiresIn'] == null
         ? const Duration(hours: 24)
         : Duration(seconds: json['jwtExpiresIn'] as int),
+    photos: json['photos'] == null
+        ? const PhotosConfig()
+        : PhotosConfig.fromJson(
+            Map<String, dynamic>.from(json['photos'] as Map),
+          ),
     trustedProxy: TrustedProxyConfig.fromJson(
       json['trustedProxy'] as Map<String, dynamic>?,
     ),
@@ -109,7 +114,12 @@ final class AppConfig {
   List<String> get jwtSecretsForVerify =>
       List<String>.unmodifiable([jwtSecret, ...previousJwtSecrets]);
 
-  void validate() {
+  /// Throws a [StateError] listing everything that makes this config unusable.
+  ///
+  /// [environment] is the server process's, for settings that are read from
+  /// it at runtime rather than compiled in (the S3 photo storage key pair).
+  /// `null` skips those checks.
+  void validate({Map<String, String>? environment}) {
     final errors = <String>[];
     if (appName.isEmpty) errors.add('appName is empty');
     errors.addAll(_secretErrors(jwtSecret, 'jwtSecret', 'JWT_SECRET'));
@@ -187,6 +197,10 @@ final class AppConfig {
 
     if (email case final email?) errors.addAll(_emailErrors(email));
 
+    if (photos.storage case final S3PhotoStorage storage) {
+      errors.addAll(storage.errors(environment: environment));
+    }
+
     if (errors.isNotEmpty) {
       throw StateError(
         'AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}',
@@ -204,6 +218,7 @@ final class AppConfig {
     'push': push?.toJson(),
     'baseUrl': baseUrl,
     'jwtExpiresIn': jwtExpiresIn.inSeconds,
+    'photos': photos.toJson(),
     'trustedProxy': trustedProxy.toJson(),
     'externalIdps': externalIdps.map((idp) => idp.toJson()).toList(),
   };

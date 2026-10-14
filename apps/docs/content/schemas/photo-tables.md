@@ -81,7 +81,7 @@ If you want/need to clean up the image during a row update, you can delete the `
 
 ## Storage
 
-Photos are written to disk under the configured images directory (default: `.zonai/data/images/`), organized by the `table` field from the upload metadata:
+By default, photos are written to disk under the configured images directory (default: `.zonai/data/images/`), organized by the `table` field from the upload metadata:
 
 ```
 .zonai/data/images/<table>/<id>.<ext>
@@ -89,7 +89,42 @@ Photos are written to disk under the configured images directory (default: `.zon
 
 For example, a JPEG uploaded for the `users` table might be stored at `.zonai/data/images/users/ph_abc123.jpeg`.
 
-**Deleting a photo row also deletes the file.** When you call `DELETE /img/:id`, Zonai removes both the `_photos` database record and the file from disk in the same operation.
+**Deleting a photo row also deletes the file.** When you call `DELETE /img/:id`, Zonai removes both the `_photos` database record and the stored file in the same operation.
+
+### S3-compatible buckets (Cloudflare R2)
+
+Set `AppConfig.photos.storage` to an `S3PhotoStorage` to keep photos in a bucket instead of on the server's disk. Keys keep the same layout, `<table>/<id>.<ext>`, inside the bucket:
+
+```dart in:app-config
+photos: PhotosConfig(
+  storage: S3PhotoStorage(
+    endpoint: 'https://<account-id>.r2.cloudflarestorage.com',
+    bucket: 'my-app-photos',
+    region: 'auto', // the default; R2 takes 'auto'
+  ),
+),
+```
+
+| Field | Meaning |
+|-------|---------|
+| `endpoint` | The S3 API URL, without the bucket. For R2 that's `https://<account-id>.r2.cloudflarestorage.com`. Requests are path-style (`<endpoint>/<bucket>/<key>`), so any S3-compatible service works, MinIO included. |
+| `bucket` | The bucket name. Create it first; Zonai doesn't. |
+| `region` | The SigV4 signing region. Defaults to `auto`, which is what R2 expects; use the bucket's region (such as `us-east-1`) for AWS S3. |
+| `publicBaseUrl` | Optional. The bucket's public URL (an R2 custom domain or `r2.dev` address). Photos are streamed through the server for now, so this is recorded but not yet used. |
+
+Then give the server the bucket's credentials at runtime. For R2, create an API token with **Object Read & Write** on the bucket and use its access key ID and secret:
+
+```bash
+S3_ACCESS_KEY_ID=... \
+S3_SECRET_ACCESS_KEY=... \
+  ./zonai serve --release
+```
+
+The keys are read from the process environment only — see [Environment Variables](/configuration/environment-variables#overriding-a-baked-in-secret-at-runtime). The server refuses to start without them.
+
+`GET /img/:id` reads the photo from the bucket and streams it to the caller with the same rule checks and caching headers as local storage; its `ETag` is the bucket's own content hash. The unreferenced-photo cleanup and the storage metrics list and delete objects in the bucket.
+
+Switching backends doesn't move existing photos: photos already on disk stay there, and `_photos` rows pointing at them will 404 until the files are copied into the bucket under the same keys.
 
 **File size limit** — configured via `AppConfig.photos`:
 

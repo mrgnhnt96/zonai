@@ -32,6 +32,8 @@ Changing a secret this way requires recompiling and redeploying (`zonai build` /
 
 When `AppConfig.email` is set, `SMTP_USERNAME` and `SMTP_PASSWORD` are read the same way and replace the `EmailConfig`'s `username` and `password`. They never create an email config on their own: with no `email` in the config they are ignored. Every email Zonai sends, auth emails included, uses the overridden values. If neither the build nor the environment supplies them, the server **refuses to start**, the same as for an empty `JWT_SECRET`. Otherwise every reset and verification email would fail in the background while the server looked healthy. The exception is a local catcher such as Mailhog: a loopback host, or `allowInsecure: true`, may send without logging in.
 
+When `AppConfig.photos.storage` is an `S3PhotoStorage`, the bucket's access keys come **only** from the process environment: `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`. `S3PhotoStorage` has no field for them, so they can never be compiled in. If either is missing or empty, the server **refuses to start** instead of failing every upload. With local photo storage both are ignored.
+
 This matters because a compiled binary contains its defines in plain text — `strings` on the artifact recovers the signing key, and anyone who can read the artifact can then mint tokens for any user. Leaving the secrets out of `.env` entirely and injecting them through the environment ships a binary that contains no secret at all:
 
 ```bash

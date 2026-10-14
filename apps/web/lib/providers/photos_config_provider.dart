@@ -7,8 +7,10 @@ final defaultPhotosConfig = PhotosConfig();
 /// Photo upload limits from [AppConfig], seeded during SSR.
 final photosConfigProvider = Provider<PhotosConfig>((ref) => defaultPhotosConfig);
 
+/// The upload limits the browser needs. `storage` is left out: the dashboard
+/// never reads it, and the bucket's endpoint has no reason to be in the page.
 Map<String, dynamic> photosConfigToJson(PhotosConfig config) => {
-  ...config.toJson(),
+  ...config.toJson()..remove('storage'),
   'requiredMimeType': config.requiredMimeType,
 };
 

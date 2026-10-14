@@ -11,6 +11,7 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/zonai_schema.dart' as schema show AppConfig;
 
 import '../../../support/package_roots.dart';
 import '../../../support/temp_directory.dart';
@@ -195,7 +196,7 @@ AppConfig main() {
     }
 
     await withScope(() async {
-      final zonaiDb = ZonaiDb();
+      final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
       try {
         await clearPhotos(zonaiDb);
         // 1,250 = two full pages plus a partial one, so the loop's
@@ -226,7 +227,7 @@ AppConfig main() {
     }
 
     await withScope(() async {
-      final zonaiDb = ZonaiDb();
+      final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
       try {
         await clearPhotos(zonaiDb);
         await seedStalePhotos(zonaiDb, count: 600);
@@ -258,7 +259,7 @@ AppConfig main() {
     }
 
     await withScope(() async {
-      final zonaiDb = ZonaiDb();
+      final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
       try {
         await clearPhotos(zonaiDb);
         await seedStalePhotos(zonaiDb, count: 600);
@@ -311,3 +312,11 @@ AppConfig main() {
 /// still running after the timeout, deleted files under the next test's count.
 /// The default is a hang guard, and this work is bounded, not hung.
 const _seedingTimeout = Timeout(Duration(minutes: 2));
+
+/// Photo storage is chosen from the config, which `ZonaiDb` would otherwise
+/// ask a compiled config worker for.
+const _config = schema.AppConfig(
+  appName: 'photo-cleanup-fixture',
+  passwordSecret: 'test-password-secret',
+  jwtSecret: 'test-jwt-secret',
+);

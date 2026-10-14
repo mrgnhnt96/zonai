@@ -78,6 +78,19 @@ photos: PhotosConfig(
 
 Constrains photo uploads before they reach the rules worker.
 
+`storage` picks where the bytes live. The default, `LocalPhotoStorage()`, keeps them on the server's disk. `S3PhotoStorage` keeps them in an S3-compatible bucket such as Cloudflare R2 — see [Photo Storage](/schemas/photo-tables#storage):
+
+```dart in:app-config
+photos: PhotosConfig(
+  storage: S3PhotoStorage(
+    endpoint: 'https://<account-id>.r2.cloudflarestorage.com',
+    bucket: 'my-app-photos',
+  ),
+),
+```
+
+The bucket's access keys are never part of the config: they are read from `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` in the process environment when the server starts.
+
 ### Trusted Proxy
 
 ```dart in:app-config
