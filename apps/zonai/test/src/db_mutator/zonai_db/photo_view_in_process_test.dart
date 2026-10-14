@@ -130,9 +130,9 @@ void main() {
       await db.updatePhoto(token: null, id: id, image: Stream.value(_png(9)));
       final after = await db.viewPhoto(id, token: null);
 
-      expect(after.file.path, before.file.path, reason: 'same id, same URL');
+      expect(after.extension, before.extension, reason: 'same id, same URL');
       expect(after.etag, isNot(before.etag));
-      expect(after.file.readAsBytesSync(), _png(9));
+      expect(await after.openRead().expand((chunk) => chunk).toList(), _png(9));
     });
   });
 

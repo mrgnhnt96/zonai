@@ -1,5 +1,8 @@
 library zonai_db;
 
+export 'package:zonai/src/domain/photo_storage/local_photo_storage.dart'
+    show resolvePhotoFile;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -28,6 +31,8 @@ import 'package:zonai/src/domain/constants.dart';
 // invite screen end up disagreeing about a required column.
 import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
+import 'package:zonai/src/domain/photo_storage/local_photo_storage.dart';
+import 'package:zonai/src/domain/photo_storage/photo_storage.dart';
 import 'package:zonai/src/domain/photo_view.dart';
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
@@ -982,11 +987,17 @@ class ZonaiDb {
     );
   }
 
-  Future<File> getPhoto(String id, {required String? token}) async {
-    return (await viewPhoto(id, token: token)).file;
+  /// Where photo bytes are kept: files under [Settings.imagesPath].
+  PhotoStorage get photoStorage =>
+      LocalPhotoStorage(fs: fs, root: settings.imagesPath);
+
+  /// The bytes of photo [id], read through the same rules as [viewPhoto].
+  Future<List<int>> readPhoto(String id, {required String? token}) async {
+    final view = await viewPhoto(id, token: token);
+    return [for (final chunk in await view.openRead().toList()) ...chunk];
   }
 
-  /// [getPhoto], plus the caching details `GET /img/:id` sends with it.
+  /// The photo [id] with the caching details `GET /img/:id` sends with it.
   Future<PhotoView> viewPhoto(String id, {required String? token}) {
     return _run(() => _getPhoto(id, token: token));
   }
