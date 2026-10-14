@@ -281,41 +281,27 @@ extension _AuthUtilsX on ZonaiDb {
   /// ## Two dispatch paths, one exception
   ///
   /// Extensions run either in-process (`HostWorkerRegistries`, the shape unit
-  /// tests and `zonai dev` use) or in a worker. In-process, the hook's throw
-  /// arrives here as the real [SignUpDeclinedException]. Through a worker it
-  /// does not: `MessageErrorResponse` carries only strings, so the type is
-  /// gone by the time it lands and it surfaces as a
-  /// [MessageHandlerFailedException] whose `cause` is the original
-  /// `toString`. Recovering it is what keeps a declined sign-up a 403 on both
-  /// paths -- without this, running the same app under a worker would answer
-  /// 500 for a refusal the app made deliberately.
-  ///
-  /// A [MessageHandlerFailedException] that is *not* a decline is rethrown
-  /// untouched: a hook that crashed is a server error, and dressing it up as
-  /// a 403 would tell the caller its request was refused when the truth is
-  /// that the app is broken.
+  /// tests and `zonai dev` use) or in a worker. Either way a decline leaves
+  /// `_runExtension` as the real [SignUpDeclinedException]: in-process it is
+  /// the hook's own object, and from a worker `_runExtension` rebuilds it from
+  /// the structured `refusal` field. That keeps a declined sign-up a 403 on
+  /// both paths. Any other failure is rethrown untouched: a hook that crashed
+  /// is a server error, and dressing it up as a 403 would tell the caller its
+  /// request was refused when the app is broken.
   Future<void> _runSignUpGate(
     String table, {
     required String email,
     required Map<String, Object?>? object,
     required Jwt? jwt,
   }) async {
-    try {
-      await _runExtension(
-        BeforeSignUpExtensionRequest(
-          table: table,
-          email: email,
-          object: {...?object},
-          jwt: jwt,
-        ),
-      );
-    } on SignUpDeclinedException {
-      rethrow;
-    } on MessageHandlerFailedException catch (e) {
-      final declined = SignUpDeclinedException.tryParse(e.cause ?? e.message);
-      if (declined != null) throw declined;
-      rethrow;
-    }
+    await _runExtension(
+      BeforeSignUpExtensionRequest(
+        table: table,
+        email: email,
+        object: {...?object},
+        jwt: jwt,
+      ),
+    );
   }
 
   /// Verifies the JWT signature and decodes claims without checking the

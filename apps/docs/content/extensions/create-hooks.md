@@ -17,20 +17,27 @@ Create hooks run for `POST /db` and `POST /db/many` (once per row), and for rows
 
 ## beforeCreate
 
-Runs after rules pass, before the INSERT executes. **Can abort the operation** by throwing. Nothing is inserted, and the client receives a `500` server error rather than your message:
+Runs after rules pass, before the INSERT executes. **Can abort the operation** by throwing. Nothing is inserted.
+
+To refuse the create and tell the client why, throw an `HttpError` with a `4xx` status. The client receives that status and the error envelope, `{"error": {"code": ..., "message": ..., "details": ...}}`:
 
 ```dart in:extension-task
 @override
 Future<void> beforeCreate(Task object, Jwt? jwt) async {
   if (object.title.isEmpty) {
-    throw Exception('Title cannot be empty');
+    throw const HttpError.badRequest(
+      code: 'empty_title',
+      message: 'Title cannot be empty',
+    );
   }
 }
 ```
 
+The `code`, `message` and `details` go to the client as written, so keep internals out of them. Any other throw, including an `HttpError` whose status is not `4xx`, still aborts the create, but the client receives a `500` server error rather than your message.
+
 Use for: extra validation beyond what rules check.
 
-Changing `object` here has no effect on what is inserted: the hook receives a copy. To fill in a column the client did not send, patch the new row with `mutate.update` from `afterCreateSuccess`. If the client should see why a create was refused, express the condition as a [row rule](/rules/row-rules) instead.
+Changing `object` here has no effect on what is inserted: the hook receives a copy. To fill in a column the client did not send, patch the new row with `mutate.update` from `afterCreateSuccess`.
 
 ## afterCreateSuccess
 

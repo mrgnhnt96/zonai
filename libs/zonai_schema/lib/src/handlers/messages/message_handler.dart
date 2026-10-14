@@ -9,6 +9,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 import 'package:zonai_schema/src/handlers/messages/message_io.dart';
+import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 part 'deps/__email.dart';
@@ -234,6 +235,7 @@ class MessageHandler<R extends Request> {
               message: 'Error handling request',
               error: error.toString(),
               stackTrace: stackTrace.toString(),
+              refusal: encodeWorkerRefusal(error),
             ),
           );
         },
@@ -454,6 +456,7 @@ class MessageHandler<R extends Request> {
             response.message,
             cause: response.error,
             causeStackTrace: response.stackTrace,
+            refusal: response.refusal,
           ),
         );
       } else {

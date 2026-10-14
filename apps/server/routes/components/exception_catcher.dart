@@ -2,6 +2,7 @@ import 'package:revali_router/revali_router.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
 import 'package:zonai_schema/src/payloads/parse_body.dart';
@@ -153,6 +154,22 @@ final class Exceptions implements LifecycleComponent {
     SignUpDeclinedException exception,
   ) {
     return .handled(statusCode: 403, body: {'error': exception.reason});
+  }
+
+  /// A write the app refused from its own `beforeCreate`, `beforeUpdate` or
+  /// `beforeDelete` hook, with an `HttpError` it chose.
+  ///
+  /// Rendered as the app wrote it, status and envelope, for the reason
+  /// [onSignUpDeclined] gives. Only a 4xx from one of those three hooks, on
+  /// the request's own write, ever becomes this (`HookRefusedException`); a
+  /// raw `HttpError` from anywhere else stays a 500.
+  ExceptionCatcherResult<HookRefusedException> onHookRefused(
+    HookRefusedException exception,
+  ) {
+    return .handled(
+      statusCode: exception.error.statusCode,
+      body: exception.error.toEnvelope(),
+    );
   }
 
   /// A request body the server could not read -- a missing field, a wrong

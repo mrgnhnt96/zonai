@@ -55,6 +55,10 @@ export 'src/column_types/updated_when_column.dart';
 export 'src/config/app_config.dart';
 export 'src/exceptions/schema_exception.dart';
 export 'src/exceptions/sign_up_declined_exception.dart';
+// What a `beforeCreate`/`beforeUpdate`/`beforeDelete` hook throws to refuse
+// a write with a 4xx (see `HookRefusedException`), so a hook author needs no
+// direct dependency on revali_core.
+export 'package:revali_core/revali_core.dart' show HttpError;
 export 'src/handlers/extensions/sign_up_candidate.dart';
 export 'src/config/email_config.dart';
 export 'src/config/external_idp_config.dart';

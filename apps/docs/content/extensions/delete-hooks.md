@@ -15,7 +15,9 @@ Future<void> afterDeleteError(Object error, Jwt? jwt);
 
 ## beforeDelete
 
-Runs after rules pass, before the DELETE executes. **Can abort** by throwing. Nothing is deleted, and the client receives a `500` server error rather than your message:
+Runs after rules pass, before the DELETE executes. **Can abort** by throwing. Nothing is deleted.
+
+To refuse the delete and tell the client why, throw an `HttpError` with a `4xx` status. The client receives that status and the error envelope. Any other throw, including an `HttpError` whose status is not `4xx`, is answered with a `500` server error rather than your message. See [`beforeCreate`](/extensions/create-hooks#beforecreate) for the details.
 
 ```dart in:extension-user
 @override
@@ -26,7 +28,10 @@ Future<void> beforeDelete(User user, Jwt? jwt) async {
     limit: 1,
   ) ?? [];
   if (orders.isNotEmpty) {
-    throw Exception('Cannot delete user with open orders');
+    throw const HttpError.conflict(
+      code: 'user_has_orders',
+      message: 'A user with open orders cannot be deleted',
+    );
   }
 }
 ```

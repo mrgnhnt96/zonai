@@ -34,7 +34,15 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.6.0`. The security fixes of CLI 0.10.0 live in the schema a
+/// Currently `0.8.0`. A `before*` hook's refusal and a declined sign-up reach
+/// the host as `MessageErrorResponse.refusal`, a field the extensions worker
+/// sets. The worker is compiled against the *project's* `zonai_schema`, and
+/// `0.7.0` and older write no such field: they put a text marker in the error
+/// instead, which this CLI no longer reads. A project left on `0.7.0` would
+/// answer a sign-up its `beforeSignUp` declines with `500` instead of `403`,
+/// and a refusing `before*` hook with `500`.
+///
+/// **`0.6.0`.** The security fixes of CLI 0.10.0 live in the schema a
 /// project resolves, not in this binary: `AuthRowRules.canUpdate` refusing a
 /// user's own `is_verified` / `email` change, the unique email index on auth
 /// tables, and the default `AuthRowRules.viewScope` that keeps counts from
@@ -104,4 +112,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.6.0';
+const kMinSchemaVersion = '0.8.0';

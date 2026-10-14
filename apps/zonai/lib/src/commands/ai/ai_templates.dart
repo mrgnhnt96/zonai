@@ -1700,7 +1700,9 @@ class ItemExtensions extends Extension<Item> {
 ItemExtensions main() => ItemExtensions();
 ```
 
-Throwing from a **before** hook aborts the request.
+Throwing from a **before** hook aborts the request. Throw an `HttpError` with
+a 4xx status (`HttpError.forbidden(code: ..., message: ...)`) to answer the
+caller with that status and code; any other throw is answered 500.
 Throwing from an **after** hook fails after the DB change committed.
 `beforeSignUp` is the auth-side equivalent: throw `SignUpDeclinedException`
 to answer the caller 403 with your own reason, before any row exists.
