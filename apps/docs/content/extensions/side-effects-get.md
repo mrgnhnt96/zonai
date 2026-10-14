@@ -39,7 +39,10 @@ Future<void> beforeDelete(User user, Jwt? jwt) async {
   ) ?? [];
 
   if (orders.isNotEmpty) {
-    throw Exception('Cannot delete user with orders');
+    throw const HttpError.conflict(
+      code: 'user_has_orders',
+      message: 'Cannot delete user with orders',
+    );
   }
 }
 ```

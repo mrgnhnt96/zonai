@@ -17,13 +17,18 @@ Update hooks run once per matched row, for `PATCH /db`, `PATCH /db/many`, and `m
 
 ## beforeUpdate
 
-Runs after rules pass, before the UPDATE executes. **Can abort** by throwing. Nothing is updated, and the client receives a `500` server error rather than your message:
+Runs after rules pass, before the UPDATE executes. **Can abort** by throwing. Nothing is updated.
+
+To refuse the update and tell the client why, throw an `HttpError` with a `4xx` status. The client receives that status and the error envelope. Any other throw, including an `HttpError` whose status is not `4xx`, is answered with a `500` server error rather than your message. See [`beforeCreate`](/extensions/create-hooks#beforecreate) for the details.
 
 ```dart in:extension-event
 @override
 Future<void> beforeUpdate(Event object, Jwt? jwt) async {
   if (object.endDate.isBefore(object.startDate)) {
-    throw Exception('End date must be after start date');
+    throw const HttpError.conflict(
+      code: 'invalid_dates',
+      message: 'End date must be after start date',
+    );
   }
 }
 ```

@@ -2102,7 +2102,7 @@
         {
           "h": "beforeCreate",
           "a": "beforecreate",
-          "b": "Runs after rules pass, before the INSERT executes. Can abort the operation by throwing. Nothing is inserted, and the client receives a 500 server error rather than your message: @override Future beforeCreate(Task object, Jwt? jwt) async { if (object.title.isEmpty) { throw Exception('Title cannot be empty'); } } Use for: extra validation beyond what rules check. Changing object here has no effect on what is inserted: the hook receives a copy. To fill in a column the client did not send, patch the new row with mutate.update from afterCreateSuccess. If the client should see why a create was refused, express the condition as a row rule instead."
+          "b": "Runs after rules pass, before the INSERT executes. Can abort the operation by throwing. Nothing is inserted. To refuse the create and tell the client why, throw an HttpError with a 4xx status. The client receives that status and the error envelope, {\"error\": {\"code\": ..., \"message\": ..., \"details\": ...}}: @override Future beforeCreate(Task object, Jwt? jwt) async { if (object.title.isEmpty) { throw const HttpError.badRequest( code: 'empty_title', message: 'Title cannot be empty', ); } } The code, message and details go to the client as written, so keep internals out of them. Any other throw, including an HttpError whose status is not 4xx, still aborts the create, but the client receives a 500 server error rather than your message. Use for: extra validation beyond what rules check. Changing object here has no effect on what is inserted: the hook receives a copy. To fill in a column the client did not send, patch the new row with mutate.update from afterCreateSuccess."
         },
         {
           "h": "afterCreateSuccess",
@@ -2135,7 +2135,7 @@
         {
           "h": "beforeUpdate",
           "a": "beforeupdate",
-          "b": "Runs after rules pass, before the UPDATE executes. Can abort by throwing. Nothing is updated, and the client receives a 500 server error rather than your message: @override Future beforeUpdate(Event object, Jwt? jwt) async { if (object.endDate.isBefore(object.startDate)) { throw Exception('End date must be after start date'); } } Note: object here is the current row, not the values being applied. The update hasn't happened yet, and the hook cannot see the incoming values. To validate those, use a row rule."
+          "b": "Runs after rules pass, before the UPDATE executes. Can abort by throwing. Nothing is updated. To refuse the update and tell the client why, throw an HttpError with a 4xx status. The client receives that status and the error envelope. Any other throw, including an HttpError whose status is not 4xx, is answered with a 500 server error rather than your message. See beforeCreate for the details. @override Future beforeUpdate(Event object, Jwt? jwt) async { if (object.endDate.isBefore(object.startDate)) { throw const HttpError.conflict( code: 'invalid_dates', message: 'End date must be after start date', ); } } Note: object here is the current row, not the values being applied. The update hasn't happened yet, and the hook cannot see the incoming values. To validate those, use a row rule."
         },
         {
           "h": "afterUpdateSuccess",
@@ -2168,7 +2168,7 @@
         {
           "h": "beforeDelete",
           "a": "beforedelete",
-          "b": "Runs after rules pass, before the DELETE executes. Can abort by throwing. Nothing is deleted, and the client receives a 500 server error rather than your message: @override Future beforeDelete(User user, Jwt? jwt) async { final orders = await get.many( tableName: 'orders', where: Eq('user_id', user.id.value), limit: 1, ) ?? []; if (orders.isNotEmpty) { throw Exception('Cannot delete user with open orders'); } } Use for: checking for dependencies before deleting. A throwing hook also discards anything it queued with mutate, so \"throw, then mark the row deleted\" does not work here. For soft deletes, have clients update a deletedAt column and deny delete in rules."
+          "b": "Runs after rules pass, before the DELETE executes. Can abort by throwing. Nothing is deleted. To refuse the delete and tell the client why, throw an HttpError with a 4xx status. The client receives that status and the error envelope. Any other throw, including an HttpError whose status is not 4xx, is answered with a 500 server error rather than your message. See beforeCreate for the details. @override Future beforeDelete(User user, Jwt? jwt) async { final orders = await get.many( tableName: 'orders', where: Eq('user_id', user.id.value), limit: 1, ) ?? []; if (orders.isNotEmpty) { throw const HttpError.conflict( code: 'user_has_orders', message: 'A user with open orders cannot be deleted', ); } } Use for: checking for dependencies before deleting. A throwing hook also discards anything it queued with mutate, so \"throw, then mark the row deleted\" does not work here. For soft deletes, have clients update a deletedAt column and deny delete in rules."
         },
         {
           "h": "afterDeleteSuccess",
@@ -2270,7 +2270,7 @@
         {
           "h": "get.many",
           "a": "getmany",
-          "b": "Fetches multiple rows. Returns an empty list if none match: @override Future beforeDelete(User user, Jwt? jwt) async { final orders = await get.many( tableName: 'orders', where: Eq('user_id', user.id.value), limit: 1, ) ?? []; if (orders.isNotEmpty) { throw Exception('Cannot delete user with orders'); } } Optional limit and offset parameters support pagination."
+          "b": "Fetches multiple rows. Returns an empty list if none match: @override Future beforeDelete(User user, Jwt? jwt) async { final orders = await get.many( tableName: 'orders', where: Eq('user_id', user.id.value), limit: 1, ) ?? []; if (orders.isNotEmpty) { throw const HttpError.conflict( code: 'user_has_orders', message: 'Cannot delete user with orders', ); } } Optional limit and offset parameters support pagination."
         },
         {
           "h": "Return Type",

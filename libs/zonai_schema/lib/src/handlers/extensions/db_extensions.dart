@@ -1,3 +1,5 @@
+import 'package:revali_core/revali_core.dart' show HttpError;
+import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/extension.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
@@ -73,6 +75,18 @@ class DbExtensions {
     }
   }
 
+  /// Runs a `before*` hook, marking a 4xx [HttpError] it throws as a
+  /// deliberate refusal so the host can answer with its status rather than a
+  /// 500. See [HookRefusedException]. Every other throw passes untouched.
+  Future<void> _refusable(Future<void> Function() hook) async {
+    try {
+      await hook();
+    } on HttpError catch (error) {
+      if (!HookRefusedException.refuses(error)) rethrow;
+      throw HookRefusedException(error);
+    }
+  }
+
   Future<void> _pushRejected(PushRejectedExtensionRequest request) async {
     final extension = extensionsByTable[request.table];
     if (extension == null) {
@@ -100,7 +114,7 @@ class DbExtensions {
       case .before:
         if (extension case Extension(:final beforeDelete)) {
           for (final o in request.objects) {
-            await beforeDelete(object(o), request.jwt);
+            await _refusable(() => beforeDelete(object(o), request.jwt));
           }
         }
       case .afterSuccess:
@@ -126,7 +140,7 @@ class DbExtensions {
 
     if (extension case Extension(:final beforeUpdate)) {
       for (final o in request.objects) {
-        await beforeUpdate(object(o), request.jwt);
+        await _refusable(() => beforeUpdate(object(o), request.jwt));
       }
     }
   }
@@ -165,7 +179,9 @@ class DbExtensions {
     switch (request.step) {
       case .before:
         if (extension case Extension(:final beforeCreate)) {
-          await beforeCreate(object(stored: false), request.jwt);
+          await _refusable(
+            () => beforeCreate(object(stored: false), request.jwt),
+          );
         }
       case .afterSuccess:
         if (extension case Extension(:final afterCreateSuccess)) {

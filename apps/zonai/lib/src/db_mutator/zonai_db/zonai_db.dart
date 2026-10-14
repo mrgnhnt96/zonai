@@ -28,6 +28,7 @@ import 'package:zonai/src/domain/constants.dart';
 // invite screen end up disagreeing about a required column.
 import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
+import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
 import 'package:zonai_schema/src/internal/tables/anonymous_credential_table.dart';
@@ -1358,6 +1359,11 @@ class ZonaiDb {
     } on PermissionException {
       rethrow;
     } on WriteBackpressureException {
+      rethrow;
+    } on HttpError {
+      // A `before*` hook's deliberate refusal, unwrapped in `_runExtension`.
+      // Without this arm it would reach the caller as the catch-all's 500,
+      // which is what every hook refusal used to be.
       rethrow;
     } catch (e, stack) {
       final mapped = mapDatabaseError(

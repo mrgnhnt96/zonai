@@ -649,15 +649,29 @@ extension UtilsX on ZonaiDb {
   }
 
   /// No-ops when the project has no extension handlers registered.
+  ///
+  /// A `before*` hook that refuses with a 4xx `HttpError` arrives here as a
+  /// [HookRefusedException]: the real object in-process, or its text inside a
+  /// [MessageHandlerFailedException] from a worker. Either way the `HttpError`
+  /// itself is rethrown, and the server answers with its status and envelope.
+  /// Anything else is rethrown untouched, so a hook that crashed stays a 500.
   Future<void> _runExtension(ExtensionRequest request) async {
-    if (HostWorkerRegistries.useInProcessExtensions) {
-      await HostWorkerRegistries.extensions!.dispatch(request);
-      return;
+    try {
+      if (HostWorkerRegistries.useInProcessExtensions) {
+        await HostWorkerRegistries.extensions!.dispatch(request);
+        return;
+      }
+      if (!_detectProjectExtensions()) {
+        return;
+      }
+      await _extensions.send<NoActionExtensionResponse>(request);
+    } on HookRefusedException catch (e) {
+      throw e.error;
+    } on MessageHandlerFailedException catch (e) {
+      final refused = HookRefusedException.tryParse(e.cause ?? e.message);
+      if (refused != null) throw refused.error;
+      rethrow;
     }
-    if (!_detectProjectExtensions()) {
-      return;
-    }
-    await _extensions.send<NoActionExtensionResponse>(request);
   }
 
   bool _detectProjectExtensions() {
