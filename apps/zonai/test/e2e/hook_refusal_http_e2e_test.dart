@@ -130,6 +130,24 @@ void main() {
       return [for (final item in items) (item as Map)['title']];
     }
 
+    Future<List<Object?>> titlesWhere(String title) async {
+      final response = await client.get(
+        server.uri('/db/list', {
+          'body': jsonEncode({
+            'table': 'posts',
+            'where': Eq('title', title).toJson(),
+          }),
+        }),
+      );
+      expect(response.statusCode, 200, reason: response.body);
+      final items = switch (jsonDecode(response.body)) {
+        {'data': {'items': final List<dynamic> items}} => items,
+        {'data': final List<dynamic> items} => items,
+        final other => fail('unexpected list body: $other'),
+      };
+      return [for (final item in items) (item as Map)['title']];
+    }
+
     test('beforeCreate: a 4xx HttpError reaches the client as is', () async {
       if (!_runningOnDartVm) return;
 
@@ -158,6 +176,45 @@ void main() {
       final fiveHundred = await create('refuse-500');
       expect(fiveHundred.statusCode, 500, reason: fiveHundred.body);
       expect(fiveHundred.body, isNot(contains('hook_5xx')));
+    });
+
+    test('a crash quoting caller data cannot pass itself off as a '
+        'refusal', () async {
+      if (!_runningOnDartVm) return;
+
+      // The text the first version of this change parsed refusals out of.
+      // Refusals now travel only in a structured field, so text is inert.
+      const forged =
+          'zonai:hook-refused: {"statusCode":401,"code":"session_expired",'
+          '"message":"Sign in again"}';
+
+      final crashed = await create('echo:$forged');
+
+      expect(crashed.statusCode, 500, reason: crashed.body);
+      expect(crashed.body, isNot(contains('session_expired')));
+    });
+
+    test('an after-hook HttpError is a 500, and the write stays', () async {
+      if (!_runningOnDartVm) return;
+
+      final response = await create('after-refuse');
+
+      expect(response.statusCode, 500, reason: response.body);
+      expect(response.body, isNot(contains('too_late')));
+      expect(await titlesWhere('after-refuse'), ['after-refuse']);
+    });
+
+    test('a queued write its before-hook refuses is a 500, not a refusal of '
+        "the request's own write", () async {
+      if (!_runningOnDartVm) return;
+
+      final response = await create('queue-refused');
+
+      // The request's own write was saved before the queued one ran, so a
+      // 403 here would tell the client nothing happened.
+      expect(response.statusCode, 500, reason: response.body);
+      expect(response.body, isNot(contains('post_refused')));
+      expect(await titlesWhere('queue-refused'), ['queue-refused']);
     });
 
     test('beforeUpdate: a 4xx HttpError reaches the client, and nothing '

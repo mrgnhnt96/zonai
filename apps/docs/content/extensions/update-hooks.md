@@ -25,7 +25,7 @@ To refuse the update and tell the client why, throw an `HttpError` with a `4xx` 
 @override
 Future<void> beforeUpdate(Event object, Jwt? jwt) async {
   if (object.endDate.isBefore(object.startDate)) {
-    throw const HttpError.conflict(
+    throw const HttpError.badRequest(
       code: 'invalid_dates',
       message: 'End date must be after start date',
     );

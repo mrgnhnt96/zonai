@@ -2135,7 +2135,7 @@
         {
           "h": "beforeUpdate",
           "a": "beforeupdate",
-          "b": "Runs after rules pass, before the UPDATE executes. Can abort by throwing. Nothing is updated. To refuse the update and tell the client why, throw an HttpError with a 4xx status. The client receives that status and the error envelope. Any other throw, including an HttpError whose status is not 4xx, is answered with a 500 server error rather than your message. See beforeCreate for the details. @override Future beforeUpdate(Event object, Jwt? jwt) async { if (object.endDate.isBefore(object.startDate)) { throw const HttpError.conflict( code: 'invalid_dates', message: 'End date must be after start date', ); } } Note: object here is the current row, not the values being applied. The update hasn't happened yet, and the hook cannot see the incoming values. To validate those, use a row rule."
+          "b": "Runs after rules pass, before the UPDATE executes. Can abort by throwing. Nothing is updated. To refuse the update and tell the client why, throw an HttpError with a 4xx status. The client receives that status and the error envelope. Any other throw, including an HttpError whose status is not 4xx, is answered with a 500 server error rather than your message. See beforeCreate for the details. @override Future beforeUpdate(Event object, Jwt? jwt) async { if (object.endDate.isBefore(object.startDate)) { throw const HttpError.badRequest( code: 'invalid_dates', message: 'End date must be after start date', ); } } Note: object here is the current row, not the values being applied. The update hasn't happened yet, and the hook cannot see the incoming values. To validate those, use a row rule."
         },
         {
           "h": "afterUpdateSuccess",

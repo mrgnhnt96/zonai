@@ -29,6 +29,7 @@ import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
+import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
 import 'package:zonai_schema/src/internal/tables/anonymous_credential_table.dart';
@@ -1360,10 +1361,12 @@ class ZonaiDb {
       rethrow;
     } on WriteBackpressureException {
       rethrow;
-    } on HttpError {
-      // A `before*` hook's deliberate refusal, unwrapped in `_runExtension`.
-      // Without this arm it would reach the caller as the catch-all's 500,
-      // which is what every hook refusal used to be.
+    } on HookRefusedException {
+      // A `before*` hook's deliberate refusal of the request's own write. The
+      // server answers it with the hook's 4xx (`onHookRefused`). Only this
+      // type passes: a raw `HttpError` from any other hook, or from outside
+      // 4xx, falls to the catch-all and is a 500, in-process and in a worker
+      // alike.
       rethrow;
     } catch (e, stack) {
       final mapped = mapDatabaseError(

@@ -107,11 +107,16 @@ class MessageHandlerFailedException implements Exception {
     this.message, {
     this.cause,
     this.causeStackTrace,
+    this.refusal,
   });
 
   final String message;
   final String? cause;
   final String? causeStackTrace;
+
+  /// The worker's [MessageErrorResponse.refusal], when the failure was the
+  /// app's deliberate refusal. Read it with `decodeWorkerRefusal`.
+  final Map<String, Object?>? refusal;
 
   @override
   String toString() {
@@ -129,6 +134,7 @@ final class MessageErrorResponse extends Response {
     required this.message,
     this.error,
     this.stackTrace,
+    this.refusal,
   }) : super(path: _path, payload: const {});
 
   factory MessageErrorResponse.fromJson(Map<String, dynamic> json) {
@@ -137,6 +143,10 @@ final class MessageErrorResponse extends Response {
       message: json['message'] as String,
       error: json['error'] as String?,
       stackTrace: json['stackTrace'] as String?,
+      refusal: switch (json['refusal']) {
+        final Map<dynamic, dynamic> refusal => refusal.cast<String, Object?>(),
+        _ => null,
+      },
     );
   }
 
@@ -146,11 +156,17 @@ final class MessageErrorResponse extends Response {
   final String? error;
   final String? stackTrace;
 
+  /// Set only when the failure is the app's deliberate refusal, by
+  /// `encodeWorkerRefusal`. Structured, so the host never has to read a
+  /// refusal out of [error]'s text.
+  final Map<String, Object?>? refusal;
+
   @override
   Map<String, dynamic> toJson() => {
     'message': message,
     if (error != null) 'error': error,
     if (stackTrace != null) 'stackTrace': stackTrace,
+    if (refusal != null) 'refusal': refusal,
     ...super.toJson(),
   };
 }

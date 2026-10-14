@@ -21,6 +21,23 @@ final class PostsExtensions extends Extension<Post> {
         throw const HttpError.internal(code: 'hook_5xx', message: 'Not 4xx');
       case 'crash':
         throw StateError('beforeCreate crashed');
+      case final title when title.startsWith('echo:'):
+        // A crash whose message quotes caller data, the shape a forged
+        // refusal would have to ride on.
+        throw StateError('bad title: $title');
+    }
+  }
+
+  @override
+  Future<void> afterCreateSuccess(Post row, Jwt? jwt) async {
+    switch (row.title) {
+      case 'after-refuse':
+        // After the write: nothing left to refuse, so this is a server error.
+        throw const HttpError.forbidden(code: 'too_late', message: 'Saved');
+      case 'queue-refused':
+        // A queued write that `beforeCreate` refuses once it runs, after this
+        // request's own write was saved.
+        mutate.create.one(tableName: 'posts', object: {'title': 'refuse'});
     }
   }
 

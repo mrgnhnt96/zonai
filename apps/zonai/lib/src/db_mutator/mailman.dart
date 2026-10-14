@@ -500,6 +500,7 @@ class Mailman<S extends Request, R extends Response> {
           response.message,
           cause: response.error,
           causeStackTrace: response.stackTrace,
+          refusal: response.refusal,
         ),
       );
       return;

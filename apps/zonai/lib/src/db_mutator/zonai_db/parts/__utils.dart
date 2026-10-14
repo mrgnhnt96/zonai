@@ -650,11 +650,14 @@ extension UtilsX on ZonaiDb {
 
   /// No-ops when the project has no extension handlers registered.
   ///
-  /// A `before*` hook that refuses with a 4xx `HttpError` arrives here as a
-  /// [HookRefusedException]: the real object in-process, or its text inside a
-  /// [MessageHandlerFailedException] from a worker. Either way the `HttpError`
-  /// itself is rethrown, and the server answers with its status and envelope.
-  /// Anything else is rethrown untouched, so a hook that crashed stays a 500.
+  /// The one place a hook's deliberate refusal is recovered: a
+  /// [HookRefusedException] from a `before*` hook, or a
+  /// [SignUpDeclinedException] from `beforeSignUp`. In-process they arrive as
+  /// the real objects and pass straight through. From a worker they arrive as
+  /// a [MessageHandlerFailedException] whose structured `refusal` field the
+  /// worker set (see `worker_refusal.dart`), and are rebuilt here with the
+  /// hook's own stack trace. Every other failure is rethrown untouched, so a
+  /// hook that crashed stays a 500.
   Future<void> _runExtension(ExtensionRequest request) async {
     try {
       if (HostWorkerRegistries.useInProcessExtensions) {
@@ -665,11 +668,14 @@ extension UtilsX on ZonaiDb {
         return;
       }
       await _extensions.send<NoActionExtensionResponse>(request);
-    } on HookRefusedException catch (e) {
-      throw e.error;
-    } on MessageHandlerFailedException catch (e) {
-      final refused = HookRefusedException.tryParse(e.cause ?? e.message);
-      if (refused != null) throw refused.error;
+    } on MessageHandlerFailedException catch (e, stack) {
+      if (decodeWorkerRefusal(e.refusal) case final refusal?) {
+        final hookStack = switch (e.causeStackTrace) {
+          final String trace => StackTrace.fromString(trace),
+          null => stack,
+        };
+        Error.throwWithStackTrace(refusal, hookStack);
+      }
       rethrow;
     }
   }
@@ -975,9 +981,24 @@ extension UtilsX on ZonaiDb {
         'Executing effects: ${remainingEffects.length} (iterations: $iterations)',
         prefix: _prefix,
       );
-      final groupedEffects = await Future.wait([
-        for (final mut in remainingEffects) _getEffect(mut),
-      ]);
+      final List<List<_SideEffect>> groupedEffects;
+      try {
+        groupedEffects = await Future.wait([
+          for (final mut in remainingEffects) _getEffect(mut),
+        ]);
+      } on HookRefusedException catch (e, stack) {
+        // A write a hook queued, refused by its table's `before*` hook. The
+        // request's own write has already been saved by now, so answering
+        // with the refusal's 4xx would tell the client nothing happened, and
+        // a client that retries would write twice. It is a server error.
+        Error.throwWithStackTrace(
+          StateError(
+            'A write queued by a hook was refused (${e.error.statusCode} '
+            '${e.error.code}) after the request\'s own write was saved',
+          ),
+          stack,
+        );
+      }
       final effects = groupedEffects.expand((e) => e).toList();
 
       final operationResults = <_SideEffect, OperationResult>{};
