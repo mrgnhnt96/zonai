@@ -282,7 +282,7 @@ the routes that send email, that is enough for one IP to mail strangers in bulk 
 monthly Email Delivery allowance. Override them on the auth table, in its
 [`AuthTableRateLimits`](/rate-limiting/auth-rate-limits):
 
-```dart
+```dart in:auth-rate-limits
 @override
 Future<RateLimitPolicy?> authenticatePolicy() async =>
     const RateLimitPolicy(maxRequests: 5, window: Duration(minutes: 15));
