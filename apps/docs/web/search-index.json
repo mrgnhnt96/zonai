@@ -1947,7 +1947,7 @@
         {
           "h": "Signing In as an Admin",
           "a": "signing-in-as-an-admin",
-          "b": "This section covers password sign-in. An admin table configured with OAuth instead signs in through the provider flow described in OAuth: Signing into the dashboard with OAuth — the elevated JWT claims below are the same either way. Admin accounts sign in through a dedicated endpoint: POST /auth/admin { \"type\": \"adminSignIn\", \"email\": \"admin@example.com\", \"password\": \"secret123\" } The response contains an accessToken with elevated claims."
+          "b": "This section covers password sign-in. An admin table configured with OAuth instead signs in through the provider flow described in OAuth: Signing into the dashboard with OAuth — the elevated JWT claims below are the same either way. Admin accounts sign in through a dedicated endpoint: POST /auth/admin { \"type\": \"adminSignIn\", \"email\": \"admin@example.com\", \"password\": \"secret123\" } The response contains an accessToken with elevated claims. An admin table with OtpAuth or MagicLinkAuth requests its code or link from the same endpoint, with \"type\": \"adminSendOtp\" or \"type\": \"adminSendMagicLink\" and an email. The request answers 200 OK whether or not the address belongs to an admin, and only an existing admin is emailed: an admin send never creates an account."
         },
         {
           "h": "Admin JWT Claims",
