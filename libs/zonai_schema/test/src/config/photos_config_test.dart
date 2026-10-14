@@ -6,6 +6,8 @@ void main() {
     endpoint: 'https://account.r2.cloudflarestorage.com',
     bucket: 'photos',
     publicBaseUrl: 'https://img.example.com',
+    redirect: true,
+    presignedUrlSeconds: 60,
   );
 
   group(PhotosConfig, () {
@@ -58,6 +60,33 @@ void main() {
         isA<S3PhotoStorage>().having((s) => s.region, 'region', 'auto'),
       );
     });
+
+    test('S3 streams by default, with five-minute presigned URLs', () {
+      final read = PhotoStorageConfig.fromJson({
+        'type': 's3',
+        'endpoint': 'https://e.example.com',
+        'bucket': 'b',
+      });
+
+      expect(
+        read,
+        isA<S3PhotoStorage>()
+            .having((s) => s.redirect, 'redirect', isFalse)
+            .having((s) => s.presignedUrlSeconds, 'presignedUrlSeconds', 300),
+      );
+    });
+
+    for (final seconds in [0, S3PhotoStorage.maxPresignedUrlSeconds + 1]) {
+      test('S3 rejects presignedUrlSeconds of $seconds', () {
+        final config = S3PhotoStorage(
+          endpoint: 'https://e.example.com',
+          bucket: 'b',
+          presignedUrlSeconds: seconds,
+        );
+
+        expect(config.errors(), [contains('presignedUrlSeconds')]);
+      });
+    }
 
     test('rejects an unknown type', () {
       expect(

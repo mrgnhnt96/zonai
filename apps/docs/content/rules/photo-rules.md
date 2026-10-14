@@ -85,6 +85,8 @@ Photos are never marked `immutable` or given a `max-age`, because `PATCH /img/:i
 
 A rule that throws when given a null JWT counts as no. With the built-in rules every photo is viewable without a JWT, so photos are `public` until you restrict `canView`.
 
+With an S3 bucket and `redirect: true`, the server answers with a `302` to the bucket instead of the bytes, after the same rules. A redirect to the bucket's public URL keeps the headers above. A redirect to a presigned URL, used for every restricted photo, is `private, no-store` with no `ETag`, so no cache reuses a link that grants access by itself. See [Serving photos from the bucket](/schemas/photo-tables#serving-photos-from-the-bucket).
+
 <Warning>
 
 A CDN rule that caches `/img/*` regardless of the origin's `Cache-Control` (a "cache everything" rule, an edge TTL override, or ignoring `private`) bypasses these rules. The CDN stores the first response it sees, restricted photos included, and serves it to callers your `canView` rules would refuse. If any photo is restricted, leave the origin's `Cache-Control` in charge for `/img/*`.

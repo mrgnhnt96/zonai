@@ -32,6 +32,7 @@ void main() {
   Future<({ResponseImpl response, List<int> body})> view({
     required bool publiclyViewable,
     String? ifNoneMatch,
+    PhotoRedirect? redirect,
   }) {
     return runScoped(
       () async {
@@ -53,6 +54,7 @@ void main() {
               () => _StubZonaiDb(
                 image: image.path,
                 publiclyViewable: publiclyViewable,
+                redirect: redirect,
               ),
         ),
       },
@@ -178,6 +180,71 @@ void main() {
     });
   });
 
+  group('302', () {
+    final public = PhotoRedirect.public(
+      Uri.parse('https://img.example.com/posts/a.png?v=1'),
+    );
+    final presigned = PhotoRedirect.presigned(
+      Uri.parse(
+        'https://bucket.example.com/photos/posts/a.png?X-Amz-Signature=s',
+      ),
+    );
+
+    test('to the public URL, cached like the photo itself', () async {
+      final (:response, :body) = await view(
+        publiclyViewable: true,
+        redirect: public,
+      );
+
+      expect(response.statusCode, HttpStatus.found);
+      expect(body, isEmpty);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        public.location.toString(),
+      );
+      expect(response.headers.get(HttpHeaders.etagHeader), currentEtag());
+      expect(
+        response.headers.get(HttpHeaders.cacheControlHeader),
+        'public, no-cache',
+      );
+    });
+
+    test('to the public URL answers 304 when the tag still matches', () async {
+      final (:response, :body) = await view(
+        publiclyViewable: true,
+        redirect: public,
+        ifNoneMatch: currentEtag(),
+      );
+
+      expect(response.statusCode, HttpStatus.notModified);
+      expect(body, isEmpty);
+      expect(response.headers.get(HttpHeaders.locationHeader), isNull);
+    });
+
+    test('to a presigned URL, which no cache may keep', () async {
+      final (:response, :body) = await view(
+        publiclyViewable: false,
+        redirect: presigned,
+        // Even a matching tag is ignored: a 304 would let a cache keep
+        // reusing a redirect it stored, past the rules and the expiry.
+        ifNoneMatch: currentEtag(),
+      );
+
+      expect(response.statusCode, HttpStatus.found);
+      expect(body, isEmpty);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        presigned.location.toString(),
+      );
+      expect(
+        response.headers.get(HttpHeaders.cacheControlHeader),
+        'private, no-store',
+        reason: 'the link grants access by itself',
+      );
+      expect(response.headers.get(HttpHeaders.etagHeader), isNull);
+    });
+  });
+
   group('etagMatches', () {
     test('ignores surrounding whitespace and W/ on the stored side', () {
       expect(etagMatches('  "a-b" ', 'W/"a-b"'), isTrue);
@@ -191,14 +258,27 @@ void main() {
 
 /// A [ZonaiDb] that serves one file from disk with a fixed visibility.
 class _StubZonaiDb implements ZonaiDb {
-  _StubZonaiDb({required this.image, required this.publiclyViewable});
+  _StubZonaiDb({
+    required this.image,
+    required this.publiclyViewable,
+    this.redirect,
+  });
 
   final String image;
   final bool publiclyViewable;
+  final PhotoRedirect? redirect;
 
   @override
-  Future<PhotoView> viewPhoto(String id, {required String? token}) async =>
-      PhotoView.forFile(fs.file(image), publiclyViewable: publiclyViewable);
+  Future<PhotoView> viewPhoto(String id, {required String? token}) async {
+    final view = PhotoView.forFile(
+      fs.file(image),
+      publiclyViewable: publiclyViewable,
+    );
+    return switch (redirect) {
+      null => view,
+      final redirect => view.redirectTo(redirect),
+    };
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

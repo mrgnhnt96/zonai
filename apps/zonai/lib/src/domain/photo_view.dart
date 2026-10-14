@@ -8,6 +8,7 @@ class PhotoView {
     required this.etag,
     required this.publiclyViewable,
     required Stream<List<int>> Function() openRead,
+    this.redirect,
   }) : _openRead = openRead;
 
   /// Builds the view for [photo] as [storage] holds it.
@@ -56,10 +57,41 @@ class PhotoView {
   /// may see is allowed to be stored there.
   final bool publiclyViewable;
 
+  /// Where to send the caller instead of streaming the bytes, when the
+  /// storage serves them itself; `null` to stream.
+  final PhotoRedirect? redirect;
+
   final Stream<List<int>> Function() _openRead;
 
   /// The photo's bytes.
   Stream<List<int>> openRead() => _openRead();
+
+  /// This view, answered with [redirect] instead of the bytes.
+  PhotoView redirectTo(PhotoRedirect redirect) => PhotoView(
+    extension: extension,
+    etag: etag,
+    publiclyViewable: publiclyViewable,
+    openRead: _openRead,
+    redirect: redirect,
+  );
+}
+
+/// A URL the photo's bytes can be fetched from directly, which
+/// `GET /img/:id` answers with `302 Found` once the photo rules have passed.
+final class PhotoRedirect {
+  /// A URL anyone may fetch, for a photo a caller with no token could view.
+  const PhotoRedirect.public(this.location) : presigned = false;
+
+  /// A URL that carries its own short-lived signature.
+  const PhotoRedirect.presigned(this.location) : presigned = true;
+
+  final Uri location;
+
+  /// Whether [location] grants access by itself until it expires.
+  ///
+  /// Such a redirect must not be stored by any cache: a stored copy would
+  /// hand the link to callers the rules never saw, and outlive its expiry.
+  final bool presigned;
 }
 
 /// A strong ETag from a photo's [size] and [modified] time.
