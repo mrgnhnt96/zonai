@@ -1,6 +1,32 @@
 part of zonai_db;
 
 extension _ChallengeX on ZonaiDb {
+  /// The one-minute resend cooldown for an address that has no account.
+  ///
+  /// A send to an existing account is refused with [AuthRateLimitException]
+  /// while its last challenge is under a minute old. A send that quietly
+  /// skips an unknown address writes no challenge, so it has to keep the same
+  /// cooldown here, or a second request tells the two apart.
+  void _holdSendWithoutAccount({
+    required String table,
+    required String email,
+    required AuthChallengeType type,
+  }) {
+    final now = clock.now();
+    final cutoff = now.subtract(const Duration(minutes: 1));
+
+    // Drop entries past the cooldown so the map only ever holds the last
+    // minute of addresses.
+    _sendsWithoutAccount.removeWhere((_, at) => !at.isAfter(cutoff));
+
+    final key = '${type.name}\x00$table\x00$email';
+    if (_sendsWithoutAccount.containsKey(key)) {
+      throw const AuthRateLimitException(waitDuration: Duration(minutes: 1));
+    }
+
+    _sendsWithoutAccount[key] = now;
+  }
+
   Future<void> _challengeFailed(AuthChallenge challenge) async {
     final db = await open();
 
