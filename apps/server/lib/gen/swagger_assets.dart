@@ -1845,6 +1845,15 @@ const kSwaggerJson = r'''{
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "if-none-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -4996,6 +5005,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: if-none-match
+          in: header
+          required: false
+          schema:
+            type: string
+            nullable: true
       responses:
         '200':
           description: Success
