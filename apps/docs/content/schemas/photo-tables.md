@@ -124,7 +124,21 @@ The keys are read from the process environment only — see [Environment Variabl
 
 `GET /img/:id` reads the photo from the bucket and streams it to the caller with the same rule checks and caching headers as local storage; its `ETag` is the bucket's own content hash. The unreferenced-photo cleanup and the storage metrics list and delete objects in the bucket.
 
-Switching backends doesn't move existing photos: photos already on disk stay there, and `_photos` rows pointing at them will 404 until the files are copied into the bucket under the same keys.
+Switching backends doesn't move existing photos by itself: `_photos` rows pointing at photos still on disk will 404 until the files are in the bucket under the same keys. `zonai db migrate-photos` copies them.
+
+#### Moving existing photos into the bucket
+
+Run it from the project, on the machine that holds the images directory, with the new `S3PhotoStorage` config in place and the same two keys the server uses:
+
+```sh
+export S3_ACCESS_KEY_ID=... S3_SECRET_ACCESS_KEY=...
+zonai db migrate-photos --dry-run   # list what would be copied
+zonai db migrate-photos             # copy, keeping the local files
+```
+
+Every photo (`<table>/<id>.<ext>`) under the images directory is uploaded to the same key in the bucket, and the bucket is then asked for the object's size; a mismatch is reported as a failure. A photo the bucket already holds at the same size is skipped, so the command is safe to repeat. Run it again if it was interrupted or reported failures, and once more after the server has switched over, to pick up photos uploaded in between. The brand assets (`favicon.ico`, `logo.png`) stay on disk, since the server reads them from there.
+
+Local files are left alone. Once the server is serving from the bucket, `--delete-local` deletes each local photo after checking that the bucket holds it at the same size. See [`zonai db migrate-photos`](/cli/db#db-migrate-photos).
 
 **File size limit** — configured via `AppConfig.photos`:
 
