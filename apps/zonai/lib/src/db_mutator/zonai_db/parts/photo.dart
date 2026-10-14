@@ -1,47 +1,7 @@
 part of zonai_db;
 
-/// Resolves [relativePath] against [imagesPath] and refuses anything that
-/// lands outside it.
-///
-/// The check this replaces read
-/// `if (fs.path.isWithin(settings.imagesPath, relativePath)) throw ...`, which
-/// was wrong twice over and therefore dead:
-///
-///   * `relativePath` is RELATIVE (`posts/<id>.jpg`) and `imagesPath` is the
-///     resolved images root, so `isWithin` was comparing a relative path
-///     against an absolute one — `false` for every input this code can
-///     produce, traversal included. Measured, not reasoned: with
-///     `imagesPath = /srv/app/.zonai/data/images`, `isWithin` answers `false`
-///     for `posts/x.jpg`, for `../escape.jpg` and for `../../../etc/passwd`
-///     alike.
-///   * the sense was inverted. Had the arguments been right it would have
-///     thrown on the legitimate case and admitted the escape.
-///
-/// Containment is a property of the RESOLVED path, so that is what gets
-/// checked. Both sides go through the same `absolute`/`normalize` pair because
-/// `imagesPath` is only absolute when a `zonai.yaml` was found — `isWithin`
-/// with one relative side is the bug above all over again.
-///
-/// This does NOT follow symlinks: a symlink inside the images root pointing
-/// out of it still resolves as contained. The paths this guards are generated
-/// by [_PhotoX._createPhoto] from a registered table name and a fresh id, so
-/// the escape it defends against is a hostile `table`, not a planted link.
-@visibleForTesting
-File resolvePhotoFile(FileSystem fs, String imagesPath, String relativePath) {
-  final file = fs.file(fs.path.join(imagesPath, relativePath));
-
-  final root = fs.path.normalize(fs.path.absolute(imagesPath));
-  final resolved = fs.path.normalize(fs.path.absolute(file.path));
-
-  if (!fs.path.isWithin(root, resolved)) {
-    throw InvalidPhotoPathException(path: relativePath);
-  }
-
-  return file;
-}
-
 extension _PhotoX on ZonaiDb {
-  Future<File> _getPhoto(String id, {required String? token}) async {
+  Future<PhotoView> _getPhoto(String id, {required String? token}) async {
     logger.setTraceProps({'op': 'photo_get'});
     var step = 'start';
     logger.trace('start');
@@ -81,18 +41,60 @@ extension _PhotoX on ZonaiDb {
       logger.trace('row_access');
 
       step = 'file_check';
-      final file = resolvePhotoFile(fs, settings.imagesPath, photo.path);
-      logger.trace('file_check', extra: {'exists': file.existsSync()});
+      final storage = photoStorage;
+      final stored = await storage.stat(photo.path);
+      logger.trace('file_check', extra: {'exists': stored != null});
 
-      if (!file.existsSync()) {
+      if (stored == null) {
         throw const PhotoFileNotFoundException();
       }
 
+      step = 'anonymous_access';
+      // A caller with no JWT just passed both rules, so the answer is known.
+      final publiclyViewable =
+          jwt == null ||
+          await _anonymousCanView(table.name, table.mapOut(photo));
+      logger.trace('anonymous_access', extra: {'public': publiclyViewable});
+
       logger.trace('done');
-      return file;
+      return PhotoView.stored(
+        storage,
+        stored,
+        publiclyViewable: publiclyViewable,
+      );
     } catch (e) {
       logger.trace('FAILED at $step: ${e.runtimeType}');
       rethrow;
+    }
+  }
+
+  /// Whether a caller with no JWT passes the table and row `canView` rules
+  /// for [row].
+  ///
+  /// Asked so the response can say `private` when the answer is no: a shared
+  /// cache serves what it stored to everyone, so a photo stored under
+  /// `public` would bypass these rules for every later caller. A rule that
+  /// throws without a JWT counts as a no, because this check exists to fail
+  /// closed.
+  Future<bool> _anonymousCanView(String table, Map<String, dynamic> row) async {
+    try {
+      final tableRules = await _tableRules(table, .view, null);
+      if (!tableRules.canAccess) return false;
+      if (tableRules.skipRowChecks) return true;
+
+      final rowRules = await _dispatchRules<RowRulesResponse>(
+        RowRulesRequest(
+          table: table,
+          operation: RowOperation.view.name,
+          data: row,
+          updates: const [],
+          jwt: null,
+        ),
+      );
+      return rowRules?.canPerform == true;
+    } on Object catch (e) {
+      logger.trace('anonymous_access failed: ${e.runtimeType}');
+      return false;
     }
   }
 
@@ -134,9 +136,9 @@ extension _PhotoX on ZonaiDb {
     final relativePath = fs.path.normalize(
       fs.path.join(meta.table, '$id.${imageType.fileExtension}'),
     );
-    final file = resolvePhotoFile(fs, settings.imagesPath, relativePath);
-    if (file.existsSync()) {
-      throw PhotoFileAlreadyExistsException(path: file.path);
+    final storage = photoStorage;
+    if (await storage.exists(relativePath)) {
+      throw PhotoFileAlreadyExistsException(path: relativePath);
     }
 
     final entry = PhotoEntry(
@@ -164,29 +166,18 @@ extension _PhotoX on ZonaiDb {
         throw const PhotoInsertFailedException();
       }
 
-      await file.parent.create(recursive: true);
-      // The sink MUST be closed, not just awaited. `addStream` completes when
-      // the stream is drained and leaves the sink -- and the OS file handle --
-      // open. See the note on the same pattern in _updatePhoto, where the leak
-      // is not merely untidy but returns a 500 on Windows.
-      final sink = file.openWrite();
-      try {
-        await sink.addStream(
-          PhotoStreamUtils.limitedPhotoImageStream(
-            image: imageStream,
-            maxBytes: photosConfig.maxBytes,
-          ),
-        );
-      } finally {
-        await sink.close();
-      }
+      await storage.write(
+        relativePath,
+        PhotoStreamUtils.limitedPhotoImageStream(
+          image: imageStream,
+          maxBytes: photosConfig.maxBytes,
+        ),
+      );
       logger.trace('file_write');
 
       await _postCreate(table.name, jwt, object: table.mapOut(insertedRow));
     } catch (e) {
-      if (file.existsSync()) {
-        await file.delete();
-      }
+      await storage.delete(relativePath);
       if (insertedRow case final row?) {
         final db = await open();
         await db.delete(from: photos).where(photos.id.equals(row.id));
@@ -251,23 +242,23 @@ extension _PhotoX on ZonaiDb {
       }
     }
 
-    final oldFile = resolvePhotoFile(fs, settings.imagesPath, photo.path);
-    if (!oldFile.existsSync()) {
+    final storage = photoStorage;
+    final oldPath = photo.path;
+    if (!await storage.exists(oldPath)) {
       throw const PhotoFileNotFoundException();
     }
 
     final newRelativePath = fs.path.normalize(
       fs.path.join(photo.table, '${photo.id.value}.${imageType.fileExtension}'),
     );
-    final newFile = resolvePhotoFile(fs, settings.imagesPath, newRelativePath);
     final extensionChanged = imageType.fileExtension != photo.extension;
 
-    if (extensionChanged && newFile.existsSync()) {
-      throw PhotoFileAlreadyExistsException(path: newFile.path);
+    if (extensionChanged && await storage.exists(newRelativePath)) {
+      throw PhotoFileAlreadyExistsException(path: newRelativePath);
     }
 
-    final targetFile = extensionChanged ? newFile : oldFile;
-    final tempFile = fs.file('${targetFile.path}.tmp');
+    final targetPath = extensionChanged ? newRelativePath : oldPath;
+    final tempPath = '$targetPath.tmp';
 
     PhotoEntry? updatedRow;
 
@@ -280,38 +271,19 @@ extension _PhotoX on ZonaiDb {
         ),
       );
 
-      if (tempFile.existsSync()) {
-        await tempFile.delete();
-      }
+      await storage.delete(tempPath);
 
-      // CLOSE THE SINK. `addStream` completes when the stream is drained and
-      // leaves the sink open, so the OS file handle survives -- and the very
-      // next thing this method does is rename that file.
-      //
-      // POSIX renames a file with an open handle without complaint, so this
-      // read as correct on macOS and Linux for as long as the code existed.
-      // Windows refuses, and the exception surfaced as
-      // `[500] PATCH /img/:id` for the OWNER (the non-owner's 403 came from
-      // the rules check before any file work). Found by e2e (windows) on run
-      // 31855231392 -- the first Windows run this repo has ever had that got
-      // far enough to exercise it.
-      final sink = tempFile.openWrite();
-      try {
-        await sink.addStream(
-          PhotoStreamUtils.limitedPhotoImageStream(
-            image: imageStream,
-            maxBytes: photosConfig.maxBytes,
-          ),
-        );
-      } finally {
-        await sink.close();
-      }
+      await storage.write(
+        tempPath,
+        PhotoStreamUtils.limitedPhotoImageStream(
+          image: imageStream,
+          maxBytes: photosConfig.maxBytes,
+        ),
+      );
 
       if (extensionChanged) {
-        await tempFile.rename(newFile.path);
-        if (oldFile.existsSync()) {
-          await oldFile.delete();
-        }
+        await storage.rename(tempPath, newRelativePath);
+        await storage.delete(oldPath);
 
         await db
             .update(photos)
@@ -330,10 +302,8 @@ extension _PhotoX on ZonaiDb {
           createdAt: photo.createdAt,
         );
       } else {
-        if (oldFile.existsSync()) {
-          await oldFile.delete();
-        }
-        await tempFile.rename(oldFile.path);
+        await storage.delete(oldPath);
+        await storage.rename(tempPath, oldPath);
       }
 
       final afterPhoto = updatedRow ?? photo;
@@ -345,11 +315,9 @@ extension _PhotoX on ZonaiDb {
         after: [table.mapOut(afterPhoto)],
       );
     } catch (e) {
-      if (tempFile.existsSync()) {
-        await tempFile.delete();
-      }
-      if (extensionChanged && newFile.existsSync() && updatedRow == null) {
-        await newFile.delete();
+      await storage.delete(tempPath);
+      if (extensionChanged && updatedRow == null) {
+        await storage.delete(newRelativePath);
       }
 
       await _runExtension(

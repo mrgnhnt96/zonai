@@ -18,9 +18,10 @@ class PhotosController {
   Future<Stream<List<int>>> view({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Param() required String id,
-    required Headers responseHeaders,
+    @Header(HttpHeaders.ifNoneMatchHeader) required String? ifNoneMatch,
+    required Response response,
   }) async {
-    return await photoHandler.view(authorization, id, responseHeaders);
+    return await photoHandler.view(authorization, id, ifNoneMatch, response);
   }
 
   /// Upload an image: metadata in the query string, bytes in the request body.

@@ -36,6 +36,11 @@ final file = File('downloaded.jpg');
 await file.openWrite().addStream(stream);
 ```
 
+Photo responses carry an `ETag` and `Cache-Control: no-cache`, so browsers and
+CDNs revalidate rather than serve a copy that a later update replaced. See
+[Caching and CDNs](/rules/photo-rules#caching-and-cdns) for how `public` and
+`private` follow your view rules.
+
 ## Update a Photo
 
 Replace the image for an existing photo ID:

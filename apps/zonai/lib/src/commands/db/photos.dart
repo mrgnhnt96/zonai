@@ -7,7 +7,6 @@ import '../../db_mutator/payloads/payloads.dart';
 import '../../deps/args.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
-import '../../deps/settings.dart';
 import '../../deps/zonai_db.dart';
 
 /// Minimal JPEG bytes (SOI + EOI) for upload smoke tests.
@@ -118,21 +117,17 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Created photo: $photoId');
 
   logger.info('VERIFY PHOTO FILE CREATED');
-  var imageFile = fs.file(
-    fs.path.join(settings.imagesPath, 'items', '$photoId.jpg'),
-  );
-  if (!imageFile.existsSync()) {
-    logger.error('Expected photo file to exist: ${imageFile.path}');
+  final storage = zonaiDB.photoStorage;
+  var imageKey = fs.path.join('items', '$photoId.jpg');
+  if (!await storage.exists(imageKey)) {
+    logger.error('Expected photo file to exist: $imageKey');
     return 1;
   }
 
-  logger.info('Photo file exists: ${imageFile.path}');
+  logger.info('Photo file exists: $imageKey');
 
   logger.info('VIEW PHOTO');
-  final bytes = await (await zonaiDB.getPhoto(
-    photoId,
-    token: jwt,
-  )).readAsBytes();
+  final bytes = await zonaiDB.readPhoto(photoId, token: jwt);
 
   if (!_sameBytes(bytes, testImageBytes)) {
     logger.error(
@@ -153,10 +148,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Updated photo: $photoId');
 
   logger.info('VERIFY UPDATED PHOTO BYTES');
-  final updatedBytes = await (await zonaiDB.getPhoto(
-    photoId,
-    token: jwt,
-  )).readAsBytes();
+  final updatedBytes = await zonaiDB.readPhoto(photoId, token: jwt);
   if (!_sameBytes(updatedBytes, updatedImageBytes)) {
     logger.error(
       'Updated photo bytes mismatch: expected ${updatedImageBytes.length} bytes, got ${updatedBytes.length} bytes',
@@ -164,10 +156,8 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     return 1;
   }
 
-  if (!imageFile.existsSync()) {
-    logger.error(
-      'Expected photo file to exist before delete: ${imageFile.path}',
-    );
+  if (!await storage.exists(imageKey)) {
+    logger.error('Expected photo file to exist before delete: $imageKey');
     return 1;
   }
 
@@ -185,10 +175,10 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
       logger.info('Oversized update rejected: $error');
     }
 
-    final bytesAfterRejectedUpdate = await (await zonaiDB.getPhoto(
+    final bytesAfterRejectedUpdate = await zonaiDB.readPhoto(
       photoId,
       token: jwt,
-    )).readAsBytes();
+    );
     if (!_sameBytes(bytesAfterRejectedUpdate, updatedImageBytes)) {
       logger.error('Photo bytes changed after rejected oversized update');
       return 1;
@@ -205,31 +195,24 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     image: Stream.value(pngBytes),
   );
 
-  final jpgFile = fs.file(
-    fs.path.join(settings.imagesPath, 'items', '$photoId.jpg'),
-  );
-  imageFile = fs.file(
-    fs.path.join(settings.imagesPath, 'items', '$photoId.png'),
-  );
-  if (!imageFile.existsSync()) {
-    logger.error('Expected PNG photo file to exist: ${imageFile.path}');
+  final jpgKey = imageKey;
+  imageKey = fs.path.join('items', '$photoId.png');
+  if (!await storage.exists(imageKey)) {
+    logger.error('Expected PNG photo file to exist: $imageKey');
     return 1;
   }
-  if (jpgFile.existsSync()) {
-    logger.error('Expected JPEG photo file to be removed: ${jpgFile.path}');
+  if (await storage.exists(jpgKey)) {
+    logger.error('Expected JPEG photo file to be removed: $jpgKey');
     return 1;
   }
 
-  final pngViewBytes = await (await zonaiDB.getPhoto(
-    photoId,
-    token: jwt,
-  )).readAsBytes();
+  final pngViewBytes = await zonaiDB.readPhoto(photoId, token: jwt);
   if (!_sameBytes(pngViewBytes, pngBytes)) {
     logger.error('PNG photo view bytes mismatch');
     return 1;
   }
 
-  logger.info('Photo type changed to PNG: ${imageFile.path}');
+  logger.info('Photo type changed to PNG: $imageKey');
 
   logger.info('UPLOAD PHOTO FOR GENERIC DELETE TEST');
   final genericDeleteResponse = await zonaiDB.createPhoto(
@@ -239,13 +222,14 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     image: Stream.value(testImageBytes),
   );
   final genericDeletePhotoId = genericDeleteResponse['id'] as String;
-  final genericDeleteImageFile = fs.file(
-    fs.path.join(settings.imagesPath, 'items', '$genericDeletePhotoId.jpg'),
+  final genericDeleteImageKey = fs.path.join(
+    'items',
+    '$genericDeletePhotoId.jpg',
   );
-  if (!genericDeleteImageFile.existsSync()) {
+  if (!await storage.exists(genericDeleteImageKey)) {
     logger.error(
       'Expected photo file to exist for generic delete test: '
-      '${genericDeleteImageFile.path}',
+      '$genericDeleteImageKey',
     );
     return 1;
   }
@@ -258,20 +242,17 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
   logger.info('VERIFY GENERIC DELETE REMOVES PHOTO FILE');
   try {
-    await (await zonaiDB.getPhoto(
-      genericDeletePhotoId,
-      token: jwt,
-    )).readAsBytes();
+    await zonaiDB.readPhoto(genericDeletePhotoId, token: jwt);
     logger.error('Expected photo deleted via DB delete to be gone');
     return 1;
   } catch (_) {
     logger.info('Photo record removed via DB delete');
   }
 
-  if (genericDeleteImageFile.existsSync()) {
+  if (await storage.exists(genericDeleteImageKey)) {
     logger.error(
       'Expected photo file to be deleted via DB delete: '
-      '${genericDeleteImageFile.path}',
+      '$genericDeleteImageKey',
     );
     return 1;
   }
@@ -337,7 +318,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
   logger.info('VERIFY PHOTO DELETED');
   try {
-    await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+    await zonaiDB.readPhoto(photoId, token: jwt);
     logger.error('Expected deleted photo to be gone');
     return 1;
   } catch (_) {
@@ -347,8 +328,8 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Photo record correctly removed');
 
   logger.info('VERIFY PHOTO FILE DELETED');
-  if (imageFile.existsSync()) {
-    logger.error('Expected photo file to be deleted: ${imageFile.path}');
+  if (await storage.exists(imageKey)) {
+    logger.error('Expected photo file to be deleted: $imageKey');
     return 1;
   }
 

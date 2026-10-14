@@ -203,13 +203,6 @@ extension _CleanupPhotosX on ZonaiDb {
     return null;
   }
 
-  Future<void> _deletePhotoFile(String relativePath) async {
-    final file = fs.file(fs.path.join(settings.imagesPath, relativePath));
-    if (file.existsSync()) {
-      await file.delete();
-    }
-  }
-
   Future<void> _deletePhotoEntry(PhotoEntry photo, {required Jwt? jwt}) =>
       _deletePhotoRow(photos.$.mapOut(photo), jwt: jwt);
 
@@ -243,7 +236,7 @@ extension _CleanupPhotosX on ZonaiDb {
     );
 
     if (object[photos.path.name] case final String path) {
-      await _deletePhotoFile(path);
+      await photoStorage.delete(path);
     }
 
     final db = await open();

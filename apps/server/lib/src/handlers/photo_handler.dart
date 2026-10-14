@@ -1,28 +1,52 @@
 import 'dart:io';
 
-import 'package:revali_core/revali_core.dart';
+import 'package:revali_router/revali_router.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// HTTP API for the internal `_photos` table (view, create, update, delete only).
 class PhotoHandler {
+  /// Streams the photo, or answers `304 Not Modified` with no body when
+  /// [ifNoneMatch] already names its current ETag.
+  ///
+  /// Every answer carries `Cache-Control: no-cache`, never `immutable` or a
+  /// `max-age`: `PATCH /img/:id` replaces the bytes behind the same URL, so a
+  /// cache has to revalidate before reusing what it stored, and revalidating
+  /// is cheap because the 304 has no body. The directive is `public` only
+  /// when a caller with no token could view the photo too. Otherwise it is
+  /// `private`, so a shared cache (a CDN, a proxy) never stores a photo and
+  /// then hands it to callers the photo rules would refuse.
   Future<Stream<List<int>>> view(
     String? authorization,
     String id,
-    Headers responseHeaders,
+    String? ifNoneMatch,
+    Response response,
   ) async {
-    final file = await zonaiDB.getPhoto(
+    final photo = await zonaiDB.viewPhoto(
       id,
       token: _parseBearerAuthorization(authorization),
     );
-    final ext = file.path.split('.').last;
-    final mime = ImageMimeType.fromFileExtension(ext)?.mimeType;
-    if (mime != null) {
-      responseHeaders.mimeType = mime;
-      responseHeaders.set(HttpHeaders.contentDisposition, 'inline');
+
+    final headers = response.headers
+      ..set(HttpHeaders.etagHeader, photo.etag)
+      ..set(
+        HttpHeaders.cacheControlHeader,
+        photo.publiclyViewable ? 'public, no-cache' : 'private, no-cache',
+      );
+
+    if (ifNoneMatch != null && etagMatches(ifNoneMatch, photo.etag)) {
+      response.statusCode = HttpStatus.notModified;
+      return const Stream.empty();
     }
-    return file.openRead();
+
+    final mime = ImageMimeType.fromFileExtension(photo.extension)?.mimeType;
+    if (mime != null) {
+      headers
+        ..mimeType = mime
+        ..set(HttpHeaders.contentDisposition, 'inline');
+    }
+    return photo.openRead();
   }
 
   Future<Map<String, Object?>> create(
@@ -79,4 +103,25 @@ class PhotoHandler {
 
     return null;
   }
+}
+
+/// Whether an `If-None-Match` header value matches [etag].
+///
+/// Uses the weak comparison RFC 9110 requires for `If-None-Match`, so a `W/`
+/// prefix on either side is ignored. `*` matches any current photo, and the
+/// header may list several tags separated by commas.
+bool etagMatches(String ifNoneMatch, String etag) {
+  String opaque(String tag) {
+    final trimmed = tag.trim();
+    return trimmed.startsWith('W/') ? trimmed.substring(2) : trimmed;
+  }
+
+  final target = opaque(etag);
+  for (final candidate in ifNoneMatch.split(',')) {
+    final value = candidate.trim();
+    if (value == '*' || opaque(value) == target) {
+      return true;
+    }
+  }
+  return false;
 }
