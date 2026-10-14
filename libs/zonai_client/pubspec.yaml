@@ -50,7 +50,10 @@ dependencies:
   # calls `Where.isNull`) does not compile. The upper bound stays open across
   # the minor for the original reason. 0.7.0's only break is AppConfig
   # validation, which this package never touches, so the range spans it.
-  zonai_schema: ">=0.6.0 <0.8.0"
+  # 0.8.0's breaks (worker refusals as a structured field, and
+  # `SignUpDeclinedException.tryParse` removed) are server-side too. The CLI's
+  # floor moves to 0.8.0 with them, so the published client must allow it.
+  zonai_schema: ">=0.6.0 <0.9.0"
 
 dev_dependencies:
   analyzer: ">=8.0.0 <13.0.0"
