@@ -65,6 +65,32 @@ Each request runs the collection rule first, then the row rule when a row is inv
 
 The `_photos` table is reached through this API, not through the generic `/db/*` routes.
 
+## Caching and CDNs
+
+`GET /img/:id` (and `HEAD`) answers with two caching headers:
+
+| Header          | Value                                                           |
+| --------------- | --------------------------------------------------------------- |
+| `ETag`          | A strong tag derived from the stored file's size and modification time |
+| `Cache-Control` | `public, no-cache` or `private, no-cache`                        |
+
+`no-cache` lets a browser or CDN keep a copy but makes it check with the server before reusing it. The check is cheap: the cache sends the tag it holds in `If-None-Match`, and while the photo is unchanged the server answers `304 Not Modified` with no body. The rules still run on every check, so a caller who has lost access gets their refusal, not the cached copy.
+
+Photos are never marked `immutable` or given a `max-age`, because `PATCH /img/:id` replaces the image behind the same URL. The replacement gets a new `ETag`, so the next check downloads it rather than reusing the old image.
+
+`public` or `private` comes from your view rules. On each view the server also asks your collection and row `canView` rules whether a caller **with no JWT** could see this photo:
+
+- Yes: `public`, so a CDN or proxy may store it and serve it to anyone.
+- No: `private`, so only the requesting browser may keep it. A shared cache must not store it, because it would hand the photo to every later caller without asking your rules.
+
+A rule that throws when given a null JWT counts as no. With the built-in rules every photo is viewable without a JWT, so photos are `public` until you restrict `canView`.
+
+<Warning>
+
+A CDN rule that caches `/img/*` regardless of the origin's `Cache-Control` (a "cache everything" rule, an edge TTL override, or ignoring `private`) bypasses these rules. The CDN stores the first response it sees, restricted photos included, and serves it to callers your `canView` rules would refuse. If any photo is restricted, leave the origin's `Cache-Control` in charge for `/img/*`.
+
+</Warning>
+
 ## The PhotoEntry row
 
 Row rules receive a `PhotoEntry`, exported from `package:zonai_schema/zonai_schema.dart`:

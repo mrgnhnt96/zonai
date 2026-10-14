@@ -41,7 +41,7 @@ File resolvePhotoFile(FileSystem fs, String imagesPath, String relativePath) {
 }
 
 extension _PhotoX on ZonaiDb {
-  Future<File> _getPhoto(String id, {required String? token}) async {
+  Future<PhotoView> _getPhoto(String id, {required String? token}) async {
     logger.setTraceProps({'op': 'photo_get'});
     var step = 'start';
     logger.trace('start');
@@ -88,11 +88,48 @@ extension _PhotoX on ZonaiDb {
         throw const PhotoFileNotFoundException();
       }
 
+      step = 'anonymous_access';
+      // A caller with no JWT just passed both rules, so the answer is known.
+      final publiclyViewable =
+          jwt == null ||
+          await _anonymousCanView(table.name, table.mapOut(photo));
+      logger.trace('anonymous_access', extra: {'public': publiclyViewable});
+
       logger.trace('done');
-      return file;
+      return PhotoView.forFile(file, publiclyViewable: publiclyViewable);
     } catch (e) {
       logger.trace('FAILED at $step: ${e.runtimeType}');
       rethrow;
+    }
+  }
+
+  /// Whether a caller with no JWT passes the table and row `canView` rules
+  /// for [row].
+  ///
+  /// Asked so the response can say `private` when the answer is no: a shared
+  /// cache serves what it stored to everyone, so a photo stored under
+  /// `public` would bypass these rules for every later caller. A rule that
+  /// throws without a JWT counts as a no, because this check exists to fail
+  /// closed.
+  Future<bool> _anonymousCanView(String table, Map<String, dynamic> row) async {
+    try {
+      final tableRules = await _tableRules(table, .view, null);
+      if (!tableRules.canAccess) return false;
+      if (tableRules.skipRowChecks) return true;
+
+      final rowRules = await _dispatchRules<RowRulesResponse>(
+        RowRulesRequest(
+          table: table,
+          operation: RowOperation.view.name,
+          data: row,
+          updates: const [],
+          jwt: null,
+        ),
+      );
+      return rowRules?.canPerform == true;
+    } on Object catch (e) {
+      logger.trace('anonymous_access failed: ${e.runtimeType}');
+      return false;
     }
   }
 

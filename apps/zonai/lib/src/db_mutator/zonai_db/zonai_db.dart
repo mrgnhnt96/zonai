@@ -28,6 +28,7 @@ import 'package:zonai/src/domain/constants.dart';
 // invite screen end up disagreeing about a required column.
 import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
+import 'package:zonai/src/domain/photo_view.dart';
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
@@ -981,7 +982,12 @@ class ZonaiDb {
     );
   }
 
-  Future<File> getPhoto(String id, {required String? token}) {
+  Future<File> getPhoto(String id, {required String? token}) async {
+    return (await viewPhoto(id, token: token)).file;
+  }
+
+  /// [getPhoto], plus the caching details `GET /img/:id` sends with it.
+  Future<PhotoView> viewPhoto(String id, {required String? token}) {
     return _run(() => _getPhoto(id, token: token));
   }
 
