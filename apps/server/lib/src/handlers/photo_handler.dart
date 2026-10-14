@@ -40,14 +40,13 @@ class PhotoHandler {
       return const Stream.empty();
     }
 
-    final ext = photo.file.path.split('.').last;
-    final mime = ImageMimeType.fromFileExtension(ext)?.mimeType;
+    final mime = ImageMimeType.fromFileExtension(photo.extension)?.mimeType;
     if (mime != null) {
       headers
         ..mimeType = mime
         ..set(HttpHeaders.contentDisposition, 'inline');
     }
-    return photo.file.openRead();
+    return photo.openRead();
   }
 
   Future<Map<String, Object?>> create(

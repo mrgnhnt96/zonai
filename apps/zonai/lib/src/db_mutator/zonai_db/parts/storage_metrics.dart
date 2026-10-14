@@ -64,31 +64,6 @@ extension _StorageMetricsX on ZonaiDb {
     );
   }
 
-  /// Total bytes and file count under [directory], walking it recursively.
-  ///
-  /// A missing directory is `(0, 0)` rather than an error: a deployment that
-  /// has never accepted a photo has no images directory, and that is not a
-  /// fault to report.
-  (int bytes, int files) _directoryUsage(String directory) {
-    final dir = fs.directory(directory);
-    if (!dir.existsSync()) return (0, 0);
-
-    var bytes = 0;
-    var files = 0;
-    for (final entity in dir.listSync(recursive: true, followLinks: false)) {
-      if (entity is! File) continue;
-      try {
-        bytes += entity.lengthSync();
-        files++;
-      } catch (_) {
-        // A file that vanished between the listing and the stat, or one this
-        // process cannot read. Skipping it under-reports by one file, which
-        // is the right direction for a diagnostic that must not throw.
-      }
-    }
-    return (bytes, files);
-  }
-
   /// Rows in [table], or `null` when it cannot be counted.
   ///
   /// Unqualified on purpose: the disposable tables live in attached files and
@@ -154,12 +129,12 @@ extension _StorageMetricsX on ZonaiDb {
       );
     }
 
-    final (photosBytes, photosFileCount) = _directoryUsage(settings.imagesPath);
+    final photosUsage = await photoStorage.usage();
 
     return StorageMetrics(
       databases: databases,
-      photosBytes: photosBytes,
-      photosFileCount: photosFileCount,
+      photosBytes: photosUsage.bytes,
+      photosFileCount: photosUsage.count,
       tables: tables,
       // `null` is unknown, not zero (see [freeDiskBytes]). Passed straight
       // through so the UI can say "unknown" — collapsing it to 0 here would
