@@ -9,7 +9,13 @@ extension _ResetPasswordX on ZonaiDb {
     final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
     if (!hasAuthRecord) {
-      // silently fail (does not expose if the email exists or not)
+      // Answer as a send that went out, cooldown included, so the reply says
+      // nothing about whether the address has an account.
+      _holdSendWithoutAccount(
+        table: table,
+        email: payload.email,
+        type: .passwordReset,
+      );
       return;
     }
 

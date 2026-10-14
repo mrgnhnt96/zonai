@@ -20,8 +20,11 @@ extension _OtpX on ZonaiDb {
     // An admin send never signs anyone up, so an address with no admin row
     // gets no code. It answers like a send that went out, as
     // `_sendResetPassword` does, so the reply says nothing about which
-    // addresses are admins.
-    if (isAdmin && !hasAuthRecord) return;
+    // addresses are admins, and it keeps the same resend cooldown.
+    if (isAdmin && !hasAuthRecord) {
+      _holdSendWithoutAccount(table: table, email: payload.email, type: .otp);
+      return;
+    }
 
     final operation = switch (hasAuthRecord) {
       true => AuthOperation.signIn,

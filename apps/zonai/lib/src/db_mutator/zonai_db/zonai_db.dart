@@ -250,6 +250,15 @@ class ZonaiDb {
   /// writes, which is the correct behaviour anyway.
   final Map<String, DateTime> _apiTokenLastUsed = {};
 
+  /// When a code, link or reset was last asked for an address that has no
+  /// account, keyed by type, table and address. Nothing is sent to such an
+  /// address, so there is no challenge row to hold the one-minute resend
+  /// cooldown. Without this, a second request inside the minute answered `200`
+  /// for an unknown address and `429` for a real one. In memory only: a
+  /// restart reopens at most one minute. `_holdSendWithoutAccount` drops
+  /// entries once their minute is up.
+  final Map<String, DateTime> _sendsWithoutAccount = {};
+
   /// Lazily detected: when the project has no extension Dart files (and no
   /// internal extensions), create/update/delete skip the extensions worker
   /// entirely.
@@ -415,6 +424,7 @@ class ZonaiDb {
     _columnNameCache.clear();
     _adminStatusCache.clear();
     _apiTokenLastUsed.clear();
+    _sendsWithoutAccount.clear();
     _hasProjectExtensions = null;
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();

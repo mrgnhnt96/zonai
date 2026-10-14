@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
@@ -21,6 +22,12 @@ import '../support/zonai_cli.dart';
 /// the password-reset send already answer alike either way; this holds the
 /// admin sends to the same rule. An unknown address gets nothing: no code,
 /// no link, no row.
+///
+/// The one-minute resend cooldown answers alike too. A real address is
+/// refused a second send inside the minute because its challenge row is that
+/// young; an unknown address has no row, so the cooldown is held in memory
+/// instead. Without it the second request answered `429` for a real address
+/// and `200` for an unknown one.
 void main() {
   group('admin send to an unknown email e2e', () {
     late Directory projectRoot;
@@ -32,6 +39,11 @@ void main() {
     const adminEmail = 'real.admin@example.com';
     const adminPassword = 'Test1234!';
     const unknownEmail = 'nobody.at.all@example.com';
+
+    // One more real admin per cooldown test.
+    const otpCooldownAdmin = 'otp.cooldown@example.com';
+    const magicLinkCooldownAdmin = 'link.cooldown@example.com';
+    const resetCooldownAdmin = 'reset.cooldown@example.com';
 
     /// Runs [body] with a live [ZonaiDb] against the migrated fixture.
     Future<T> withDb<T>(Future<T> Function(ZonaiDb db) body) async {
@@ -121,16 +133,20 @@ void main() {
         ]);
       }, override: _e2eScopeOverrides(settings));
 
-      // The one real admin, so the known-address sends have a row to find.
+      // The real admins, so the known-address sends have a row to find.
       await withDb((db) async {
-        final signUp = await db.authenticate(
-          table,
-          const SignUpPasswordAuthPayload(
-            email: adminEmail,
-            password: adminPassword,
-          ),
-        );
-        expect(signUp, isNotNull, reason: 'sign-up must create the admin');
+        for (final email in [
+          adminEmail,
+          otpCooldownAdmin,
+          magicLinkCooldownAdmin,
+          resetCooldownAdmin,
+        ]) {
+          final signUp = await db.authenticate(
+            table,
+            SignUpPasswordAuthPayload(email: email, password: adminPassword),
+          );
+          expect(signUp, isNotNull, reason: 'sign-up must create $email');
+        }
       });
     });
 
@@ -221,6 +237,98 @@ void main() {
         expect(await adminEmails(db, unknownEmail), isEmpty);
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
+
+    // Each cooldown test uses its own real admin and unknown address, so the
+    // sends in the tests above (real time, within the same minute) don't hold
+    // their cooldown.
+    Future<void> expectCooldownAlike({
+      required String realEmail,
+      required String unknownEmail,
+      required Future<void> Function(ZonaiDb db, String email) send,
+    }) async {
+      Future<Object?> attempt(ZonaiDb db, String email) async {
+        try {
+          await send(db, email);
+          return null;
+        } on Object catch (e) {
+          return e;
+        }
+      }
+
+      await withDb((db) async {
+        for (final email in [realEmail, unknownEmail]) {
+          expect(
+            await attempt(db, email),
+            isNull,
+            reason: 'the first send for $email answers 200',
+          );
+          expect(
+            await attempt(db, email),
+            isA<AuthRateLimitException>(),
+            reason: 'a second send for $email inside the minute answers 429',
+          );
+        }
+
+        // A real address's cooldown is its challenge row, stamped with the
+        // wall clock. The unknown address's is in memory, on `clock`, so a
+        // clock moved past the minute shows it lets go.
+        final later = clock.now().add(const Duration(seconds: 61));
+        expect(
+          await withClock(Clock.fixed(later), () => attempt(db, unknownEmail)),
+          isNull,
+          reason: 'a send for $unknownEmail after the minute answers 200',
+        );
+        expect(await adminEmails(db, unknownEmail), isEmpty);
+      });
+    }
+
+    test('an OTP resend inside the minute is refused for a real and an unknown '
+        'admin alike', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
+
+      await expectCooldownAlike(
+        realEmail: otpCooldownAdmin,
+        unknownEmail: 'otp.cooldown.nobody@example.com',
+        send: (db, email) =>
+            db.authenticateAdmin(SendOtpAuthPayload(email: email)),
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('a magic-link resend inside the minute is refused for a real and an '
+        'unknown admin alike', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
+
+      await expectCooldownAlike(
+        realEmail: magicLinkCooldownAdmin,
+        unknownEmail: 'link.cooldown.nobody@example.com',
+        send: (db, email) =>
+            db.authenticateAdmin(SendMagicLinkAuthPayload(email: email)),
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test(
+      'a password-reset resend inside the minute is refused for a real and an '
+      'unknown address alike',
+      () async {
+        if (!_runningOnDartVm) {
+          return;
+        }
+
+        await expectCooldownAlike(
+          realEmail: resetCooldownAdmin,
+          unknownEmail: 'reset.cooldown.nobody@example.com',
+          send: (db, email) => db.sendResetPassword(
+            table,
+            ResetPasswordAuthPayload(email: email),
+          ),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
 }
 
