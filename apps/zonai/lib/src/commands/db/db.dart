@@ -4,6 +4,7 @@ import 'admin.dart';
 import 'clear.dart';
 import 'email.dart';
 import 'logs.dart';
+import 'migrate_photos.dart';
 import 'photos.dart';
 import 'test.dart';
 import 'token.dart';
@@ -16,6 +17,7 @@ Usage: zonai db <subcommand> [options]
 
 Subcommands:
   migrate         Manage SQL migrations
+  migrate-photos  Copy local photos into the configured S3 bucket
   admin           Manage admin accounts
   token           Manage API tokens for the data API
   logs            Manage internal log records
@@ -37,6 +39,12 @@ Future<int> db(List<String> path) async {
   switch (path) {
     case ['migrate' || 'migrations' || 'm' || 'migration', ...final path]:
       return await migrate(path);
+
+    // Not `photos ...`: `db photos` is the source-only upload smoke test, a
+    // leaf command, and it would be surprising for a released binary to
+    // answer `db photos migrate` while refusing `db photos`.
+    case ['migrate-photos']:
+      return await migratePhotos();
 
     case ['test'] when !kIsCompiled:
       return await test();

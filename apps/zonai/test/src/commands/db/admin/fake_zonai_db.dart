@@ -6,6 +6,7 @@ import 'package:zonai/src/deps/clean_up.dart';
 import 'package:zonai/src/deps/executable_stop.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/domain/photo_storage/photo_storage.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
     show PasswordResetReason;
@@ -265,4 +266,11 @@ class FakeZonaiDb extends ZonaiDb {
     vacuumedSchemas.add(schema);
     onVacuum?.call();
   }
+
+  /// What [resolvePhotoStorage] answers; a test that reaches it must set this.
+  PhotoStorage? photoStorage;
+
+  @override
+  Future<PhotoStorage> resolvePhotoStorage() async =>
+      photoStorage ?? (throw StateError('FakeZonaiDb.photoStorage not set'));
 }

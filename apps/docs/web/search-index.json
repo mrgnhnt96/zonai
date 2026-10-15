@@ -408,7 +408,7 @@
         {
           "h": "Photos",
           "a": "photos",
-          "b": "photos: PhotosConfig( maxBytes: 5 1024 1024, // 5 MB allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png, ImageMimeType.webp], ), Constrains photo uploads before they reach the rules worker."
+          "b": "photos: PhotosConfig( maxBytes: 5 1024 1024, // 5 MB allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png, ImageMimeType.webp], ), Constrains photo uploads before they reach the rules worker. storage picks where the bytes live. The default, LocalPhotoStorage(), keeps them on the server's disk. S3PhotoStorage keeps them in an S3-compatible bucket such as Cloudflare R2 — see Photo Storage: photos: PhotosConfig( storage: S3PhotoStorage( endpoint: 'https:// .r2.cloudflarestorage.com', bucket: 'my-app-photos', ), ), The bucket's access keys are never part of the config: they are read from S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY in the process environment when the server starts."
         },
         {
           "h": "Trusted Proxy",
@@ -444,7 +444,7 @@
         {
           "h": "Overriding a baked-in secret at runtime",
           "a": "overriding-a-baked-in-secret-at-runtime",
-          "b": "JWT_SECRET, PASSWORD_SECRET, PREVIOUS_JWT_SECRETS and PREVIOUS_PASSWORD_SECRETS are also read from the process environment when the server starts, and the process environment wins over the compiled-in value. An empty or whitespace-only value is ignored rather than applied, so a wrapper script that expands an unset variable cannot blank out a working config. The two PREVIOUS_ variables take a comma-separated list. When AppConfig.email is set, SMTP_USERNAME and SMTP_PASSWORD are read the same way and replace the EmailConfig's username and password. They never create an email config on their own: with no email in the config they are ignored. Every email Zonai sends, auth emails included, uses the overridden values. If neither the build nor the environment supplies them, the server refuses to start, the same as for an empty JWT_SECRET. Otherwise every reset and verification email would fail in the background while the server looked healthy. The exception is a local catcher such as Mailhog: a loopback host, or allowInsecure: true, may send without logging in. This matters because a compiled binary contains its defines in plain text — strings on the artifact recovers the signing key, and"
+          "b": "JWT_SECRET, PASSWORD_SECRET, PREVIOUS_JWT_SECRETS and PREVIOUS_PASSWORD_SECRETS are also read from the process environment when the server starts, and the process environment wins over the compiled-in value. An empty or whitespace-only value is ignored rather than applied, so a wrapper script that expands an unset variable cannot blank out a working config. The two PREVIOUS_ variables take a comma-separated list. When AppConfig.email is set, SMTP_USERNAME and SMTP_PASSWORD are read the same way and replace the EmailConfig's username and password. They never create an email config on their own: with no email in the config they are ignored. Every email Zonai sends, auth emails included, uses the overridden values. If neither the build nor the environment supplies them, the server refuses to start, the same as for an empty JWT_SECRET. Otherwise every reset and verification email would fail in the background while the server looked healthy. The exception is a local catcher such as Mailhog: a loopback host, or allowInsecure: true, may send without logging in. When AppConfig.photos.storage is an S3PhotoStorage, the bucket's access keys come only from the process environment: S3_ACCESS_KE"
         },
         {
           "h": "Secret requirements",
@@ -617,7 +617,12 @@
         {
           "h": "Storage",
           "a": "storage",
-          "b": "Photos are written to disk under the configured images directory (default: .zonai/data/images/), organized by the table field from the upload metadata: .zonai/data/images/ / . For example, a JPEG uploaded for the users table might be stored at .zonai/data/images/users/ph_abc123.jpeg. Deleting a photo row also deletes the file. When you call DELETE /img/:id, Zonai removes both the _photos database record and the file from disk in the same operation. File size limit — configured via AppConfig.photos: photos: PhotosConfig( maxBytes: 5 1024 1024, // 5 MB default allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png], ), These constraints are enforced before rules run, so canCreate in photo rules only sees valid files."
+          "b": "By default, photos are written to disk under the configured images directory (default: .zonai/data/images/), organized by the table field from the upload metadata: .zonai/data/images/ / . For example, a JPEG uploaded for the users table might be stored at .zonai/data/images/users/ph_abc123.jpeg. Deleting a photo row also deletes the file. When you call DELETE /img/:id, Zonai removes both the _photos database record and the stored file in the same operation."
+        },
+        {
+          "h": "S3-compatible buckets (Cloudflare R2)",
+          "a": "s3-compatible-buckets-cloudflare-r2",
+          "b": "Set AppConfig.photos.storage to an S3PhotoStorage to keep photos in a bucket instead of on the server's disk. Keys keep the same layout, / . , inside the bucket: photos: PhotosConfig( storage: S3PhotoStorage( endpoint: 'https:// .r2.cloudflarestorage.com', bucket: 'my-app-photos', region: 'auto', // the default; R2 takes 'auto' ), ), Field Meaning endpoint The S3 API URL, without the bucket. For R2 that's https:// .r2.cloudflarestorage.com. Requests are path-style ( / / ), so any S3-compatible service works, MinIO included. bucket The bucket name. Create it first; Zonai doesn't. region The SigV4 signing region. Defaults to auto, which is what R2 expects; use the bucket's region (such as us-east-1) for AWS S3. publicBaseUrl Optional. The bucket's public URL (an R2 custom domain or r2.dev address). Photos are streamed through the server for now, so this is recorded but not yet used. Then give the server the bucket's credentials at runtime. For R2, create an API token with Object Read & Write on the bucket and use its access key ID and secret: S3_ACCESS_KEY_ID=... \\ S3_SECRET_ACCESS_KEY=... \\ ./zonai serve --release The keys are read from the process environment only — see Environment"
         },
         {
           "h": "Unreferenced Photo Cleanup",
@@ -1385,6 +1390,11 @@
           "h": "Endpoints and the rules they run",
           "a": "endpoints-and-the-rules-they-run",
           "b": "Each request runs the collection rule first, then the row rule when a row is involved. Photo API operation Table check Row check POST /img canCreate canCreate GET /img/:id canView canView PATCH /img/:id canUpdate canUpdate DELETE /img/:id canDelete canDelete The _photos table is reached through this API, not through the generic /db/ routes."
+        },
+        {
+          "h": "Caching and CDNs",
+          "a": "caching-and-cdns",
+          "b": "GET /img/:id (and HEAD) answers with two caching headers: Header Value ETag A strong tag derived from the stored file's size and modification time Cache-Control public, no-cache or private, no-cache no-cache lets a browser or CDN keep a copy but makes it check with the server before reusing it. The check is cheap: the cache sends the tag it holds in If-None-Match, and while the photo is unchanged the server answers 304 Not Modified with no body. The rules still run on every check, so a caller who has lost access gets their refusal, not the cached copy. Photos are never marked immutable or given a max-age, because PATCH /img/:id replaces the image behind the same URL. The replacement gets a new ETag, so the next check downloads it rather than reusing the old image. public or private comes from your view rules. On each view the server also asks your collection and row canView rules whether a caller with no JWT could see this photo: Yes: public, so a CDN or proxy may store it and serve it to anyone. No: private, so only the requesting browser may keep it. A shared cache must not store it, because it would hand the photo to every later caller without asking your rules. A rule that thro"
         },
         {
           "h": "The PhotoEntry row",
@@ -3539,7 +3549,7 @@
         {
           "h": "Download a Photo",
           "a": "download-a-photo",
-          "b": "get returns a Stream<List > so the bytes can be piped directly to a file or an HTTP response without loading the entire image into memory: final stream = client.photos.get(id: photoId); // Write to a file final file = File('downloaded.jpg'); await file.openWrite().addStream(stream);"
+          "b": "get returns a Stream<List > so the bytes can be piped directly to a file or an HTTP response without loading the entire image into memory: final stream = client.photos.get(id: photoId); // Write to a file final file = File('downloaded.jpg'); await file.openWrite().addStream(stream); Photo responses carry an ETag and Cache-Control: no-cache, so browsers and CDNs revalidate rather than serve a copy that a later update replaced. See Caching and CDNs for how public and private follow your view rules."
         },
         {
           "h": "Update a Photo",
@@ -3837,6 +3847,11 @@
           "h": "clear",
           "a": "clear",
           "b": "Delete records from the _log table: zonai db logs clear aliases: delete, rm zonai db logs clear --older-than 7d keep the last week zonai db logs clear --vacuum also shrink the file on disk zonai db logs clear --vacuum --force skip the confirmation (alias: -f) --older-than takes a number followed by s, m, h, d or w — for example 30m, 24h, 7d, 2w. Without it, every record is deleted. Reclaiming disk space Deleting rows does not shrink the database file. SQLite keeps the emptied pages on an internal freelist and reuses them for future writes, so a clear that removes millions of records can leave the file exactly as large as it was. clear says so when it happens. --vacuum rewrites the file from its live pages only and returns the difference to the operating system. It rewrites both zonai.sqlite and zonai_log.sqlite: new log deletes free pages in the log file, but a database upgraded from before the split has its old _log pages on zonai.sqlite's freelist. It prompts first, because the rewrite: needs roughly twice the current file size free on disk, since SQLite builds a complete copy before swapping it in takes time proportional to the file size — a large database can take minutes holds"
+        },
+        {
+          "h": "db migrate-photos",
+          "a": "db-migrate-photos",
+          "b": "Copy the photos on disk into the S3-compatible bucket that AppConfig.photos.storage selects, after switching it to S3PhotoStorage: zonai db migrate-photos --dry-run list what would be copied zonai db migrate-photos copy; local files are kept zonai db migrate-photos --delete-local Flag Short Description --dry-run -n List each photo and whether it would be copied; change nothing --delete-local — Delete each local photo once the bucket is verified to hold it at the same size It needs S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY in the environment, as the server does. Each photo is printed as it goes ([3/120] posts/ .jpg (12.0 KB) copied), then a summary. Photos the bucket already holds at the same size are skipped, so an interrupted run picks up where it left off. Each upload is checked against the size the bucket reports; any failure is listed, the rest carry on, and the command exits with 1 so you can run it again. It is not zonai db photos ...: db photos is the photo upload smoke test that only runs from source. See Photo Storage."
         },
         {
           "h": "db clear",

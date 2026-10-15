@@ -1,6 +1,6 @@
 ---
 title: zonai db
-description: Database management subcommands — migrations, admin accounts, email, and logs.
+description: Database management subcommands — migrations, admin accounts, email, logs, and moving photos into a bucket.
 ---
 
 Direct database operations — migrations, admin accounts, email testing, and data management. Most subcommands work directly on the SQLite file without a running server.
@@ -230,6 +230,25 @@ the prompt in scripts.
 This matters most on databases created before v0.6.2, which persisted
 `trace`- and `request`-level entries to `_log`. Those levels are no longer
 written, but rows already on disk stay until they are cleared and vacuumed.
+
+## db migrate-photos
+
+Copy the photos on disk into the S3-compatible bucket that `AppConfig.photos.storage` selects, after switching it to `S3PhotoStorage`:
+
+```sh
+zonai db migrate-photos --dry-run     # list what would be copied
+zonai db migrate-photos               # copy; local files are kept
+zonai db migrate-photos --delete-local
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--dry-run` | `-n` | List each photo and whether it would be copied; change nothing |
+| `--delete-local` | — | Delete each local photo once the bucket is verified to hold it at the same size |
+
+It needs `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` in the environment, as the server does. Each photo is printed as it goes (`[3/120] posts/<id>.jpg (12.0 KB) copied`), then a summary. Photos the bucket already holds at the same size are skipped, so an interrupted run picks up where it left off. Each upload is checked against the size the bucket reports; any failure is listed, the rest carry on, and the command exits with `1` so you can run it again.
+
+It is not `zonai db photos ...`: `db photos` is the photo upload smoke test that only runs from source. See [Photo Storage](/schemas/photo-tables#moving-existing-photos-into-the-bucket).
 
 ## db clear
 
