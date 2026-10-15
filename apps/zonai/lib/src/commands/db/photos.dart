@@ -117,7 +117,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Created photo: $photoId');
 
   logger.info('VERIFY PHOTO FILE CREATED');
-  final storage = zonaiDB.photoStorage;
+  final storage = await zonaiDB.resolvePhotoStorage();
   var imageKey = fs.path.join('items', '$photoId.jpg');
   if (!await storage.exists(imageKey)) {
     logger.error('Expected photo file to exist: $imageKey');

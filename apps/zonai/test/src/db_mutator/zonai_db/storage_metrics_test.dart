@@ -15,6 +15,7 @@ import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 import 'package:zonai_schema/src/types/jwt_id.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/zonai_schema.dart' as schema show AppConfig;
 
 import '../../../support/temp_directory.dart';
 
@@ -95,7 +96,7 @@ void main() {
     }
 
     await withScope(() async {
-      final zonaiDb = ZonaiDb();
+      final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
       try {
         await zonaiDb.open();
 
@@ -122,7 +123,7 @@ void main() {
       }
 
       await withScope(() async {
-        final zonaiDb = ZonaiDb();
+        final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
         try {
           await zonaiDb.open();
 
@@ -184,7 +185,7 @@ void main() {
       }
 
       await withScope(() async {
-        final zonaiDb = ZonaiDb();
+        final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
         try {
           final db = await zonaiDb.open();
           final padding = 'x' * 4000;
@@ -234,7 +235,7 @@ void main() {
       }
 
       await withScope(() async {
-        final zonaiDb = ZonaiDb();
+        final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
         try {
           final db = await zonaiDb.open();
           for (var i = 0; i < 3; i++) {
@@ -282,7 +283,7 @@ void main() {
     // parse -- the opposite situation, and the one that sends an operator
     // hunting for space that was never missing.
     await withScope(processOverride: _BrokenDf(), () async {
-      final zonaiDb = ZonaiDb();
+      final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
       try {
         await zonaiDb.open();
 
@@ -307,7 +308,7 @@ void main() {
     }
 
     await withScope(() async {
-      final zonaiDb = ZonaiDb();
+      final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
       try {
         await zonaiDb.open();
         expect(io.Directory(settings.imagesPath).existsSync(), isFalse);
@@ -378,7 +379,7 @@ void main() {
                 'path. If this ever fails the test below proves nothing.',
           );
 
-          final zonaiDb = ZonaiDb();
+          final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
           try {
             await zonaiDb.open();
             final metrics = await zonaiDb.storageMetrics(
@@ -456,3 +457,11 @@ class _BrokenDf implements domain.Process {
   @override
   bool kill(int pid) => throw UnimplementedError();
 }
+
+/// Photo storage is chosen from the config, which `ZonaiDb` would otherwise
+/// ask a compiled config worker for.
+const _config = schema.AppConfig(
+  appName: 'storage-metrics-fixture',
+  passwordSecret: 'test-password-secret',
+  jwtSecret: 'test-jwt-secret',
+);

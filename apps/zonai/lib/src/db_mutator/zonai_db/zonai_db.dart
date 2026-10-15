@@ -1,10 +1,11 @@
 library zonai_db;
 
-export 'package:zonai/src/domain/photo_storage/local_photo_storage.dart'
+export 'package:zonai/src/domain/photo_storage/disk_photo_storage.dart'
     show resolvePhotoFile;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:math';
 
 import 'package:clock/clock.dart';
@@ -31,8 +32,10 @@ import 'package:zonai/src/domain/constants.dart';
 // invite screen end up disagreeing about a required column.
 import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
-import 'package:zonai/src/domain/photo_storage/local_photo_storage.dart';
+import 'package:zonai/src/domain/photo_storage/bucket_photo_storage.dart';
+import 'package:zonai/src/domain/photo_storage/disk_photo_storage.dart';
 import 'package:zonai/src/domain/photo_storage/photo_storage.dart';
+import 'package:zonai/src/domain/photo_storage/s3_signer.dart';
 import 'package:zonai/src/domain/photo_view.dart';
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
@@ -198,14 +201,20 @@ class ZonaiDb {
   /// exercising anything that reads `AppConfig` required compiling a config
   /// worker. That is the same missing seam `PushCourier` exists to avoid on
   /// the transport side.
-  ZonaiDb({@visibleForTesting ConfigResolver? configResolver})
-    : _fixedConfigResolver = configResolver,
-      _extensions = MailmanPool(ExtensionsMailman.new),
-      _rules = MailmanPool(RulesMailman.new),
-      _operations = MailmanPool(OperationsMailman.new),
-      _config = ConfigMailman(),
-      _jwt = JwtGenerator(),
-      _hashPassword = HashPassword();
+  ///
+  /// [environment] replaces the process environment the S3 photo storage key
+  /// pair is read from, for the same reason.
+  ZonaiDb({
+    @visibleForTesting ConfigResolver? configResolver,
+    @visibleForTesting Map<String, String>? environment,
+  }) : _fixedConfigResolver = configResolver,
+       _environment = environment,
+       _extensions = MailmanPool(ExtensionsMailman.new),
+       _rules = MailmanPool(RulesMailman.new),
+       _operations = MailmanPool(OperationsMailman.new),
+       _config = ConfigMailman(),
+       _jwt = JwtGenerator(),
+       _hashPassword = HashPassword();
 
   Raindrop? db;
 
@@ -230,6 +239,14 @@ class ZonaiDb {
 
   /// Set only by tests; see the constructor.
   final ConfigResolver? _fixedConfigResolver;
+
+  /// Set only by tests; see the constructor.
+  final Map<String, String>? _environment;
+
+  /// The bucket backend for [_bucketConfig], kept so its pooled connections
+  /// are reused across requests.
+  BucketPhotoStorage? _bucket;
+  S3PhotoStorage? _bucketConfig;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
@@ -987,9 +1004,43 @@ class ZonaiDb {
     );
   }
 
-  /// Where photo bytes are kept: files under [Settings.imagesPath].
-  PhotoStorage get photoStorage =>
-      LocalPhotoStorage(fs: fs, root: settings.imagesPath);
+  /// Where photo bytes are kept, as `PhotosConfig.storage` selects: files
+  /// under [Settings.imagesPath] by default, or an S3-compatible bucket.
+  Future<PhotoStorage> resolvePhotoStorage() => _run(_photoStorage);
+
+  Future<PhotoStorage> _photoStorage() async {
+    final config = await configResolver.resolve();
+    return switch (config.photos.storage) {
+      LocalPhotoStorage() => DiskPhotoStorage(
+        fs: fs,
+        root: settings.imagesPath,
+      ),
+      final S3PhotoStorage storage => _bucketFor(storage),
+    };
+  }
+
+  BucketPhotoStorage _bucketFor(S3PhotoStorage config) {
+    if (_bucket case final bucket? when _bucketConfig == config) return bucket;
+
+    // The config worker already refused to start without the key pair (see
+    // `AppConfig.validate`), so a missing one here is a server started some
+    // other way; fail with the same message rather than send unsigned requests.
+    final environment = _environment ?? Platform.environment;
+    final errors = config.errors(environment: environment);
+    if (errors.isNotEmpty) throw StateError(errors.join('\n'));
+
+    _bucketConfig = config;
+    return _bucket = BucketPhotoStorage(
+      endpoint: Uri.parse(config.endpoint.trim()),
+      bucket: config.bucket,
+      region: config.region,
+      credentials: S3Credentials(
+        accessKeyId: environment[S3PhotoStorage.accessKeyIdVariable]!.trim(),
+        secretAccessKey: environment[S3PhotoStorage.secretAccessKeyVariable]!
+            .trim(),
+      ),
+    );
+  }
 
   /// The bytes of photo [id], read through the same rules as [viewPhoto].
   Future<List<int>> readPhoto(String id, {required String? token}) async {

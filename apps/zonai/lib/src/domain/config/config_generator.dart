@@ -195,11 +195,14 @@ class ConfigGenerator {
     // The process environment wins over the compile-time `-D` define, so a
     // deployment can ship a binary with no secret baked into it at all. See
     // `AppConfig.withSecretsFromEnvironment`. Applied before `validate()` so
-    // the strength check runs against the secret actually in use.
+    // the strength check runs against the secret actually in use. The
+    // environment also goes to `validate()` for what is only ever read from it
+    // (the S3 photo storage key pair), so a missing key stops the server here
+    // instead of failing every upload.
     b.writeln(
       '  final config = value.withSecretsFromEnvironment(Platform.environment);',
     );
-    b.writeln('  config.validate();');
+    b.writeln('  config.validate(environment: Platform.environment);');
     b.writeln('  return config;');
     b.writeln('}');
     return b.toString();

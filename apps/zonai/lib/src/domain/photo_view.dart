@@ -10,8 +10,10 @@ class PhotoView {
     required Stream<List<int>> Function() openRead,
   }) : _openRead = openRead;
 
-  /// Builds the view for [photo] as [storage] holds it, deriving [etag] from
-  /// its size and modification time.
+  /// Builds the view for [photo] as [storage] holds it.
+  ///
+  /// [etag] is the storage's own tag when it has one ([StoredPhoto.etag]),
+  /// otherwise derived from size and modification time.
   factory PhotoView.stored(
     PhotoStorage storage,
     StoredPhoto photo, {
@@ -19,7 +21,10 @@ class PhotoView {
   }) {
     return PhotoView(
       extension: photo.key.split('.').last,
-      etag: photoEtag(size: photo.size, modified: photo.modified),
+      etag: switch (photo.etag) {
+        final etag? => '"${etag.replaceAll('"', '')}"',
+        null => photoEtag(size: photo.size, modified: photo.modified),
+      },
       publiclyViewable: publiclyViewable,
       openRead: () => storage.openRead(photo.key),
     );

@@ -200,7 +200,7 @@ extension _DeleteX on ZonaiDb {
     logger.trace('ext_before');
 
     if (table == '_photos') {
-      final storage = photoStorage;
+      final storage = await _photoStorage();
       for (final object in sanitized) {
         if (object case {'path': final String path}) {
           await storage.delete(path);

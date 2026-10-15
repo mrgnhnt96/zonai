@@ -236,7 +236,7 @@ extension _CleanupPhotosX on ZonaiDb {
     );
 
     if (object[photos.path.name] case final String path) {
-      await photoStorage.delete(path);
+      await (await _photoStorage()).delete(path);
     }
 
     final db = await open();

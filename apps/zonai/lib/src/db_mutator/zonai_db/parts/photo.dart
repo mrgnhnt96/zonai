@@ -41,7 +41,7 @@ extension _PhotoX on ZonaiDb {
       logger.trace('row_access');
 
       step = 'file_check';
-      final storage = photoStorage;
+      final storage = await _photoStorage();
       final stored = await storage.stat(photo.path);
       logger.trace('file_check', extra: {'exists': stored != null});
 
@@ -136,7 +136,7 @@ extension _PhotoX on ZonaiDb {
     final relativePath = fs.path.normalize(
       fs.path.join(meta.table, '$id.${imageType.fileExtension}'),
     );
-    final storage = photoStorage;
+    final storage = await _photoStorage();
     if (await storage.exists(relativePath)) {
       throw PhotoFileAlreadyExistsException(path: relativePath);
     }
@@ -242,7 +242,7 @@ extension _PhotoX on ZonaiDb {
       }
     }
 
-    final storage = photoStorage;
+    final storage = await _photoStorage();
     final oldPath = photo.path;
     if (!await storage.exists(oldPath)) {
       throw const PhotoFileNotFoundException();

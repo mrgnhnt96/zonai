@@ -17,6 +17,7 @@ import 'package:zonai_schema/src/handlers/rules/db_rules.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger, Table;
 import 'package:zonai_schema/zonai_schema.dart' as schema show Table;
 
+import '../../../support/fake_s3_server.dart';
 import '../../../support/temp_directory.dart';
 
 /// What `ZonaiDb.viewPhoto` tells the server to cache by, against real photo
@@ -72,7 +73,11 @@ void main() {
     HostWorkerRegistries.extensions = DbExtensions(extensions: []);
   }
 
-  Future<void> run(Future<void> Function(ZonaiDb db) body) async {
+  Future<void> run(
+    Future<void> Function(ZonaiDb db) body, {
+    AppConfig config = _config,
+    Map<String, String>? environment,
+  }) async {
     if (!rs.isInstalled) {
       markTestSkipped('resqlite native library not found');
       return;
@@ -81,7 +86,7 @@ void main() {
     late final ZonaiDb db;
     await runMergedScopedFuture(
       () async {
-        db = _SignedInZonaiDb();
+        db = _SignedInZonaiDb(config: config, environment: environment);
         try {
           await db.open();
           await body(db);
@@ -134,6 +139,54 @@ void main() {
       expect(after.etag, isNot(before.etag));
       expect(await after.openRead().expand((chunk) => chunk).toList(), _png(9));
     });
+  });
+
+  test('with S3 storage, photos live in the bucket and PATCH moves the '
+      'ETag', () async {
+    final bucket = await FakeS3Server.start();
+    addTearDown(bucket.close);
+    rules(anonymousTable: true, anonymousRow: true);
+
+    await run(
+      config: AppConfig(
+        appName: _config.appName,
+        passwordSecret: _config.passwordSecret,
+        jwtSecret: _config.jwtSecret,
+        photos: PhotosConfig(
+          storage: S3PhotoStorage(
+            endpoint: bucket.endpoint.toString(),
+            bucket: bucket.bucket,
+          ),
+        ),
+      ),
+      environment: {
+        S3PhotoStorage.accessKeyIdVariable:
+            FakeS3Server.credentials.accessKeyId,
+        S3PhotoStorage.secretAccessKeyVariable:
+            FakeS3Server.credentials.secretAccessKey,
+      },
+      (db) async {
+        final id = await upload(db, _png(4));
+        expect(bucket.objects, hasLength(1));
+        final before = await db.viewPhoto(id, token: null);
+        expect(
+          await before.openRead().expand((chunk) => chunk).toList(),
+          _png(4),
+        );
+
+        // Same size and, likely, the same second: only the bucket's content
+        // ETag can tell these apart.
+        await db.updatePhoto(token: null, id: id, image: Stream.value(_png(5)));
+        final after = await db.viewPhoto(id, token: null);
+
+        expect(after.etag, isNot(before.etag));
+        expect(
+          await after.openRead().expand((chunk) => chunk).toList(),
+          _png(5),
+        );
+        expect(bucket.objects, hasLength(1), reason: 'the old object is gone');
+      },
+    );
   });
 
   group('publiclyViewable', () {
@@ -198,7 +251,13 @@ const _config = AppConfig(
 /// A [ZonaiDb] that reads the token [_signedIn] as a signed-in user, so a
 /// view can be asked for with a JWT without an auth table and a sign-in.
 class _SignedInZonaiDb extends ZonaiDb {
-  _SignedInZonaiDb() : super(configResolver: ConfigResolver.fixed(_config));
+  _SignedInZonaiDb({
+    required AppConfig config,
+    Map<String, String>? environment,
+  }) : super(
+         configResolver: ConfigResolver.fixed(config),
+         environment: environment,
+       );
 
   @override
   Future<Jwt?> parseJwt(String? token, {bool allowApiToken = false}) async {

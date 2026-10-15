@@ -8,8 +8,8 @@ import 'package:zonai/src/exceptions/photo_exception.dart';
 /// Every key is resolved through [resolvePhotoFile], so a key that would land
 /// outside [root] throws [InvalidPhotoPathException] instead of touching the
 /// disk.
-final class LocalPhotoStorage extends PhotoStorage {
-  const LocalPhotoStorage({required this.fs, required this.root});
+final class DiskPhotoStorage extends PhotoStorage {
+  const DiskPhotoStorage({required this.fs, required this.root});
 
   final FileSystem fs;
   final String root;
