@@ -132,6 +132,16 @@ final class BucketPhotoStorage extends PhotoStorage {
     await delete(from);
   }
 
+  /// A URL that lets whoever holds it `GET` [key] for [expires], with no
+  /// credentials of their own.
+  Uri presignedGetUrl(String key, {required Duration expires}) => presignS3Url(
+    uri: _objectUri(key),
+    credentials: credentials,
+    region: region,
+    now: clock.now(),
+    expires: expires,
+  );
+
   /// Every object in the bucket, through `ListObjectsV2`, one page at a time.
   @override
   Stream<StoredPhoto> list() async* {
@@ -178,8 +188,7 @@ final class BucketPhotoStorage extends PhotoStorage {
         '${s3Encode(key)}=${s3Encode(value)}',
     ].join('&');
     final uri = Uri.parse(
-      '$_base/${s3Encode(bucket)}/${s3Encode(key, keepSlash: true)}'
-      '${queryString.isEmpty ? '' : '?$queryString'}',
+      '${_objectUri(key)}${queryString.isEmpty ? '' : '?$queryString'}',
     );
 
     final request = http.Request(method, uri);
@@ -199,6 +208,9 @@ final class BucketPhotoStorage extends PhotoStorage {
     );
     return _client.send(request);
   }
+
+  Uri _objectUri(String key) =>
+      Uri.parse('$_base/${s3Encode(bucket)}/${s3Encode(key, keepSlash: true)}');
 
   static Future<void> _expectOk(
     http.StreamedResponse response,

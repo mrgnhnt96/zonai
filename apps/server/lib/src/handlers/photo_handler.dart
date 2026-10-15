@@ -17,6 +17,13 @@ class PhotoHandler {
   /// when a caller with no token could view the photo too. Otherwise it is
   /// `private`, so a shared cache (a CDN, a proxy) never stores a photo and
   /// then hands it to callers the photo rules would refuse.
+  ///
+  /// When the storage serves photos itself (`S3PhotoStorage.redirect`), the
+  /// answer is `302 Found` to that URL instead of the bytes, after the same
+  /// rules. A redirect to the public URL is cached like the photo, since its
+  /// `Location` changes exactly when the ETag does. A redirect to a presigned
+  /// URL is `private, no-store` with no ETag: the link grants access by
+  /// itself, so no cache may keep it past the rules or past its expiry.
   Future<Stream<List<int>>> view(
     String? authorization,
     String id,
@@ -27,6 +34,12 @@ class PhotoHandler {
       id,
       token: _parseBearerAuthorization(authorization),
     );
+
+    final redirect = photo.redirect;
+    if (redirect != null && redirect.presigned) {
+      response.headers.set(HttpHeaders.cacheControlHeader, 'private, no-store');
+      return _redirect(response, redirect.location);
+    }
 
     final headers = response.headers
       ..set(HttpHeaders.etagHeader, photo.etag)
@@ -40,6 +53,8 @@ class PhotoHandler {
       return const Stream.empty();
     }
 
+    if (redirect != null) return _redirect(response, redirect.location);
+
     final mime = ImageMimeType.fromFileExtension(photo.extension)?.mimeType;
     if (mime != null) {
       headers
@@ -47,6 +62,12 @@ class PhotoHandler {
         ..set(HttpHeaders.contentDisposition, 'inline');
     }
     return photo.openRead();
+  }
+
+  Stream<List<int>> _redirect(Response response, Uri location) {
+    response.statusCode = HttpStatus.found;
+    response.headers.set(HttpHeaders.locationHeader, location.toString());
+    return const Stream.empty();
   }
 
   Future<Map<String, Object?>> create(

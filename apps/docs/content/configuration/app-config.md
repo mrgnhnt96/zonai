@@ -89,6 +89,8 @@ photos: PhotosConfig(
 ),
 ```
 
+Add `redirect: true` to have `GET /img/:id` answer with a `302` to the bucket (its `publicBaseUrl`, or a presigned URL valid for `presignedUrlSeconds`) instead of streaming the bytes through the server. Streaming is the default.
+
 The bucket's access keys are never part of the config: they are read from `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` in the process environment when the server starts.
 
 ### Trusted Proxy

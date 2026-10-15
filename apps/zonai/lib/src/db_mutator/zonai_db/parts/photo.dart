@@ -56,16 +56,64 @@ extension _PhotoX on ZonaiDb {
           await _anonymousCanView(table.name, table.mapOut(photo));
       logger.trace('anonymous_access', extra: {'public': publiclyViewable});
 
-      logger.trace('done');
-      return PhotoView.stored(
+      final view = PhotoView.stored(
         storage,
         stored,
         publiclyViewable: publiclyViewable,
       );
+
+      step = 'redirect';
+      final redirect = await _photoRedirect(storage, view, stored.key);
+      logger.trace('redirect', extra: {'presigned': ?redirect?.presigned});
+
+      logger.trace('done');
+      return switch (redirect) {
+        final redirect? => view.redirectTo(redirect),
+        null => view,
+      };
     } catch (e) {
       logger.trace('FAILED at $step: ${e.runtimeType}');
       rethrow;
     }
+  }
+
+  /// Where to send the caller instead of streaming [view], which is stored at
+  /// [key], or `null` to stream.
+  ///
+  /// Only an [S3PhotoStorage] with `redirect` on redirects. A photo a caller
+  /// with no JWT could view goes to `publicBaseUrl` when one is set; anything
+  /// else gets a presigned URL, so the bucket never has to be public for a
+  /// photo the rules restrict.
+  Future<PhotoRedirect?> _photoRedirect(
+    PhotoStorage storage,
+    PhotoView view,
+    String key,
+  ) async {
+    if (storage is! BucketPhotoStorage) return null;
+    final config = await configResolver.resolve();
+    if (config.photos.storage case S3PhotoStorage(
+      redirect: true,
+      :final publicBaseUrl,
+      :final presignedUrlSeconds,
+    )) {
+      if (view.publiclyViewable && publicBaseUrl != null) {
+        final base = publicBaseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+        // PATCH replaces the bytes under the same key. The version in the
+        // query moves with the ETag, so a CDN in front of the public URL
+        // that cached the old object is asked for a URL it has not seen.
+        final version = s3Encode(view.etag.replaceAll('"', ''));
+        return PhotoRedirect.public(
+          Uri.parse('$base/${s3Encode(key, keepSlash: true)}?v=$version'),
+        );
+      }
+      return PhotoRedirect.presigned(
+        storage.presignedGetUrl(
+          key,
+          expires: Duration(seconds: presignedUrlSeconds),
+        ),
+      );
+    }
+    return null;
   }
 
   /// Whether a caller with no JWT passes the table and row `canView` rules

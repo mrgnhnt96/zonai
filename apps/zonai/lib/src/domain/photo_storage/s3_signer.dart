@@ -66,6 +66,90 @@ Map<String, String> signS3Request({
   ].join('\n');
 
   final scope = '$date/$region/$service/aws4_request';
+  final signature = _signature(
+    canonicalRequest: canonicalRequest,
+    amzDate: amzDate,
+    scope: scope,
+    secretAccessKey: credentials.secretAccessKey,
+  );
+
+  return {
+    ...signed,
+    'authorization':
+        'AWS4-HMAC-SHA256 '
+        'Credential=${credentials.accessKeyId}/$scope,'
+        'SignedHeaders=${names.join(';')},'
+        'Signature=$signature',
+  };
+}
+
+/// A presigned [uri]: anyone holding the returned URL can `GET` the object
+/// until [expires] after [now], with no credentials of their own.
+///
+/// [uri]'s path must already be percent-encoded as for [signS3Request]. Only
+/// `host` is signed and the payload is `UNSIGNED-PAYLOAD`, as S3 expects for
+/// a URL a browser follows.
+///
+/// The steps follow
+/// https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html.
+Uri presignS3Url({
+  required Uri uri,
+  required S3Credentials credentials,
+  required String region,
+  required DateTime now,
+  required Duration expires,
+  String method = 'GET',
+}) {
+  final amzDate = _amzDate(now.toUtc());
+  final scope = '${amzDate.substring(0, 8)}/$region/s3/aws4_request';
+  final host = uri.hasPort && uri.port != _defaultPort(uri.scheme)
+      ? '${uri.host}:${uri.port}'
+      : uri.host;
+
+  final params = <String, String>{
+    ...uri.queryParameters,
+    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+    'X-Amz-Credential': '${credentials.accessKeyId}/$scope',
+    'X-Amz-Date': amzDate,
+    'X-Amz-Expires': '${expires.inSeconds}',
+    'X-Amz-SignedHeaders': 'host',
+  };
+  final query = [
+    for (final MapEntry(:key, :value) in params.entries)
+      '${s3Encode(key)}=${s3Encode(value)}',
+  ]..sort();
+
+  final canonicalRequest = [
+    method,
+    uri.path.isEmpty ? '/' : uri.path,
+    query.join('&'),
+    'host:$host',
+    '',
+    'host',
+    'UNSIGNED-PAYLOAD',
+  ].join('\n');
+
+  final signature = _signature(
+    canonicalRequest: canonicalRequest,
+    amzDate: amzDate,
+    scope: scope,
+    secretAccessKey: credentials.secretAccessKey,
+  );
+
+  // Built by hand rather than through [Uri.replace], which would re-encode
+  // the query differently from what was signed.
+  return Uri.parse(
+    '${uri.scheme}://$host${uri.path}?${query.join('&')}'
+    '&X-Amz-Signature=$signature',
+  );
+}
+
+String _signature({
+  required String canonicalRequest,
+  required String amzDate,
+  required String scope,
+  required String secretAccessKey,
+}) {
   final stringToSign = [
     'AWS4-HMAC-SHA256',
     amzDate,
@@ -76,25 +160,10 @@ Map<String, String> signS3Request({
   List<int> hmac(List<int> key, String data) =>
       Hmac(sha256, key).convert(utf8.encode(data)).bytes;
 
-  final signingKey = [
-    date,
-    region,
-    service,
-    'aws4_request',
-  ].fold(utf8.encode('AWS4${credentials.secretAccessKey}'), hmac);
-  final signature = Hmac(
-    sha256,
-    signingKey,
-  ).convert(utf8.encode(stringToSign)).toString();
-
-  return {
-    ...signed,
-    'authorization':
-        'AWS4-HMAC-SHA256 '
-        'Credential=${credentials.accessKeyId}/$scope,'
-        'SignedHeaders=${names.join(';')},'
-        'Signature=$signature',
-  };
+  final signingKey = scope
+      .split('/')
+      .fold(utf8.encode('AWS4$secretAccessKey'), hmac);
+  return Hmac(sha256, signingKey).convert(utf8.encode(stringToSign)).toString();
 }
 
 /// Percent-encodes [value] as SigV4 requires: everything but `A-Z a-z 0-9

@@ -17,6 +17,10 @@ sealed class PhotoStorageConfig {
         bucket: json['bucket'] as String,
         region: json['region'] as String? ?? S3PhotoStorage.defaultRegion,
         publicBaseUrl: json['publicBaseUrl'] as String?,
+        redirect: json['redirect'] as bool? ?? false,
+        presignedUrlSeconds:
+            json['presignedUrlSeconds'] as int? ??
+            S3PhotoStorage.defaultPresignedUrlSeconds,
       ),
       final type => throw ArgumentError.value(
         type,
@@ -63,12 +67,20 @@ final class S3PhotoStorage extends PhotoStorageConfig {
     required this.bucket,
     this.region = defaultRegion,
     this.publicBaseUrl,
+    this.redirect = false,
+    this.presignedUrlSeconds = defaultPresignedUrlSeconds,
   });
 
   static const _type = 's3';
 
   /// R2's region. AWS S3 needs the bucket's real region instead.
   static const defaultRegion = 'auto';
+
+  /// How long a presigned photo URL stays valid by default: five minutes.
+  static const defaultPresignedUrlSeconds = 300;
+
+  /// The longest a SigV4 presigned URL may live: seven days.
+  static const maxPresignedUrlSeconds = 7 * 24 * 60 * 60;
 
   /// The environment variable holding the access key id.
   static const accessKeyIdVariable = 'S3_ACCESS_KEY_ID';
@@ -87,8 +99,25 @@ final class S3PhotoStorage extends PhotoStorageConfig {
   /// A public URL the bucket's objects are also served from, such as an R2
   /// custom domain, without a trailing key.
   ///
-  /// Not used to serve photos yet; `GET /img/:id` streams from the bucket.
+  /// Only used with [redirect]: a photo that a caller with no token could
+  /// view is redirected to `<publicBaseUrl>/<key>`. The bucket (or the domain
+  /// in front of it) must serve the objects without credentials for that.
   final String? publicBaseUrl;
+
+  /// Whether `GET /img/:id` answers `302 Found` and lets the client fetch the
+  /// bytes from the bucket, instead of streaming them through the server.
+  ///
+  /// The photo rules still run first; only a caller they allow is
+  /// redirected. A photo a caller with no token could view goes to
+  /// [publicBaseUrl] when one is set. Every other photo goes to a presigned
+  /// URL that expires after [presignedUrlSeconds], and that redirect is sent
+  /// `private, no-store` so no cache keeps a link past the rules.
+  ///
+  /// Off by default: the server streams.
+  final bool redirect;
+
+  /// How long a presigned URL from [redirect] stays valid, in seconds.
+  final int presignedUrlSeconds;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -97,6 +126,8 @@ final class S3PhotoStorage extends PhotoStorageConfig {
     'bucket': bucket,
     'region': region,
     'publicBaseUrl': publicBaseUrl,
+    'redirect': redirect,
+    'presignedUrlSeconds': presignedUrlSeconds,
   };
 
   /// What makes this backend unusable, if anything.
@@ -120,6 +151,10 @@ final class S3PhotoStorage extends PhotoStorageConfig {
       if (region.trim().isEmpty) 'photos.storage.region is empty',
       if (publicBaseUrl case final url? when !isHttpUrl(url))
         'photos.storage.publicBaseUrl must be an http(s) URL (got "$url")',
+      if (presignedUrlSeconds < 1 ||
+          presignedUrlSeconds > maxPresignedUrlSeconds)
+        'photos.storage.presignedUrlSeconds must be between 1 and '
+            '$maxPresignedUrlSeconds (got $presignedUrlSeconds)',
       if (environment != null)
         for (final name in [accessKeyIdVariable, secretAccessKeyVariable])
           if (!isSet(name))
@@ -134,8 +169,17 @@ final class S3PhotoStorage extends PhotoStorageConfig {
       other.endpoint == endpoint &&
       other.bucket == bucket &&
       other.region == region &&
-      other.publicBaseUrl == publicBaseUrl;
+      other.publicBaseUrl == publicBaseUrl &&
+      other.redirect == redirect &&
+      other.presignedUrlSeconds == presignedUrlSeconds;
 
   @override
-  int get hashCode => Object.hash(endpoint, bucket, region, publicBaseUrl);
+  int get hashCode => Object.hash(
+    endpoint,
+    bucket,
+    region,
+    publicBaseUrl,
+    redirect,
+    presignedUrlSeconds,
+  );
 }

@@ -110,7 +110,9 @@ photos: PhotosConfig(
 | `endpoint` | The S3 API URL, without the bucket. For R2 that's `https://<account-id>.r2.cloudflarestorage.com`. Requests are path-style (`<endpoint>/<bucket>/<key>`), so any S3-compatible service works, MinIO included. |
 | `bucket` | The bucket name. Create it first; Zonai doesn't. |
 | `region` | The SigV4 signing region. Defaults to `auto`, which is what R2 expects; use the bucket's region (such as `us-east-1`) for AWS S3. |
-| `publicBaseUrl` | Optional. The bucket's public URL (an R2 custom domain or `r2.dev` address). Photos are streamed through the server for now, so this is recorded but not yet used. |
+| `publicBaseUrl` | Optional. The bucket's public URL (an R2 custom domain or `r2.dev` address). Only used when `redirect` is on — see [Serving photos from the bucket](#serving-photos-from-the-bucket). |
+| `redirect` | `false` (the default) streams every photo through the server. `true` answers `GET /img/:id` with a `302` to the bucket instead. |
+| `presignedUrlSeconds` | How long a presigned redirect stays valid. Defaults to `300` (five minutes); at most `604800` (seven days), the SigV4 limit. |
 
 Then give the server the bucket's credentials at runtime. For R2, create an API token with **Object Read & Write** on the bucket and use its access key ID and secret:
 
@@ -123,6 +125,35 @@ S3_SECRET_ACCESS_KEY=... \
 The keys are read from the process environment only — see [Environment Variables](/configuration/environment-variables#overriding-a-baked-in-secret-at-runtime). The server refuses to start without them.
 
 `GET /img/:id` reads the photo from the bucket and streams it to the caller with the same rule checks and caching headers as local storage; its `ETag` is the bucket's own content hash. The unreferenced-photo cleanup and the storage metrics list and delete objects in the bucket.
+
+#### Serving photos from the bucket
+
+With `redirect: true`, the server stops proxying photo bytes. `GET /img/:id` still checks your `canView` rules first, exactly as when streaming, and then answers `302 Found` with a `Location` the browser follows to the bucket:
+
+```dart in:app-config
+photos: PhotosConfig(
+  storage: S3PhotoStorage(
+    endpoint: 'https://<account-id>.r2.cloudflarestorage.com',
+    bucket: 'my-app-photos',
+    publicBaseUrl: 'https://images.example.com',
+    redirect: true,
+  ),
+),
+```
+
+Which URL the redirect points at depends on whether a caller **with no JWT** could view the photo — the same check that picks `public` or `private` in [Caching and CDNs](/rules/photo-rules#caching-and-cdns):
+
+| Photo | Redirect to | `Cache-Control` on the 302 |
+|-------|-------------|----------------------------|
+| Viewable anonymously, `publicBaseUrl` set | `<publicBaseUrl>/<key>?v=<etag>` | `public, no-cache`, with the `ETag`; a matching `If-None-Match` still gets a `304` |
+| Anything else | A presigned SigV4 `GET` URL that expires after `presignedUrlSeconds` | `private, no-store`, no `ETag` |
+
+- The public URL only works if the bucket (or its custom domain) serves objects publicly. For R2, connect a custom domain or enable the `r2.dev` address on the bucket. The `?v=` part changes whenever `PATCH /img/:id` replaces the image, so a CDN in front of that domain fetches the new bytes, not a stale copy.
+- A restricted photo is never sent to the public URL. Its presigned link grants access on its own, so the redirect is `no-store`: no browser or shared cache keeps it, and every view goes back through your rules for a fresh link.
+- Without `publicBaseUrl`, every photo gets a presigned redirect.
+- A caller the rules refuse gets the same refusal as when streaming, never a redirect.
+
+Browsers (an `<img src>`, for example) and other HTTP clients that follow redirects need no changes. With local storage `redirect` doesn't apply; photos are always streamed.
 
 Switching backends doesn't move existing photos by itself: `_photos` rows pointing at photos still on disk will 404 until the files are in the bucket under the same keys. `zonai db migrate-photos` copies them.
 

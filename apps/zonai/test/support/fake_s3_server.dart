@@ -12,7 +12,8 @@ import 'package:zonai/src/domain/photo_storage/s3_signer.dart';
 /// DELETE and `ListObjectsV2`) path-style for one [bucket], and refuses with
 /// 403 any request whose SigV4 signature or payload hash doesn't match what
 /// [credentials] would produce — so a test passing here means the requests
-/// were signed as they were sent.
+/// were signed as they were sent. A presigned `GET` (signature in the query)
+/// is checked the same way, and refused once it has expired.
 final class FakeS3Server {
   FakeS3Server._(this._server, {required this.bucket, required this.pageSize}) {
     _server.listen(_handle);
@@ -155,6 +156,11 @@ final class FakeS3Server {
   }
 
   bool _signedCorrectly(HttpRequest request, List<int> body) {
+    final query = request.uri.queryParameters;
+    if (query.containsKey('X-Amz-Signature')) {
+      return _presignedCorrectly(request, query);
+    }
+
     final authorization = request.headers.value('authorization');
     final amzDate = request.headers.value('x-amz-date');
     final payloadHash = request.headers.value('x-amz-content-sha256');
@@ -184,6 +190,32 @@ final class FakeS3Server {
       },
     );
     return expected['authorization'] == authorization;
+  }
+
+  bool _presignedCorrectly(HttpRequest request, Map<String, String> query) {
+    final amzDate = query['X-Amz-Date'];
+    final expires = int.tryParse(query['X-Amz-Expires'] ?? '');
+    if (request.method != 'GET' || amzDate == null || expires == null) {
+      return false;
+    }
+    final signedAt = DateTime.parse(
+      '${amzDate.substring(0, 8)}T${amzDate.substring(9)}',
+    );
+    if (DateTime.now().toUtc().isAfter(
+      signedAt.add(Duration(seconds: expires)),
+    )) {
+      return false;
+    }
+
+    final expected = presignS3Url(
+      uri: request.requestedUri.replace(query: ''),
+      credentials: credentials,
+      region: region,
+      now: signedAt,
+      expires: Duration(seconds: expires),
+    );
+    return expected.queryParameters['X-Amz-Signature'] ==
+        query['X-Amz-Signature'];
   }
 
   static String _etag(List<int> bytes) => '"${md5.convert(bytes)}"';
