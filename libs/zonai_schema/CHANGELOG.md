@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.1
 
 **`WebhookSignature` verifies Svix-signed webhooks.** Resend, Clerk and Svix
 sign deliveries the [Standard Webhooks](https://www.standardwebhooks.com) way:
@@ -11,6 +11,14 @@ HMAC-SHA256 over `id.timestamp.body`, keyed by a base64 `whsec_…` secret.
 secret rotation and compares in constant time. It returns why a delivery failed
 (`WebhookSignatureFailure`), `isValid` answers yes or no, and `verify` throws
 `WebhookSignatureException`.
+
+**`Email` can answer a thread.** `Email` gains `replyTo`, `messageId`,
+`inReplyTo`, `references` and a plain-text `text` part. The caller's
+message-ids replace the synthetic thread headers, and
+`Email.createMessageId(from)` makes an id on the sending domain to store and
+match later replies against. A message-id that is not `local@domain` is
+refused, in `fromJson` and when sending, so it cannot inject headers. All the
+new fields are optional, so code written for 0.8.0 sends exactly what it did.
 
 ## 0.8.0
 

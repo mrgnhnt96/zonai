@@ -30,6 +30,13 @@ do, and what stopped being broken. The commit list is already one click away.
 - **Admin OTP and magic-link sends no longer reveal which addresses are
   admins.** An unknown address now answers `200`, like a real one, and keeps
   the same one-minute resend cooldown (password reset too).
+- **Emails can answer a thread.** `email.send` takes `replyTo`,
+  `messageId`, `inReplyTo`, `references` and a plain-text `text` part, and
+  `Email.createMessageId` makes an id to store and match replies against
+  (`zonai_schema` 0.8.1).
+- **`WebhookSignature` checks Svix-signed webhooks** from Resend, Clerk and
+  other Standard Webhooks senders, with timestamp tolerance and secret
+  rotation (`zonai_schema` 0.8.1).
 
 ## 0.10.3
 
