@@ -379,7 +379,9 @@ void main() {
                 'path. If this ever fails the test below proves nothing.',
           );
 
-          final zonaiDb = ZonaiDb(configResolver: ConfigResolver.fixed(_config));
+          final zonaiDb = ZonaiDb(
+            configResolver: ConfigResolver.fixed(_config),
+          );
           try {
             await zonaiDb.open();
             final metrics = await zonaiDb.storageMetrics(

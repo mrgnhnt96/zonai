@@ -103,7 +103,9 @@ extension _PhotoX on ZonaiDb {
         // that cached the old object is asked for a URL it has not seen.
         final version = s3Encode(view.etag.replaceAll('"', ''));
         return PhotoRedirect.public(
-          Uri.parse('$base/${s3Encode(key, keepSlash: true)}?v=$version'),
+          Uri.parse(
+            '$base/${BucketPhotoStorage.encodeObjectKey(key)}?v=$version',
+          ),
         );
       }
       return PhotoRedirect.presigned(

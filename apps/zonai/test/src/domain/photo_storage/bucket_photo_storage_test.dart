@@ -118,6 +118,37 @@ void main() {
     expect(await read('posts/a b é.jpg'), [1]);
   });
 
+  // A Windows host builds keys with `path.join`, and the `_photos.path` it
+  // stores says `posts\<id>.jpg`. The bucket must still see `posts/<id>.jpg`.
+  group('a key with backslashes', () {
+    test('is stored and read under forward slashes', () async {
+      await storage.write(r'posts\a.jpg', Stream.value([1]));
+
+      expect(server.objects.keys, ['posts/a.jpg']);
+      expect(await read(r'posts\a.jpg'), [1]);
+      expect(await storage.exists(r'posts\a.jpg'), isTrue);
+    });
+
+    test('renames and deletes the same object', () async {
+      await storage.write(r'posts\a.jpg.tmp', Stream.value([7]));
+
+      await storage.rename(r'posts\a.jpg.tmp', r'posts\a.jpg');
+      expect(server.objects.keys, ['posts/a.jpg']);
+
+      await storage.delete(r'posts\a.jpg');
+      expect(server.objects, isEmpty);
+    });
+
+    test('is presigned under forward slashes', () {
+      final url = storage.presignedGetUrl(
+        r'posts\a.jpg',
+        expires: const Duration(minutes: 1),
+      );
+
+      expect(url.path, '/${server.bucket}/posts/a.jpg');
+    });
+  });
+
   test('a wrongly signed request is refused, not silently accepted', () async {
     final wrong = BucketPhotoStorage(
       endpoint: server.endpoint,

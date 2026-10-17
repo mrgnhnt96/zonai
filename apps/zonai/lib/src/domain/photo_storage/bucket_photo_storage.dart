@@ -111,9 +111,7 @@ final class BucketPhotoStorage extends PhotoStorage {
     final response = await _send(
       'PUT',
       key: to,
-      headers: {
-        'x-amz-copy-source': '/$bucket/${s3Encode(from, keepSlash: true)}',
-      },
+      headers: {'x-amz-copy-source': '/$bucket/${encodeObjectKey(from)}'},
     );
     await _expectOk(response, 'COPY', to);
 
@@ -210,7 +208,15 @@ final class BucketPhotoStorage extends PhotoStorage {
   }
 
   Uri _objectUri(String key) =>
-      Uri.parse('$_base/${s3Encode(bucket)}/${s3Encode(key, keepSlash: true)}');
+      Uri.parse('$_base/${s3Encode(bucket)}/${encodeObjectKey(key)}');
+
+  /// [key] as it goes into an object URL.
+  ///
+  /// A key is a `_photos.path`, which a Windows host built with `path.join`
+  /// as `posts\<id>.jpg`. Object keys always use `/`, so the same photo is
+  /// the same object whichever host wrote the row.
+  static String encodeObjectKey(String key) =>
+      s3Encode(key.replaceAll(r'\', '/'), keepSlash: true);
 
   static Future<void> _expectOk(
     http.StreamedResponse response,
