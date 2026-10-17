@@ -285,6 +285,40 @@ void main() {
       expect(header(data, 'References'), '<a@example.com> <b@example.com>');
     });
 
+    test('In-Reply-To closes References when the caller left it off', () async {
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          inReplyTo: '<b@example.com>',
+          references: ['<a@example.com>'],
+        ),
+      );
+
+      expect(header(data, 'References'), '<a@example.com> <b@example.com>');
+    });
+
+    // mailer lowercases the domain of any `@` header it is handed as a
+    // string; message-ids are compared as written.
+    test('message-ids go out exactly as given', () async {
+      const outlook = '<AM0PR10MB@EURPRD10.PROD.OUTLOOK.COM>';
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          messageId: '<Ours.1@Example.COM>',
+          inReplyTo: outlook,
+          references: ['<First@Client.Example>', outlook],
+        ),
+      );
+
+      expect(header(data, 'Message-ID'), '<Ours.1@Example.COM>');
+      expect(header(data, 'In-Reply-To'), outlook);
+      expect(header(data, 'References'), '<First@Client.Example> $outlook');
+    });
+
     // The control: without the new fields the thread headers are unchanged.
     test('a thread continuation still points at its synthetic root', () async {
       final data = await sent(

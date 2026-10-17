@@ -134,7 +134,7 @@ class _Send {
   /// A reply to a client's own mail has to name the client's `Message-ID`.
   void _applyReplyHeaders(Message message, Email email) {
     if (email.messageId case final id?) {
-      message.headers['Message-ID'] = Email.messageIdHeader(id);
+      message.headers['Message-ID'] = _MessageIds(Email.messageIdHeader(id));
     }
 
     final references = [
@@ -146,12 +146,11 @@ class _Send {
     };
     if (inReplyTo == null) return;
 
-    message.headers['In-Reply-To'] = inReplyTo;
-    // One space-separated string: mailer renders a list of strings as a
-    // comma-separated address list, which is not what References holds.
-    message.headers['References'] = references.isEmpty
-        ? inReplyTo
-        : references.join(' ');
+    // References ends with the message being answered (RFC 5322 3.6.4).
+    if (references.lastOrNull != inReplyTo) references.add(inReplyTo);
+
+    message.headers['In-Reply-To'] = _MessageIds(inReplyTo);
+    message.headers['References'] = _MessageIds(references.join(' '));
   }
 
   String _threadRootMessageId({
@@ -194,4 +193,18 @@ class _EmailContent {
     emailTemplatesPath: settings.emailTemplatesPath,
     preheader: email.preheader,
   );
+}
+
+/// One or more message-ids, written to the header exactly as given.
+///
+/// mailer only accepts a header value containing `@` as an address. A plain
+/// string is lowercased and IDNA-encoded on its last domain, and a list is
+/// joined with commas. Message-ids are compared as written, so an Outlook id
+/// such as `<AM0PR@EURPRD10.PROD.OUTLOOK.COM>` has to go out unchanged, and
+/// References has to stay space-separated.
+class _MessageIds extends Address {
+  _MessageIds(super.mailAddress);
+
+  @override
+  String get encodedAddress => mailAddress;
 }

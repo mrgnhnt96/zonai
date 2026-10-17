@@ -47,14 +47,23 @@ void main() {
 
     // `Email` is also the body of the client's `email.send` route, and an id
     // that is written into a header must not be able to start a new one.
-    test('fromJson refuses a message-id that could break the header', () {
-      final json = {
-        ...Email(to: to, subject: 'S', template: 't').toJson(),
-        'inReplyTo': '<a@b>\r\nBcc: victim@example.com',
-      };
+    for (final (key, value) in [
+      ('messageId', '<a@b>\r\nBcc: victim@example.com'),
+      ('inReplyTo', '<a@b>\r\nBcc: victim@example.com'),
+      ('references', ['<ok@example.com>', '<a@b>\r\nBcc: victim@example.com']),
+    ]) {
+      test('fromJson refuses a $key that could break the header', () {
+        final json = {
+          ...Email(to: to, subject: 'S', template: 't').toJson(),
+          key: value,
+        };
 
-      expect(() => Email.fromJson(json), throwsA(isA<InvalidBodyException>()));
-    });
+        expect(
+          () => Email.fromJson(json),
+          throwsA(isA<InvalidBodyException>()),
+        );
+      });
+    }
   });
 
   group('Email.messageIdHeader', () {
@@ -71,6 +80,8 @@ void main() {
       'abc@example.com\r\nX-Evil: 1',
       '<abc@example.com',
       '<<abc@example.com>>',
+      'a@b@example.com',
+      '<>',
     ]) {
       test('refuses ${bad.replaceAll('\r\n', r'\r\n')}', () {
         expect(() => Email.messageIdHeader(bad), throwsArgumentError);
