@@ -103,8 +103,12 @@ class WebhookSignature {
       return WebhookSignatureFailure.invalidTimestamp;
     }
 
-    final sentAt = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
-    if (clock.now().difference(sentAt).abs() > tolerance) {
+    // Compared as bounds around now, never as a difference or a DateTime: a
+    // sender controls the value, and an extreme one would overflow the
+    // subtraction or throw out of the DateTime constructor.
+    final now = clock.now().millisecondsSinceEpoch ~/ 1000;
+    if (seconds < now - tolerance.inSeconds ||
+        seconds > now + tolerance.inSeconds) {
       return WebhookSignatureFailure.timestampOutOfTolerance;
     }
 

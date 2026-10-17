@@ -101,6 +101,19 @@ void main() {
       );
     });
 
+    test('refuses extreme timestamps instead of throwing', () {
+      for (final ts in ['99999999999999', '-9223372036854775808']) {
+        expect(
+          checkAt(sentAt, headers(ts: ts)),
+          WebhookSignatureFailure.timestampOutOfTolerance,
+        );
+      }
+      expect(
+        checkAt(sentAt, headers(ts: '99999999999999999999')),
+        WebhookSignatureFailure.invalidTimestamp,
+      );
+    });
+
     test('sign produces what check accepts', () {
       final at = DateTime.utc(2026, 10, 17, 12);
       final signer = WebhookSignature(secret);
