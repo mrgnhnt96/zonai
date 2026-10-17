@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.8.0
+
+**Photos can live in an S3-compatible bucket.** `PhotosConfig.storage` takes a
+`PhotoStorageConfig`: `LocalPhotoStorage` (the default, unchanged) or
+`S3PhotoStorage(endpoint:, bucket:, region:, publicBaseUrl:, redirect:,
+presignedUrlSeconds:)`, built for Cloudflare R2 and any other S3-compatible
+store. The key pair is read from `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`
+at runtime and never compiled in. `AppConfig.validate` takes an optional
+`environment` and, given one, refuses an S3 config without them.
+`AppConfig` and `PhotosConfig` now round-trip `photos`, `requiredMimeType` and
+`storage` through JSON.
+
+**A `before*` hook can refuse a write with a 4xx.** Throwing an `HttpError`
+(now exported from this package, so hooks need no `revali_core` import) with a
+4xx status from `beforeCreate`, `beforeUpdate` or `beforeDelete` answers the
+caller with that status and the standard error envelope instead of a `500`.
+
+**Breaking: worker refusals travel as a structured field.**
+`MessageErrorResponse` gains `refusal`, which carries `HookRefusedException`
+and `SignUpDeclinedException` from the extensions worker to the host as data.
+It replaces the text markers, so `SignUpDeclinedException.tryParse` is removed
+and its `toString` no longer carries the marker. Consumers must re-run
+`zonai compile`: a worker compiled against 0.7.0 still writes the old marker,
+which the 0.11.0 CLI no longer reads, so a declined sign-up would answer `500`.
+
 ## 0.7.0
 
 **Breaking: a mail server with no credentials refuses to start.** With

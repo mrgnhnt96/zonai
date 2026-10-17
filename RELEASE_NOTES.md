@@ -8,6 +8,29 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.11.0
+
+- **Photos can live in an S3-compatible bucket** such as Cloudflare R2
+  (`zonai_schema` 0.8.0). Set `PhotosConfig(storage: S3PhotoStorage(...))`
+  and supply `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` at runtime; local
+  disk stays the default. With `redirect: true`, `GET /img/:id` answers a
+  `302` to the bucket (a `publicBaseUrl` for public photos, a short-lived
+  presigned link for restricted ones) instead of streaming through the
+  server. `zonai db migrate-photos` copies existing local photos into the
+  bucket, resumably, with `--dry-run` and `--delete-local`.
+- **Photos are cacheable.** `GET /img/:id` sends a strong `ETag` and
+  `Cache-Control` (`public` only when the rules allow anyone to view it) and
+  answers `If-None-Match` with `304`.
+- **A `before*` hook can refuse a write with a 4xx.** Throw an `HttpError`
+  such as `HttpError.forbidden(code: ..., message: ...)` from `beforeCreate`,
+  `beforeUpdate` or `beforeDelete` and the caller gets that status and
+  message instead of a `500`. Move to `zonai_schema: ^0.8.0` and re-run
+  `zonai compile`: workers built against 0.7.0 report a declined sign-up as
+  a `500`.
+- **Admin OTP and magic-link sends no longer reveal which addresses are
+  admins.** An unknown address now answers `200`, like a real one, and keeps
+  the same one-minute resend cooldown (password reset too).
+
 ## 0.10.3
 
 - **`zonai build`, `zonai update` and friends retry GitHub downloads.** A
