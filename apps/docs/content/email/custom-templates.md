@@ -33,7 +33,7 @@ This creates `<emailTemplatesPath>/order_confirmation.html` pre-filled with the 
 
 ## Template Format
 
-Templates are plain HTML with [Mustache](https://mustache.github.io/mustache.5.html) interpolation. Put CSS inline, because many email clients ignore `<style>` blocks. Messages are sent as HTML only, with no plaintext alternative.
+Templates are plain HTML with [Mustache](https://mustache.github.io/mustache.5.html) interpolation. Put CSS inline, because many email clients ignore `<style>` blocks. Messages are sent as HTML. To include a plaintext alternative, set `text` on the `Email` (see below).
 
 ```html
 <!DOCTYPE html>
@@ -99,11 +99,15 @@ The `template` field is the filename without `.html`. `email.send(...)` is fire-
 | Field | Purpose |
 | ----- | ------- |
 | `from` | Override the default sender from `EmailConfig.from` |
+| `replyTo` | The address replies go to, if it isn't `from` |
 | `preheader` | The inbox preview line (see [below](#preview-text)) |
 | `thread` | Group related messages into one conversation in the recipient's inbox |
+| `messageId` | Your own `Message-ID`, so you can match replies. `Email.createMessageId(from)` makes one |
+| `inReplyTo` / `references` | The real message-ids this message answers. These override `thread`'s headers |
+| `text` | A plain-text part sent next to the HTML. It is not rendered as a template and never includes the preheader |
 | `variables` | Mustache data. `appName` and `preheader` are added automatically |
 
-For threading, use `Email.createThread('order:42')` on the first message and `Email.createThread('order:42', continueThread: true)` on follow-ups. Zonai sets the `Message-ID`, `In-Reply-To` and `References` headers from it. The built-in OTP and magic-link emails already thread their resends this way.
+For threading, use `Email.createThread('order:42')` on the first message and `Email.createThread('order:42', continueThread: true)` on follow-ups. Zonai sets the `Message-ID`, `In-Reply-To` and `References` headers from it. The built-in OTP and magic-link emails already thread their resends this way. To reply to a message you didn't send, such as a customer's email, use `inReplyTo` and `references` instead. See [Replying to an Email](/extensions/side-effects-email#replying-to-an-email).
 
 ## Sending over HTTP
 

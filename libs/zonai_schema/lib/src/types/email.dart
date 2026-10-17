@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:zonai_schema/src/types/email_address.dart';
 import 'package:zonai_schema/src/payloads/parse_body.dart';
@@ -12,6 +13,11 @@ class Email {
     this.from,
     this.thread,
     this.preheader,
+    this.replyTo,
+    this.messageId,
+    this.inReplyTo,
+    this.references = const [],
+    this.text,
   });
 
   /// Builds a [Email.thread] id. Pass [continueThread] when sending another message
@@ -20,6 +26,49 @@ class Email {
       continueThread ? '$id$continueThreadSuffix' : id;
 
   static const String continueThreadSuffix = ':continue';
+
+  /// Builds a fresh [Email.messageId] on [from]'s domain.
+  ///
+  /// [from] is the address the mail goes out from (`hello@example.com`) or
+  /// just its domain (`example.com`). Generate the id before sending and store
+  /// it: `email.send` does not report back, and a reply to this message will
+  /// name it in its own `In-Reply-To`.
+  static String createMessageId(String from) {
+    final at = from.lastIndexOf('@');
+    final domain = at < 0 ? from : from.substring(at + 1);
+    if (domain.isEmpty || !_messageIdPart.hasMatch(domain)) {
+      throw ArgumentError.value(from, 'from', 'must be an email or a domain');
+    }
+    final time = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final random = List.generate(
+      8,
+      (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+    return '<$time.$random@$domain>';
+  }
+
+  /// [id] as it goes in a `Message-ID`, `In-Reply-To` or `References` header:
+  /// wrapped in angle brackets, which a caller may leave off.
+  ///
+  /// Throws when [id] is not `local@domain`. The ids an app passes here often
+  /// come from someone else's mail (an inbound `Message-ID`), so anything
+  /// that could break out of the header -- whitespace, a line break, a stray
+  /// bracket -- is refused rather than written.
+  static String messageIdHeader(String id) {
+    final bare = id.startsWith('<') && id.endsWith('>')
+        ? id.substring(1, id.length - 1)
+        : id;
+    final at = bare.lastIndexOf('@');
+    if (at <= 0 ||
+        !_messageIdPart.hasMatch(bare.substring(0, at)) ||
+        !_messageIdPart.hasMatch(bare.substring(at + 1))) {
+      throw ArgumentError.value(id, 'messageId', 'must be <local@domain>');
+    }
+    return '<$bare>';
+  }
+
+  static final _messageIdPart = RegExp(r'^[^\s<>@]+$');
+  static final _random = Random.secure();
 
   factory Email.fromJson(Map<String, dynamic> json) =>
       parseBody('Email', () => Email._fromJson(json));
@@ -34,7 +83,24 @@ class Email {
     variables: json['variables'] as Map<String, dynamic>,
     thread: json['thread'] as String?,
     preheader: json['preheader'] as String?,
+    replyTo: json['replyTo'] != null
+        ? EmailAddress.fromJson(json['replyTo'] as Map<String, dynamic>)
+        : null,
+    // Checked here as well as at send time, so a bad id from an HTTP client
+    // is a 400 rather than a send that fails in the background.
+    messageId: _checkedMessageId(json['messageId'] as String?),
+    inReplyTo: _checkedMessageId(json['inReplyTo'] as String?),
+    references: [
+      for (final id in json['references'] as List? ?? const [])
+        _checkedMessageId(id as String)!,
+    ],
+    text: json['text'] as String?,
   );
+
+  static String? _checkedMessageId(String? id) {
+    if (id != null) messageIdHeader(id);
+    return id;
+  }
 
   final EmailAddress to;
   final EmailAddress? from;
@@ -57,6 +123,36 @@ class Email {
   /// (e.g. another OTP) by passing `continueThread: true`.
   final String? thread;
 
+  /// Where replies go, when that is not [from].
+  final EmailAddress? replyTo;
+
+  /// This message's own `Message-ID`, so the app can store it and recognise
+  /// a later reply by its `In-Reply-To`.
+  ///
+  /// Build one with [createMessageId]. Left unset, Zonai picks it: the
+  /// [thread] header when there is a thread, otherwise the mail library's.
+  final String? messageId;
+
+  /// The `Message-ID` of the message this one answers -- any message, such as
+  /// one a client sent the app.
+  ///
+  /// Setting this or [references] replaces the `In-Reply-To` and
+  /// `References` that [thread] would set. Angle brackets are optional.
+  final String? inReplyTo;
+
+  /// The `Message-ID`s of the conversation so far, oldest first.
+  ///
+  /// When empty and [inReplyTo] is set, `References` is just [inReplyTo].
+  /// When set without [inReplyTo], `In-Reply-To` is the last one.
+  final List<String> references;
+
+  /// A plain-text alternative to the HTML [template], sent as-is.
+  ///
+  /// It is not rendered against [variables] and [preheader] is not added to
+  /// it: the preheader is already the inbox snippet through the HTML, and a
+  /// client that prefers the text part would show it twice.
+  final String? text;
+
   Map<String, dynamic> toJson() => {
     'to': to.toJson(),
     'from': from?.toJson(),
@@ -65,6 +161,11 @@ class Email {
     'variables': jsonDecode(jsonEncode(variables)),
     'thread': ?thread,
     'preheader': ?preheader,
+    'replyTo': ?replyTo?.toJson(),
+    'messageId': ?messageId,
+    'inReplyTo': ?inReplyTo,
+    if (references.isNotEmpty) 'references': references,
+    'text': ?text,
   };
 }
 

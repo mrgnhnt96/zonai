@@ -2668,13 +2668,40 @@ const kSwaggerJson = r'''{
           "thread": {
             "type": "string",
             "nullable": true
+          },
+          "replyTo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EmailAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "messageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "inReplyTo": {
+            "type": "string",
+            "nullable": true
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
           "to",
           "subject",
           "template",
-          "variables"
+          "variables",
+          "references"
         ]
       },
       "EmailAddress": {
@@ -5557,11 +5584,29 @@ components:
         thread:
           type: string
           nullable: true
+        replyTo:
+          allOf:
+            - $ref: '#/components/schemas/EmailAddress'
+          nullable: true
+        messageId:
+          type: string
+          nullable: true
+        inReplyTo:
+          type: string
+          nullable: true
+        references:
+          type: array
+          items:
+            type: string
+        text:
+          type: string
+          nullable: true
       required:
         - to
         - subject
         - template
         - variables
+        - references
     EmailAddress:
       type: object
       properties:
