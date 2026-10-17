@@ -139,6 +139,14 @@ void main() {
       expect(server.objects, isEmpty);
     });
 
+    // What `_photoRedirect` puts after `publicBaseUrl`.
+    test('encodes for a URL under forward slashes', () {
+      expect(
+        BucketPhotoStorage.encodeObjectKey(r'posts\a b.jpg'),
+        'posts/a%20b.jpg',
+      );
+    });
+
     test('is presigned under forward slashes', () {
       final url = storage.presignedGetUrl(
         r'posts\a.jpg',
