@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**`WebhookSignature` verifies Svix-signed webhooks.** Resend, Clerk and Svix
+sign deliveries the [Standard Webhooks](https://www.standardwebhooks.com) way:
+HMAC-SHA256 over `id.timestamp.body`, keyed by a base64 `whsec_…` secret.
+`WebhookSignature(secret).check(body, headers)` reads the `svix-*` or
+`webhook-*` headers, refuses a timestamp more than five minutes off either way
+(`tolerance:` changes it), accepts any one of several `v1` signatures during a
+secret rotation and compares in constant time. It returns why a delivery failed
+(`WebhookSignatureFailure`), `isValid` answers yes or no, and `verify` throws
+`WebhookSignatureException`.
+
 ## 0.8.0
 
 **Photos can live in an S3-compatible bucket.** `PhotosConfig.storage` takes a
