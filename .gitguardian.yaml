@@ -1,0 +1,9 @@
+# Test fixtures configure their own throwaway servers, and AppConfig refuses a
+# jwtSecret or passwordSecret that isn't long and varied, so the test trees are
+# full of made-up secrets that only sign tokens for temp databases. See #36 and #91.
+version: 2
+secret:
+  ignored_paths:
+    - "apps/*/test/**"
+    - "libs/*/test/**"
+    - "e2e/**"
