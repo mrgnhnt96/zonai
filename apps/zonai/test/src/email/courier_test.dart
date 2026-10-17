@@ -195,40 +195,8 @@ void main() {
     Future<({bool delivered, Object? error})> sendTo({
       required bool allowInsecure,
     }) async {
-      final catcher = await _PlainSmtpCatcher.start();
-      Object? error;
-      try {
-        await _capturingLog(
-          config: AppConfig(
-            appName: 'Test App',
-            passwordSecret: 'password-secret',
-            jwtSecret: 'jwt-secret',
-            email: EmailConfig(
-              host: InternetAddress.loopbackIPv4.address,
-              port: catcher.port,
-              username: '',
-              password: '',
-              from: const EmailAddress(address: 'noreply@example.com'),
-              allowInsecure: allowInsecure,
-            ),
-          ),
-          fs: () => MemoryFileSystem()
-            ..directory('lib/src/email_templates').createSync(recursive: true)
-            ..file(
-              'lib/src/email_templates/reset_password.html',
-            ).writeAsStringSync('<p>{{appName}}</p>'),
-          () async {
-            try {
-              await courier.send(_email);
-            } on Object catch (e) {
-              error = e;
-            }
-          },
-        );
-      } finally {
-        await catcher.close();
-      }
-      return (delivered: catcher.delivered, error: error);
+      final result = await _sendToCatcher(_email, allowInsecure: allowInsecure);
+      return (delivered: result.delivered, error: result.error);
     }
 
     test('delivers to a plain catcher when allowInsecure is set', () async {
@@ -245,6 +213,210 @@ void main() {
       expect(result.delivered, false);
     });
   });
+
+  // Read off the wire rather than off `Message.headers`: mailer renders any
+  // string with an `@` as an address, so what reaches the catcher is the only
+  // thing worth asserting on.
+  group('reply headers', () {
+    Future<String> sent(Email email) async {
+      final result = await _sendToCatcher(email, allowInsecure: true);
+      expect(result.error, isNull);
+      return result.data;
+    }
+
+    String? header(String data, String name) {
+      final prefix = '${name.toLowerCase()}: ';
+      for (final line in const LineSplitter().convert(data)) {
+        if (line.toLowerCase().startsWith(prefix)) {
+          return line.substring(prefix.length);
+        }
+      }
+      return null;
+    }
+
+    test('a reply names the client message, not the synthetic root', () async {
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          thread: 'booking:42',
+          replyTo: EmailAddress(address: 'inbox@example.com', name: 'Inbox'),
+          messageId: 'ours.1@example.com',
+          inReplyTo: '<theirs@client.example.org>',
+          references: ['<first@example.com>', '<theirs@client.example.org>'],
+        ),
+      );
+
+      expect(header(data, 'Reply-To'), 'Inbox <inbox@example.com>');
+      expect(header(data, 'Message-ID'), '<ours.1@example.com>');
+      expect(header(data, 'In-Reply-To'), '<theirs@client.example.org>');
+      expect(
+        header(data, 'References'),
+        '<first@example.com> <theirs@client.example.org>',
+      );
+    });
+
+    test('References falls back to In-Reply-To', () async {
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          inReplyTo: 'theirs@client.example.org',
+        ),
+      );
+
+      expect(header(data, 'In-Reply-To'), '<theirs@client.example.org>');
+      expect(header(data, 'References'), '<theirs@client.example.org>');
+    });
+
+    test('In-Reply-To falls back to the last of References', () async {
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          references: ['<a@example.com>', '<b@example.com>'],
+        ),
+      );
+
+      expect(header(data, 'In-Reply-To'), '<b@example.com>');
+      expect(header(data, 'References'), '<a@example.com> <b@example.com>');
+    });
+
+    test('In-Reply-To closes References when the caller left it off', () async {
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          inReplyTo: '<b@example.com>',
+          references: ['<a@example.com>'],
+        ),
+      );
+
+      expect(header(data, 'References'), '<a@example.com> <b@example.com>');
+    });
+
+    // mailer lowercases the domain of any `@` header it is handed as a
+    // string; message-ids are compared as written.
+    test('message-ids go out exactly as given', () async {
+      const outlook = '<AM0PR10MB@EURPRD10.PROD.OUTLOOK.COM>';
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Re: Booking',
+          template: 'reset_password',
+          messageId: '<Ours.1@Example.COM>',
+          inReplyTo: outlook,
+          references: ['<First@Client.Example>', outlook],
+        ),
+      );
+
+      expect(header(data, 'Message-ID'), '<Ours.1@Example.COM>');
+      expect(header(data, 'In-Reply-To'), outlook);
+      expect(header(data, 'References'), '<First@Client.Example> $outlook');
+    });
+
+    // The control: without the new fields the thread headers are unchanged.
+    test('a thread continuation still points at its synthetic root', () async {
+      final data = await sent(
+        Email(
+          to: const EmailAddress(address: 'user@example.com'),
+          subject: 'Code',
+          template: 'reset_password',
+          thread: Email.createThread('otp:users:x', continueThread: true),
+        ),
+      );
+
+      expect(header(data, 'In-Reply-To'), startsWith('<thread.'));
+      expect(header(data, 'Reply-To'), isNull);
+    });
+
+    test('a text part makes the message multipart/alternative', () async {
+      final data = await sent(
+        const Email(
+          to: EmailAddress(address: 'user@example.com'),
+          subject: 'Hi',
+          template: 'reset_password',
+          preheader: 'PREHEADER-LINE',
+          text: 'PLAIN-BODY',
+        ),
+      );
+
+      expect(data, contains('multipart/alternative'));
+      final parts = _decodedParts(data);
+      expect(parts['text/plain'], contains('PLAIN-BODY'));
+      // The preheader lives in the HTML's hidden block only.
+      expect(parts['text/plain'], isNot(contains('PREHEADER-LINE')));
+      expect(parts['text/html'], contains('PREHEADER-LINE'));
+    });
+
+    test('without a text part the message stays HTML only', () async {
+      final data = await sent(_email);
+
+      expect(data, isNot(contains('multipart/alternative')));
+      expect(data, isNot(contains('text/plain')));
+    });
+  });
+}
+
+/// The decoded body of each base64 part in [data], keyed by content type.
+Map<String, String> _decodedParts(String data) {
+  final parts = <String, String>{};
+  final part = RegExp(
+    r'content-type: ([\w/]+);[^\n]*\ncontent-transfer-encoding: base64\n\n([A-Za-z0-9+/=\n]+?)\n\n',
+  );
+  for (final match in part.allMatches(data)) {
+    final body = match.group(2)!.replaceAll('\n', '');
+    parts[match.group(1)!] = utf8.decode(base64.decode(body));
+  }
+  return parts;
+}
+
+Future<({bool delivered, String data, Object? error})> _sendToCatcher(
+  Email email, {
+  required bool allowInsecure,
+}) async {
+  final catcher = await _PlainSmtpCatcher.start();
+  Object? error;
+  try {
+    await _capturingLog(
+      config: AppConfig(
+        appName: 'Test App',
+        passwordSecret: 'password-secret',
+        jwtSecret: 'jwt-secret',
+        email: EmailConfig(
+          host: InternetAddress.loopbackIPv4.address,
+          port: catcher.port,
+          username: '',
+          password: '',
+          from: const EmailAddress(address: 'noreply@example.com'),
+          allowInsecure: allowInsecure,
+        ),
+      ),
+      fs: () => MemoryFileSystem()
+        ..directory('lib/src/email_templates').createSync(recursive: true)
+        ..file(
+          'lib/src/email_templates/reset_password.html',
+        ).writeAsStringSync('<p>{{appName}}</p>{{preheader}}'),
+      () async {
+        try {
+          await courier.send(email);
+        } on Object catch (e) {
+          error = e;
+        }
+      },
+    );
+  } finally {
+    await catcher.close();
+  }
+  return (
+    delivered: catcher.delivered,
+    data: catcher.data.toString(),
+    error: error,
+  );
 }
 
 /// Just enough SMTP to take one message: no TLS, no AUTH.
@@ -261,6 +433,7 @@ class _PlainSmtpCatcher {
 
   final ServerSocket _server;
   var delivered = false;
+  final data = StringBuffer();
 
   int get port => _server.port;
 
@@ -277,6 +450,8 @@ class _PlainSmtpCatcher {
             inData = false;
             delivered = true;
             reply('250 OK');
+          } else {
+            data.writeln(line);
           }
           continue;
         }

@@ -76,14 +76,20 @@ class _Send {
       )
       ..recipients.add(Address(email.to.address, email.to.name))
       ..subject = email.subject
-      // HTML only -- no `..text`, so this is not multipart/alternative. If a
-      // plaintext alternative is ever added, `Email.preheader` must stay OUT of
-      // it: it is already the inbox snippet via the hidden block in the HTML,
-      // and clients that prefer the text part would then show it twice.
+      // `Email.text` goes out as written, so it is multipart/alternative only
+      // when the caller supplies one. `Email.preheader` must stay OUT of it:
+      // it is already the inbox snippet via the hidden block in the HTML, and
+      // clients that prefer the text part would then show it twice.
+      ..text = email.text
       ..html = _EmailContent(email, config).html();
+
+    if (email.replyTo case final replyTo?) {
+      message.headers['Reply-To'] = Address(replyTo.address, replyTo.name);
+    }
 
     final fromAddress = email.from?.address ?? emailConfig.from.address;
     _applyThreadHeaders(message, email, fromAddress);
+    _applyReplyHeaders(message, email);
 
     // An empty username means "no credentials", which is how the docs set up
     // a local catcher. mailer takes `''` as a username to log in with, and
@@ -121,6 +127,30 @@ class _Send {
     } else {
       message.headers['Message-ID'] = root;
     }
+  }
+
+  /// Lets the caller's own ids win over what [_applyThreadHeaders] derived
+  /// from `Email.thread`, which only ever threads onto Zonai's synthetic root.
+  /// A reply to a client's own mail has to name the client's `Message-ID`.
+  void _applyReplyHeaders(Message message, Email email) {
+    if (email.messageId case final id?) {
+      message.headers['Message-ID'] = _MessageIds(Email.messageIdHeader(id));
+    }
+
+    final references = [
+      for (final id in email.references) Email.messageIdHeader(id),
+    ];
+    final inReplyTo = switch (email.inReplyTo) {
+      final id? => Email.messageIdHeader(id),
+      null => references.lastOrNull,
+    };
+    if (inReplyTo == null) return;
+
+    // References ends with the message being answered (RFC 5322 3.6.4).
+    if (references.lastOrNull != inReplyTo) references.add(inReplyTo);
+
+    message.headers['In-Reply-To'] = _MessageIds(inReplyTo);
+    message.headers['References'] = _MessageIds(references.join(' '));
   }
 
   String _threadRootMessageId({
@@ -163,4 +193,18 @@ class _EmailContent {
     emailTemplatesPath: settings.emailTemplatesPath,
     preheader: email.preheader,
   );
+}
+
+/// One or more message-ids, written to the header exactly as given.
+///
+/// mailer only accepts a header value containing `@` as an address. A plain
+/// string is lowercased and IDNA-encoded on its last domain, and a list is
+/// joined with commas. Message-ids are compared as written, so an Outlook id
+/// such as `<AM0PR@EURPRD10.PROD.OUTLOOK.COM>` has to go out unchanged, and
+/// References has to stay space-separated.
+class _MessageIds extends Address {
+  _MessageIds(super.mailAddress);
+
+  @override
+  String get encodedAddress => mailAddress;
 }
