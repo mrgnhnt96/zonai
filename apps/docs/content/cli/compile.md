@@ -30,6 +30,7 @@ from the project root on its own. See
 - `db_extensions` — extensions worker
 - `db_rate_limit` — rate limit worker
 - `db_crons` — crons worker
+- `db_webhooks` — webhooks worker
 
 ## When to Use Manually
 

@@ -289,7 +289,7 @@ const List<NavGroup> navigation = [
   NavGroup(
     'Background Jobs',
     icon: NavIcons.clock,
-    summary: 'Cron-scheduled work with full database access.',
+    summary: 'Cron-scheduled work and inbound webhooks, with full database access.',
     items: [
       NavItem('Overview', '/cron-jobs/overview', summary: 'How scheduled jobs are compiled and run.'),
       NavItem('Defining a Job', '/cron-jobs/defining-a-job'),
@@ -300,6 +300,11 @@ const List<NavGroup> navigation = [
       ),
       NavItem('Side Effects', '/cron-jobs/side-effects'),
       NavItem('Running Manually', '/cron-jobs/running-manually'),
+      NavItem(
+        'Webhooks',
+        '/webhooks/overview',
+        summary: 'Receive third-party callbacks at POST /hooks/<name>.',
+      ),
     ],
   ),
   NavGroup(

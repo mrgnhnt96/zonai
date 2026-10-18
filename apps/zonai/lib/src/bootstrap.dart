@@ -23,6 +23,7 @@ import 'package:zonai/src/deps/schema_version_check.dart';
 import 'package:zonai/src/deps/rate_limiter.dart';
 import 'package:zonai/src/deps/rate_limits.dart';
 import 'package:zonai/src/deps/crons.dart';
+import 'package:zonai/src/deps/webhooks.dart';
 import 'package:zonai/src/deps/rules.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/stdin.dart';
@@ -88,6 +89,7 @@ Future<void> runZonai(List<String> arguments) async {
       rulesProvider,
       rateLimitsProvider,
       cronsProvider,
+      webhooksProvider,
       rateLimiterProvider,
       configProvider,
       configResolverProvider,

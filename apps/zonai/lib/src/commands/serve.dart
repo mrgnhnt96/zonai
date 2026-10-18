@@ -21,6 +21,7 @@ import '../deps/migrate.dart';
 import '../deps/operations.dart';
 import '../deps/rate_limits.dart';
 import '../deps/crons.dart';
+import '../deps/webhooks.dart';
 import '../deps/revali.dart';
 import '../deps/rules.dart';
 import '../native/resqlite_native.dart';
@@ -105,6 +106,7 @@ void _compileWorkers() {
     catchErrors(rules.compile);
     catchErrors(rateLimitsCompiler.compile);
     catchErrors(cronsCompiler.compile);
+    catchErrors(webhooksCompiler.compile);
     catchErrors(config.compile);
   });
 }
@@ -132,6 +134,7 @@ Future<int> _startServing() async {
   rules.watch();
   rateLimitsCompiler.watch();
   cronsCompiler.watch();
+  webhooksCompiler.watch();
   config.watch();
   operations.watch();
   env.watch(_compileWorkers);

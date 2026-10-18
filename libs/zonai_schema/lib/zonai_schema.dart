@@ -124,4 +124,5 @@ export 'src/types/column_shape_kind.dart';
 export 'src/types/schema_shape.dart';
 export 'src/schema_shape_from_table.dart';
 export 'src/update/update.dart';
+export 'src/webhooks/webhook.dart';
 export 'src/webhooks/webhook_signature.dart';

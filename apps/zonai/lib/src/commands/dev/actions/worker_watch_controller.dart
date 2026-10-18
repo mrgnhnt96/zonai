@@ -5,6 +5,7 @@ import 'package:watcher/watcher.dart';
 import '../../../deps/args.dart';
 import '../../../deps/config.dart';
 import '../../../deps/crons.dart';
+import '../../../deps/webhooks.dart';
 import '../../../deps/extensions.dart';
 import '../../../deps/fs.dart';
 import '../../../deps/operations.dart';
@@ -56,6 +57,7 @@ class WorkerWatchController {
       rateLimitsCompiler.compile,
     );
     _watchPath(settings.cronsPath, 'crons', cronsCompiler.compile);
+    _watchPath(settings.webhooksPath, 'webhooks', webhooksCompiler.compile);
     _watchPath(settings.configPath, 'config', config.compile);
   }
 
@@ -79,6 +81,11 @@ class WorkerWatchController {
         showSuccess: showSuccess,
       ),
       _runCompile('crons', cronsCompiler.compile, showSuccess: showSuccess),
+      _runCompile(
+        'webhooks',
+        webhooksCompiler.compile,
+        showSuccess: showSuccess,
+      ),
       _runCompile('config', config.compile, showSuccess: showSuccess),
     ]);
   }

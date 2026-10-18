@@ -18,6 +18,8 @@ import 'package:zonai/src/deps/operations.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/rate_limits.dart';
 import 'package:zonai/src/deps/rules.dart';
+import 'package:zonai/src/deps/webhooks.dart';
+import 'package:zonai/src/domain/webhook/webhooks.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/config/config.dart';
 import 'package:zonai/src/domain/cron/crons.dart';
@@ -30,7 +32,7 @@ import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai/src/utils/args.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
-/// The six workers, in the order `compile` fans them out, paired with the
+/// The seven workers, in the order `compile` fans them out, paired with the
 /// generated entrypoint each one hands to `dart compile exe`. Keying the fake
 /// process off the entrypoint is what lets a single run fail some workers and
 /// not others.
@@ -40,6 +42,7 @@ const _workers = {
   'rules': 'db_rules.dart',
   'rate limits': 'db_rate_limit.dart',
   'crons': 'db_crons.dart',
+  'webhooks': 'db_webhooks.dart',
   'config': 'db_config.dart',
 };
 
@@ -63,6 +66,7 @@ void main() {
       _settings.rulesPath,
       _settings.rateLimitPath,
       _settings.cronsPath,
+      _settings.webhooksPath,
       _settings.configPath,
       _settings.schemasPath,
     ]) {
@@ -93,6 +97,7 @@ void main() {
       rulesProvider.overrideWith(Rules.new),
       rateLimitsProvider.overrideWith(RateLimitsCompiler.new),
       cronsProvider.overrideWith(CronsCompiler.new),
+      webhooksProvider.overrideWith(WebhooksCompiler.new),
       configProvider.overrideWith(Config.new),
       executableStopProvider,
       cleanUpProvider,
@@ -100,7 +105,7 @@ void main() {
     },
   );
 
-  test('exits 0 when all six workers compile cleanly', () async {
+  test('exits 0 when all seven workers compile cleanly', () async {
     expect(await runCompile(), 0);
     expect(
       logger.errors,
@@ -131,8 +136,8 @@ void main() {
     expect(logger.errors, contains(contains('Failed to compile: crons')));
   });
 
-  // The whole point of keeping the `Future.wait` fan-out: fixing six broken
-  // workers should cost one `zonai compile`, not six.
+  // The whole point of keeping the `Future.wait` fan-out: fixing seven broken
+  // workers should cost one `zonai compile`, not seven.
   test('names every failing worker, not just the first', () async {
     process.analyzeExitCodes[_settings.operationsPath] = 2;
     process.compileExitCodes['db_extensions.dart'] = 5;

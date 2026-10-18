@@ -24,7 +24,7 @@ build/
 ├── zonai                        # Server + CLI (zonai.exe for a Windows target)
 ├── zonai.yaml                   # Copy of your settings file (host, port, paths)
 ├── .zonai/
-│   ├── executables/             # Worker binaries (config, rules, operations, extensions, rate limits, crons)
+│   ├── executables/             # Worker binaries (config, rules, operations, extensions, rate limits, crons, webhooks)
 │   ├── migrations/              # SQL migrations (<migrationsPath>)
 │   ├── data/images/             # favicon.ico / logo.png, if present (<imagesPath>)
 │   └── lib/                     # Target's native libraries (cross-compiled builds only)
@@ -46,7 +46,7 @@ The OpenAPI spec and the `/db/stream*` live-stream routes are built into the ser
 
 | | Development (default) | `--release` |
 | --- | --- | --- |
-| Worker compile | `--enable-asserts` — `assert(...)` in your config, rules, extensions, operations, rate limits and crons runs | No asserts |
+| Worker compile | `--enable-asserts` — `assert(...)` in your config, rules, extensions, operations, rate limits, crons and webhooks runs | No asserts |
 | `serve` file watchers / recompiling | On — edits recompile workers | Off — serves the binaries already built |
 | `serve` keyboard shortcuts (`c`, `m`, `p`, `r`, `q`) | On | Off |
 | Generating migrations from schema changes | On | Off |

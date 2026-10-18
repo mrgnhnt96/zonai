@@ -172,6 +172,9 @@
     <loc>https://docs.zonai.dev/cron-jobs/running-manually/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/webhooks/overview/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/email/smtp-setup/</loc>
   </url>
   <url>

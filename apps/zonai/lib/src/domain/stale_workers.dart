@@ -2,6 +2,7 @@ import 'package:file/file.dart';
 
 import '../deps/config.dart';
 import '../deps/crons.dart';
+import '../deps/webhooks.dart';
 import '../deps/env.dart';
 import '../deps/extensions.dart';
 import '../deps/fs.dart';
@@ -77,6 +78,12 @@ List<WorkerSources> serveWorkers() {
       executablePath: settings.compiledCronsPath,
       sourcePaths: [settings.cronsPath, ...shared],
       compile: () => cronsCompiler.compile(),
+    ),
+    WorkerSources(
+      name: 'webhooks',
+      executablePath: settings.compiledWebhooksPath,
+      sourcePaths: [settings.webhooksPath, ...shared],
+      compile: () => webhooksCompiler.compile(),
     ),
     WorkerSources(
       name: 'config',

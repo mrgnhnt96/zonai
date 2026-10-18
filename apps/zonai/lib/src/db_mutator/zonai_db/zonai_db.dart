@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' show sha256;
@@ -39,6 +40,7 @@ import 'package:zonai/src/domain/photo_storage/s3_signer.dart';
 import 'package:zonai/src/domain/photo_view.dart';
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
+import 'package:zonai_schema/src/handlers/webhooks/webhook_message.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
 import 'package:zonai_schema/src/internal/tables/anonymous_credential_table.dart';
@@ -65,6 +67,7 @@ import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
+import 'package:zonai/src/messengers/webhook_mailman.dart';
 import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwks_idp_verifier.dart';
@@ -123,6 +126,7 @@ part 'parts/create.dart';
 part 'parts/custom.dart';
 part 'parts/dashboard_metrics.dart';
 part 'parts/run_cron_job.dart';
+part 'parts/run_webhook.dart';
 part 'parts/list_cron_jobs.dart';
 part 'parts/delete.dart';
 part 'parts/effects.dart';
@@ -1166,6 +1170,19 @@ class ZonaiDb {
 
   Future<void> runCronJob({required Jwt jwt, required String name}) async {
     return await _run(() => _runCronJob(jwt: jwt, name: name));
+  }
+
+  /// Runs the app's webhook called [name] on one `POST /hooks/:name`
+  /// delivery. [HandleWebhookResponse.found] is false when there is none.
+  Future<HandleWebhookResponse> runWebhook({
+    required String name,
+    required Uint8List body,
+    required Map<String, String> headers,
+    required String ip,
+  }) async {
+    return await _run(
+      () => _runWebhook(name: name, body: body, headers: headers, ip: ip),
+    );
   }
 
   Future<List<String>> listCronJobs({required Jwt jwt}) async {

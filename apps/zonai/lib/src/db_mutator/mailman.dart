@@ -17,6 +17,7 @@ import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rate_limit_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
+import 'package:zonai/src/messengers/webhook_mailman.dart';
 import 'package:zonai/src/push/push_caller.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 import 'package:zonai_schema/src/types/built_in_emails.dart';
@@ -227,6 +228,11 @@ class Mailman<S extends Request, R extends Response> {
             'Add Dart files under ${settings.cronsPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
             'See https://docs.zonai.dev/cron-jobs/defining-a-job',
+      WebhookMailman.debug =>
+        'Webhooks worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.webhooksPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See https://docs.zonai.dev/webhooks/overview',
       _ =>
         'Worker is not compiled ($executablePath).\n'
             'Run `zonai serve` (or press c while serving) to compile workers.',

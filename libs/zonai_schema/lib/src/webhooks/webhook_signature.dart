@@ -40,7 +40,9 @@ class WebhookSignatureException implements Exception {
 /// `svix-signature`, or the `webhook-*` names; either set is read.
 ///
 /// ```dart
-/// final signature = WebhookSignature(env['RESEND_WEBHOOK_SECRET']!);
+/// final signature = WebhookSignature(
+///   Platform.environment['RESEND_WEBHOOK_SECRET']!,
+/// );
 ///
 /// if (!signature.isValid(bodyBytes, headers)) {
 ///   // answer 401
