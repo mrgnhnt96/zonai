@@ -119,6 +119,29 @@ void main() {
     test('buckets on a reserved constant, not the caller-picked name', () {
       expect(WebhookRateLimit.kWebhookBucket, startsWith('__'));
     });
+
+    // `.revali/` is gitignored, so this skips on a clean CI runner; see
+    // oauth_rate_limit_test.dart. `e2e/webhook_http_e2e_test.dart` in
+    // apps/zonai checks the 429 itself.
+    final route = File('.revali/server/routes/__hooks_route.dart');
+    test(
+      'is attached to POST hooks/:name in the generated route table',
+      () {
+        final source = route.readAsStringSync();
+        final match = RegExp(
+          r"Route\(\s*':name',(.*?)handler:",
+          dotAll: true,
+        ).firstMatch(source);
+
+        expect(match, isNotNull, reason: 'no :name route in ${route.path}');
+        expect(match!.group(1), contains('WebhookRateLimitGuard'));
+        expect(match.group(1), contains("method: 'POST'"));
+      },
+      skip: route.existsSync()
+          ? null
+          : 'no generated server here -- run `sip run server gen` (this '
+                'assertion is skipped, not passed)',
+    );
   });
 }
 
