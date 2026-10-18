@@ -26,6 +26,7 @@ import '../controllers/root_controller.dart';
 /// correlating the id the client was already given.
 const _forbidden = 'Forbidden';
 const _notFound = 'Not found';
+const _serviceUnavailable = 'Service unavailable';
 
 final class Exceptions implements LifecycleComponent {
   const Exceptions();
@@ -62,15 +63,18 @@ final class Exceptions implements LifecycleComponent {
     return .handled(statusCode: 429, body: {'error': 'Rate limit exceeded'});
   }
 
+  /// Names the worker binary's path on the server's disk.
   ExceptionCatcherResult<ExecutableUnavailableException>
   onExecutableUnavailable(ExecutableUnavailableException exception) {
-    return .handled(statusCode: 503, body: {'error': exception.error});
+    return _suppressed(exception, statusCode: 503, error: _serviceUnavailable);
   }
 
+  /// Carries the worker's stderr and cause -- app code's error text, which
+  /// any caller of an unauthenticated route such as `/hooks` could read.
   ExceptionCatcherResult<WorkerProcessFailedException> onWorkerFailed(
     WorkerProcessFailedException exception,
   ) {
-    return .handled(statusCode: 503, body: {'error': '$exception'});
+    return _suppressed(exception, statusCode: 503, error: _serviceUnavailable);
   }
 
   /// A full write queue, refused before any work was done.
