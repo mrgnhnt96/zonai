@@ -31,7 +31,7 @@ Future<int> compile([BuildSettings? buildSettings]) async {
 
   // Still a fan-out, and deliberately so: every broken worker should be named
   // in one run rather than the user fixing them one command at a time. So the
-  // exit codes are collected after all six have finished, not short-circuited
+  // exit codes are collected after all seven have finished, not short-circuited
   // on the first failure.
   final results = await Future.wait([
     operations.compile(buildSettings: buildSettings),
@@ -39,6 +39,7 @@ Future<int> compile([BuildSettings? buildSettings]) async {
     rules.compile(buildSettings: buildSettings),
     rateLimitsCompiler.compile(buildSettings: buildSettings),
     cronsCompiler.compile(buildSettings: buildSettings),
+    webhooksCompiler.compile(buildSettings: buildSettings),
     config.compile(buildSettings: buildSettings),
   ]);
 
@@ -48,7 +49,7 @@ Future<int> compile([BuildSettings? buildSettings]) async {
   ];
 
   if (failed.isNotEmpty) {
-    // The six workers compile in parallel, so their stderr is interleaved and
+    // The seven workers compile in parallel, so their stderr is interleaved and
     // scrolled well off screen by now. This line is the only place that says
     // which ones actually failed.
     logger.error(
@@ -81,6 +82,7 @@ const _workerNames = [
   'rules',
   'rate limits',
   'crons',
+  'webhooks',
   'config',
 ];
 

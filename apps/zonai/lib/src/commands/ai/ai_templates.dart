@@ -22,7 +22,7 @@ code) and `zonai_client` (apps) are the pub.dev packages.
 
 **Runtime model**: your sources compile into workers under
 `.zonai/executables/` (`db_operations`, `db_rules`, `db_extensions`,
-`db_rate_limit`, `db_crons`, `db_config`), which the server calls over IPC
+`db_rate_limit`, `db_crons`, `db_webhooks`, `db_config`), which the server calls over IPC
 (framed MessagePack). A project scaffolded by `zonai dev` depends only on
 `zonai_schema`, so **everything runs as workers** and `build/zonai` is the
 published binary. Only a project that itself depends on `package:zonai` gets a
@@ -59,6 +59,7 @@ my_app/
     extensions/           # optional lifecycle hooks (create/update/delete/auth)
     rate_limit/           # optional per-operation request throttling
     crons/                # optional scheduled background jobs
+    webhooks/             # optional third-party callbacks (POST /hooks/<name>)
     email_templates/      # Mustache HTML email templates
   .zonai/
     migrations/           # generated SQL — commit it
@@ -68,7 +69,7 @@ my_app/
 
 Every `.dart` file under these directories is picked up automatically.
 **Every file except schemas needs a top-level `main()` returning its object**
-(rules, operations, extensions, rate limits, crons, config) — a file without
+(rules, operations, extensions, rate limits, crons, webhooks, config) — a file without
 one fails to load. One table-rules, row-rules, extension, and rate-limit class
 per table; a second one for the same table throws "... already registered".
 
@@ -85,6 +86,7 @@ operationsPath: lib/src/operations
 extensionsPath: lib/src/extensions
 rateLimitPath:  lib/src/rate_limit
 cronsPath:      lib/src/crons
+webhooksPath:   lib/src/webhooks
 host: localhost             # default; binds 127.0.0.1 only — 0.0.0.0 to expose
 port: 8080
 ```
@@ -714,6 +716,45 @@ Cron jobs access the same `get`, `mutate`, `email`, `push`, `logger` globals as
 extensions, all acting as `CronJwt` (internal admin identity with edit access;
 `get` defaults to it too). Run one on demand with `j` in `./zonai dev` or
 `POST /crons/run?name=<name>` with an admin JWT.
+
+---
+
+## Webhooks
+
+Third-party callbacks (Resend, Stripe, ...) at `POST /hooks/<name>`, one file per
+webhook under `webhooksPath` (`lib/src/webhooks`), each returning a `Webhook`
+via `main()`. The route takes **no token** -- check the sender yourself:
+
+```dart
+import 'dart:io';
+
+import 'package:zonai_schema/zonai_schema.dart';
+
+final class ResendWebhook extends Webhook {
+  const ResendWebhook() : super(name: 'resend');
+
+  @override
+  Future<WebhookResponse> handle(WebhookRequest request) async {
+    final signature = WebhookSignature(
+      Platform.environment['RESEND_WEBHOOK_SECRET']!,
+    );
+    if (!signature.isValid(request.body, request.headers)) {
+      return const WebhookResponse(401);
+    }
+    mutate.create.one(tableName: 'email_events', object: {'payload': request.text});
+    return const WebhookResponse.ok();
+  }
+}
+
+ResendWebhook main() => const ResendWebhook();
+```
+
+`request.body` is the exact bytes (verify against it, never re-encoded `json`),
+`headers` are lower-cased, `ip` is the caller. Same globals and `CronJwt`
+identity as crons. Writes commit after `handle` returns and are dropped if it
+throws (`500`) or takes over 10 s (`503`); emails send immediately. An unknown
+name is a `404`; all webhooks share a per-IP rate limit. Workers only, never in
+the generated client.
 
 ---
 

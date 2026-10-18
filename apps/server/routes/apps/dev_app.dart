@@ -18,6 +18,7 @@ import 'package:zonai_server/src/handlers/email_handler.dart';
 import 'package:zonai_server/src/handlers/maintenance_handler.dart';
 import 'package:zonai_server/src/handlers/photo_handler.dart';
 import 'package:zonai_server/src/handlers/push_handler.dart';
+import 'package:zonai_server/src/handlers/webhook_handler.dart';
 
 import '../components/exception_catcher.dart';
 
@@ -182,6 +183,7 @@ final class DevApp extends AppConfig {
     di.registerFactory(EmailHandler.new);
     di.registerFactory(PhotoHandler.new);
     di.registerFactory(PushHandler.new);
+    di.registerFactory(WebhookHandler.new);
   }
 
   @override

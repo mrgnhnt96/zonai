@@ -24,7 +24,7 @@ Full walkthrough: https://docs.zonai.dev/getting-started/quick-start
 ## Critical facts for agents
 
 - **Package split**: `zonai_schema` (pub.dev) is what the server project is written against: tables, rules, operations, and hooks. `zonai_client` (pub.dev) is for apps that call the server. The `zonai` CLI/server is a GitHub Releases binary, **not** a pub package. Its version is pinned by `version:` in `zonai.yaml`, and `./zonai version update` moves both.
-- **Runtime**: your sources compile into workers under `.zonai/executables/` (config, rules, operations, extensions, rate limits, crons), which the server calls over IPC (MessagePack). Operations and rules run in-process only when the project itself depends on `package:zonai`. A project scaffolded by `zonai dev` depends only on `zonai_schema`, so its `build/zonai` is the published binary and everything runs as workers. Pipeline: Rate limit → Rules → Operations → SQLite → Extensions → Response.
+- **Runtime**: your sources compile into workers under `.zonai/executables/` (config, rules, operations, extensions, rate limits, crons, webhooks), which the server calls over IPC (MessagePack). Operations and rules run in-process only when the project itself depends on `package:zonai`. A project scaffolded by `zonai dev` depends only on `zonai_schema`, so its `build/zonai` is the published binary and everything runs as workers. Pipeline: Rate limit → Rules → Operations → SQLite → Extensions → Response.
 - **CRUD shape**: the table name goes in the JSON body (or `?body=` for GET), **never** in the URL path. Endpoints are `GET/POST/PATCH/DELETE /db`, `/db/list`, `/db/count`, `/db/many`, plus live **`/db/stream`**, `/db/stream/list`, and `/db/stream/count`. Row keys on the wire are the database column names (the first argument to `$.column(...)`), not Dart field names. IDs look like `<15 hex chars>_<suffix>`, e.g. `3f9a0c1b2d4e5f6_tk`.
 - **Live queries**: long-lived HTTP streams push a new result when matching SQLite rows change. The client API is `client.db.listen.one|list|count` with `StreamBody` / `StreamListBody` / `StreamCountBody`. Guide: https://docs.zonai.dev/operations/streaming
 - **Where filters**: the shorthand `{ "is_complete": { "eq": false } }` is accepted. The canonical wire form is `{ "type": "eq", "column": "is_complete", "value": false }`. Both work.
@@ -112,6 +112,10 @@ Full walkthrough: https://docs.zonai.dev/getting-started/quick-start
 - [Catch-Up Logic](https://docs.zonai.dev/cron-jobs/catch-up-logic)
 - [Running Jobs Manually](https://docs.zonai.dev/cron-jobs/running-manually)
 - [Side Effects in Cron Jobs](https://docs.zonai.dev/cron-jobs/side-effects)
+
+## Webhooks
+
+- [Webhooks](https://docs.zonai.dev/webhooks/overview): Unauthenticated `POST /hooks/<name>` for third-party callbacks. The handler gets the exact body bytes, headers and IP, verifies the sender with `WebhookSignature`, and writes or emails as the server.
 
 ## Rate limiting
 

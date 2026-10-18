@@ -1765,6 +1765,43 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/hooks/{name}": {
+      "post": {
+        "operationId": "hook_handle",
+        "tags": [
+          "hook"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      }
+    },
     "/img": {
       "post": {
         "operationId": "photos_create",
@@ -4977,6 +5014,29 @@ paths:
       operationId: root_health
       tags:
         - root
+      responses:
+        '200':
+          description: No content
+  '/hooks/{name}':
+    post:
+      operationId: hook_handle
+      tags:
+        - hook
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: integer
+                format: int64
       responses:
         '200':
           description: No content

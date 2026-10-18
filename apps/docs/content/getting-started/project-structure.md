@@ -22,6 +22,7 @@ my_app/
 │   ├── extensions/             # Optional. Lifecycle hooks
 │   ├── rate_limit/             # Optional. Per-table throttling
 │   ├── crons/                  # Optional. Scheduled jobs
+│   ├── webhooks/               # Optional. Third-party callbacks
 │   └── email_templates/        # Mustache HTML templates (built-ins scaffolded)
 ├── .zonai/
 │   ├── migrations/             # Generated SQL. Commit these
@@ -61,6 +62,8 @@ Every `.dart` file in these directories is picked up automatically. There is no 
 **`rate_limit/`** holds per-table throttle policies. Tables without one get the default policy.
 
 **`crons/`** holds `CronJob` subclasses run on a cron schedule.
+
+**`webhooks/`** holds `Webhook` subclasses answering `POST /hooks/<name>`. See [Webhooks](/webhooks/overview).
 
 **`email_templates/`** holds HTML with Mustache variables. Init writes the built-in templates here so you can edit them.
 

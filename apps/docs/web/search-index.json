@@ -143,7 +143,7 @@
       "g": "Start Here",
       "s": [
         {
-          "b": "This is a project right after ./zonai dev initializes it, with one table added: my_app/ ├── zonai The CLI binary (zonai.exe on Windows) ├── zonai.yaml Required. Its presence marks the project root ├── pubspec.yaml Required. Depends on zonai_schema ├── .env Optional. Compile-time secrets (gitignore it) ├── lib/src/ │ ├── ids.dart One ID type per table │ ├── schemas/ Required. Table definitions │ │ ├── admins.dart scaffolded admin auth table │ │ └── tasks.dart │ ├── config/db_config.dart Required. AppConfig: secrets, baseUrl, SMTP │ ├── rules/ Required per table. Authorization │ ├── operations/ Optional. Custom SQL │ ├── extensions/ Optional. Lifecycle hooks │ ├── rate_limit/ Optional. Per-table throttling │ ├── crons/ Optional. Scheduled jobs │ └── email_templates/ Mustache HTML templates (built-ins scaffolded) ├── .zonai/ │ ├── migrations/ Generated SQL. Commit these │ ├── executables/ Compiled workers (generated) │ └── data/ SQLite database and uploaded images └── build/ Only after zonai build. The deployable bundle"
+          "b": "This is a project right after ./zonai dev initializes it, with one table added: my_app/ ├── zonai The CLI binary (zonai.exe on Windows) ├── zonai.yaml Required. Its presence marks the project root ├── pubspec.yaml Required. Depends on zonai_schema ├── .env Optional. Compile-time secrets (gitignore it) ├── lib/src/ │ ├── ids.dart One ID type per table │ ├── schemas/ Required. Table definitions │ │ ├── admins.dart scaffolded admin auth table │ │ └── tasks.dart │ ├── config/db_config.dart Required. AppConfig: secrets, baseUrl, SMTP │ ├── rules/ Required per table. Authorization │ ├── operations/ Optional. Custom SQL │ ├── extensions/ Optional. Lifecycle hooks │ ├── rate_limit/ Optional. Per-table throttling │ ├── crons/ Optional. Scheduled jobs │ ├── webhooks/ Optional. Third-party callbacks │ └── email_templates/ Mustache HTML templates (built-ins scaffolded) ├── .zonai/ │ ├── migrations/ Generated SQL. Commit these │ ├── executables/ Compiled workers (generated) │ └── data/ SQLite database and uploaded images └── build/ Only after zonai build. The deployable bundle"
         },
         {
           "h": "What is required",
@@ -235,12 +235,12 @@
       "g": "Core Concepts",
       "s": [
         {
-          "b": "A worker is a compiled Dart native executable that handles one category of logic for the Zonai server. Workers talk to the host over IPC (framed MessagePack on stdin/stdout, with an isolate/SendPort option for ops/rules). Ops and rules can also run in-process. When your project depends on package:zonai itself, zonai serve (run from source) and zonai build produce a project-linked binary that calls your operations and authorization code in-process — no IPC hop on create/list/stream. A project scaffolded by zonai dev depends only on zonai_schema, so with the installed CLI its ops and rules run as workers like everything else. The two paths behave identically; ZONAI_FORCE_WORKERS=1 forces the worker path even when linking is possible. Config, extensions, rate limits, and crons always run as worker processes."
+          "b": "A worker is a compiled Dart native executable that handles one category of logic for the Zonai server. Workers talk to the host over IPC (framed MessagePack on stdin/stdout, with an isolate/SendPort option for ops/rules). Ops and rules can also run in-process. When your project depends on package:zonai itself, zonai serve (run from source) and zonai build produce a project-linked binary that calls your operations and authorization code in-process — no IPC hop on create/list/stream. A project scaffolded by zonai dev depends only on zonai_schema, so with the installed CLI its ops and rules run as workers like everything else. The two paths behave identically; ZONAI_FORCE_WORKERS=1 forces the worker path even when linking is possible. Config, extensions, rate limits, crons, and webhooks always run as worker processes."
         },
         {
           "h": "Worker Types",
           "a": "worker-types",
-          "b": "Worker Source Directory Responsibility Runtime rules lib/src/rules/ Authorization for each operation Worker, or in-process when linked operations lib/src/operations/ SQL generation from HTTP payloads Worker, or in-process when linked extensions lib/src/extensions/ Lifecycle hooks around mutations and auth Worker IPC rate_limit lib/src/rate_limit/ Per-IP request quotas Worker IPC crons lib/src/crons/ Scheduled background jobs Worker IPC config lib/src/config/ App-wide settings (JWT, SMTP, …) Worker IPC"
+          "b": "Worker Source Directory Responsibility Runtime rules lib/src/rules/ Authorization for each operation Worker, or in-process when linked operations lib/src/operations/ SQL generation from HTTP payloads Worker, or in-process when linked extensions lib/src/extensions/ Lifecycle hooks around mutations and auth Worker IPC rate_limit lib/src/rate_limit/ Per-IP request quotas Worker IPC crons lib/src/crons/ Scheduled background jobs Worker IPC webhooks lib/src/webhooks/ Third-party callbacks at POST /hooks/ Worker IPC config lib/src/config/ App-wide settings (JWT, SMTP, …) Worker IPC"
         },
         {
           "h": "Why Workers?",
@@ -250,7 +250,7 @@
         {
           "h": "The Compile Step",
           "a": "the-compile-step",
-          "b": "Workers compile from lib/src/ into .zonai/executables/ (build/.zonai/executables/ for zonai build). Every worker is compiled with the defines from the selected .env file — see Config Flavors. Compile all workers (and regenerate project_main) zonai compile Full deploy bundle: workers + project binary + migrations zonai build --flavor prod --release Any change to rules, operations, extensions, config, rate_limit, or crons requires recompilation. When ops/rules are linked in-process, restart zonai serve (or rebuild) so the linked entry reloads."
+          "b": "Workers compile from lib/src/ into .zonai/executables/ (build/.zonai/executables/ for zonai build). Every worker is compiled with the defines from the selected .env file — see Config Flavors. Compile all workers (and regenerate project_main) zonai compile Full deploy bundle: workers + project binary + migrations zonai build --flavor prod --release Any change to rules, operations, extensions, config, rate_limit, crons, or webhooks requires recompilation. When ops/rules are linked in-process, restart zonai serve (or rebuild) so the linked entry reloads."
         },
         {
           "h": "Hot-Reload in Development",
@@ -317,7 +317,7 @@
         {
           "h": "Path Fields",
           "a": "path-fields",
-          "b": "All paths are optional. Zonai uses sensible defaults so you only need to set a path if you deviate from the standard layout. Key Default Points To schemasPath lib/src/schemas Table definitions configPath lib/src/config AppConfig files operationsPath lib/src/operations Custom operations rulesPath lib/src/rules Authorization rules extensionsPath lib/src/extensions Lifecycle hooks rateLimitPath lib/src/rate_limit Rate limit policies cronsPath lib/src/crons Cron job definitions emailTemplatesPath lib/src/email_templates HTML email templates migrationsPath .zonai/migrations Generated SQL migration files dataPath .zonai/data SQLite database directory imagesPath /images Uploaded photo files, plus the dashboard's favicon.ico and logo.png"
+          "b": "All paths are optional. Zonai uses sensible defaults so you only need to set a path if you deviate from the standard layout. Key Default Points To schemasPath lib/src/schemas Table definitions configPath lib/src/config AppConfig files operationsPath lib/src/operations Custom operations rulesPath lib/src/rules Authorization rules extensionsPath lib/src/extensions Lifecycle hooks rateLimitPath lib/src/rate_limit Rate limit policies cronsPath lib/src/crons Cron job definitions webhooksPath lib/src/webhooks Webhook handlers emailTemplatesPath lib/src/email_templates HTML email templates migrationsPath .zonai/migrations Generated SQL migration files dataPath .zonai/data SQLite database directory imagesPath /images Uploaded photo files, plus the dashboard's favicon.ico and logo.png"
         },
         {
           "h": "Storage Fields",
@@ -362,7 +362,7 @@
         {
           "h": "Complete Example",
           "a": "complete-example",
-          "b": "version: 0.1.0 Server binding host: localhost port: 8080 Source paths (all have defaults — only set if you deviate) schemasPath: lib/src/schemas configPath: lib/src/config operationsPath: lib/src/operations rulesPath: lib/src/rules extensionsPath: lib/src/extensions rateLimitPath: lib/src/rate_limit cronsPath: lib/src/crons emailTemplatesPath: lib/src/email_templates Generated paths migrationsPath: .zonai/migrations dataPath: .zonai/data imagesPath: .zonai/data/images Optional hard ceiling on the log database (omit for no limit) logDatabaseMaxSize: 512mb Cross-compilation (omit to build for current platform) buildSettings: targetOs: linux targetArch: x64 Typed client generation (omit unless you run zonai gen client) client: output: ../app/lib/gen/zonai package: false tables: include: [_log] Minimal zonai.yaml (most projects only need this): version: 0.1.0"
+          "b": "version: 0.1.0 Server binding host: localhost port: 8080 Source paths (all have defaults — only set if you deviate) schemasPath: lib/src/schemas configPath: lib/src/config operationsPath: lib/src/operations rulesPath: lib/src/rules extensionsPath: lib/src/extensions rateLimitPath: lib/src/rate_limit cronsPath: lib/src/crons webhooksPath: lib/src/webhooks emailTemplatesPath: lib/src/email_templates Generated paths migrationsPath: .zonai/migrations dataPath: .zonai/data imagesPath: .zonai/data/images Optional hard ceiling on the log database (omit for no limit) logDatabaseMaxSize: 512mb Cross-compilation (omit to build for current platform) buildSettings: targetOs: linux targetArch: x64 Typed client generation (omit unless you run zonai gen client) client: output: ../app/lib/gen/zonai package: false tables: include: [_log] Minimal zonai.yaml (most projects only need this): version: 0.1.0"
         }
       ]
     },
@@ -2617,6 +2617,57 @@
       ]
     },
     {
+      "u": "/webhooks/overview",
+      "t": "Webhooks",
+      "d": "Receive third-party callbacks at POST /hooks/<name>.",
+      "g": "Background Jobs",
+      "s": [
+        {
+          "b": "Webhooks let a third party (Resend, Stripe, Clerk, ...) call your app. Each webhook is a Dart class with a name, and Zonai routes POST /hooks/ to it. The handler gets the request body exactly as it was sent, plus the headers and the caller's IP. It answers with a status code. Like cron jobs, it can read, write and send email as the server. Use webhooks for inbound email, delivery and bounce notices, payment events, or anything else a service pushes to you. For work your own clients trigger, use operations or extensions."
+        },
+        {
+          "h": "What You Need",
+          "a": "what-you-need",
+          "b": "1. A .dart file per webhook under webhooksPath (default lib/src/webhooks, set in zonai.yaml). Subdirectories are searched too. 2. In it, a class extending Webhook and a top-level main() returning an instance. 3. zonai serve (or zonai dev) running. It compiles the webhooks worker, starts it with the HTTP server, and recompiles when a file under webhooksPath changes. zonai compile compiles it without serving. import 'dart:io'; import 'package:zonai_schema/zonai_schema.dart'; final class ResendWebhook extends Webhook { const ResendWebhook() : super(name: 'resend'); @override Future handle(WebhookRequest request) async { final signature = WebhookSignature( Platform.environment['RESEND_WEBHOOK_SECRET']!, ); if (!signature.isValid(request.body, request.headers)) { return const WebhookResponse(401); } final event = request.json! as Map<String, Object?>; mutate.create.one( tableName: 'email_events', object: {'type': event['type'], 'payload': request.text}, ); return const WebhookResponse.ok(); } } ResendWebhook main() => const ResendWebhook(); Point the provider at https:// /hooks/resend. Names must be unique, and a name with no webhook answers 404."
+        },
+        {
+          "h": "The Request",
+          "a": "the-request",
+          "b": "Field What it holds body The body bytes exactly as received headers Request headers, names lower-cased, a repeated header joined with , ip The caller's IP, read the same way as for rate limits text body decoded as UTF-8 json body decoded as JSON. Throws a FormatException when it is not JSON"
+        },
+        {
+          "h": "Verifying the Sender",
+          "a": "verifying-the-sender",
+          "b": "POST /hooks/ needs no token: the sender cannot hold a Zonai session. Anyone who knows the URL can call it, so check every delivery yourself before acting on it. WebhookSignature verifies the Svix / Standard Webhooks scheme, which Resend, Clerk and Svix use. Pass it the signing secret as the provider shows it (whsec_...): isValid(body, headers) returns true or false. check(body, headers) returns why a delivery failed (missingHeaders, invalidTimestamp, timestampOutOfTolerance, noMatchingSignature), or null when it passes. verify(body, headers) throws a WebhookSignatureException instead. It reads the svix- or webhook- headers, compares signatures in constant time, and refuses timestamps more than 5 minutes from now in either direction (set tolerance: to change that). Verify against request.body, never against a re-encoded json: re-encoding changes the bytes and the signature no longer matches. Keep the secret out of source. Set it as an environment variable on the server process; the webhooks worker inherits the server's environment. See Environment Variables."
+        },
+        {
+          "h": "The Response",
+          "a": "the-response",
+          "b": "WebhookResponse(status, body: ...) sets the status code, and WebhookResponse.ok() is a 200. A body is sent as text/plain. Senders rarely read it, but it shows up in their delivery logs. Most providers retry a delivery that does not get a 2xx. Answer 2xx for events you handled or chose to ignore, and a 4xx for a bad signature."
+        },
+        {
+          "h": "Side Effects",
+          "a": "side-effects",
+          "b": "A webhook has the same get, mutate, email, push and logger globals as a cron job, and they all run as the CronJwt server identity: Writes go past ordinary access. CronJwt has admin edit access, so the default table rules let it write any table, admin-only ones included. Rules still run: a canCreate (or canUpdate, canDelete) you override without calling super decides for webhooks too, and refusing admins refuses them. Writes are queued and commit after handle returns. If handle throws, they are dropped and the caller gets a 500, so a provider's retry does not double-write. Emails are sent when you call email.send, not when handle returns. A throw after that does not take the email back. Reads run immediately, and do not see this delivery's queued writes."
+        },
+        {
+          "h": "Limits",
+          "a": "limits",
+          "b": "Answer within 10 seconds. A delivery that takes longer fails with a 503 and its writes are dropped. Do slow work later: save the event and let a cron job process it. Rate limited per IP. All webhooks share one counter per caller IP, at the default policy of 100 requests per minute. Behind a proxy, configure trusted proxies or every provider shares the proxy's counter. Not in the generated client. Your apps never call /hooks, so the Dart client has no method for it. Always a worker process. Like crons, webhooks run in their own worker even when the project binary links your operations and rules in-process."
+        },
+        {
+          "h": "Testing Locally",
+          "a": "testing-locally",
+          "b": "Send a delivery with curl. A handler that checks a signature will answer 401 to it, which shows the route is reached: curl -i -X POST http://localhost:8080/hooks/resend \\ -H 'content-type: application/json' \\ --data-binary '{\"type\": \"email.received\"}' To test the signed path, sign a body yourself with WebhookSignature.sign(id, timestamp, body) and send the result as the svix-signature header with matching svix-id and svix-timestamp headers. Or point the provider at a tunnel to your machine."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Cron Jobs Side Effects in Cron Jobs Workers Rate Limiting"
+        }
+      ]
+    },
+    {
       "u": "/email/smtp-setup",
       "t": "SMTP Setup",
       "d": "Point Zonai at an SMTP server.",
@@ -3745,7 +3796,7 @@
         {
           "h": "Workers Compiled",
           "a": "workers-compiled",
-          "b": "db_config — config worker db_rules — rules worker (run in-process instead when the project binary is linked) db_operations — operations worker (run in-process instead when the project binary is linked) db_extensions — extensions worker db_rate_limit — rate limit worker db_crons — crons worker"
+          "b": "db_config — config worker db_rules — rules worker (run in-process instead when the project binary is linked) db_operations — operations worker (run in-process instead when the project binary is linked) db_extensions — extensions worker db_rate_limit — rate limit worker db_crons — crons worker db_webhooks — webhooks worker"
         },
         {
           "h": "When to Use Manually",
@@ -4110,12 +4161,12 @@
         {
           "h": "What Gets Bundled",
           "a": "what-gets-bundled",
-          "b": "Paths inside build/ mirror your project's configured paths; with the defaults: build/ ├── zonai Server + CLI (zonai.exe for a Windows target) ├── zonai.yaml Copy of your settings file (host, port, paths) ├── .zonai/ │ ├── executables/ Worker binaries (config, rules, operations, extensions, rate limits, crons) │ ├── migrations/ SQL migrations ( ) │ ├── data/images/ favicon.ico / logo.png, if present ( ) │ └── lib/ Target's native libraries (cross-compiled builds only) └── lib/src/email_templates/ HTML email templates, if any ( ) Not included: source code, the SQLite database, and .env files — their values are already compiled into the binaries. build/zonai is one of two things, and both serve identically: Project-linked (when your project resolves package:zonai): compiled from your project's generated entry, with operations and rules running in-process. The published zonai binary (the usual case): operations and rules run in the worker binaries beside it. The build log says Bundling the published zonai binary: . The OpenAPI spec and the /db/stream live-stream routes are built into the server, so /swagger.json, /swagger.yaml and db.listen work in production without extra files."
+          "b": "Paths inside build/ mirror your project's configured paths; with the defaults: build/ ├── zonai Server + CLI (zonai.exe for a Windows target) ├── zonai.yaml Copy of your settings file (host, port, paths) ├── .zonai/ │ ├── executables/ Worker binaries (config, rules, operations, extensions, rate limits, crons, webhooks) │ ├── migrations/ SQL migrations ( ) │ ├── data/images/ favicon.ico / logo.png, if present ( ) │ └── lib/ Target's native libraries (cross-compiled builds only) └── lib/src/email_templates/ HTML email templates, if any ( ) Not included: source code, the SQLite database, and .env files — their values are already compiled into the binaries. build/zonai is one of two things, and both serve identically: Project-linked (when your project resolves package:zonai): compiled from your project's generated entry, with operations and rules running in-process. The published zonai binary (the usual case): operations and rules run in the worker binaries beside it. The build log says Bundling the published zonai binary: . The OpenAPI spec and the /db/stream live-stream routes are built into the server, so /swagger.json, /swagger.yaml and db.listen work in production without extra fi"
         },
         {
           "h": "Release mode",
           "a": "release-mode",
-          "b": "--release switches Zonai from development to production behavior. Pass it to build (or compile) when building, and to serve when running. Development (default) --release Worker compile --enable-asserts — assert(...) in your config, rules, extensions, operations, rate limits and crons runs No asserts serve file watchers / recompiling On — edits recompile workers Off — serves the binaries already built serve keyboard shortcuts (c, m, p, r, q) On Off Generating migrations from schema changes On Off Applying pending migration SQL at startup On On build/zonai itself is always compiled without asserts; --release controls the workers beside it. A server started with --release still shuts down gracefully on SIGTERM / SIGINT. Migrations are generated during development and committed; build copies them into the bundle, and serve --release applies any that are pending when it opens the database. There is no separate migrate step on deploy."
+          "b": "--release switches Zonai from development to production behavior. Pass it to build (or compile) when building, and to serve when running. Development (default) --release Worker compile --enable-asserts — assert(...) in your config, rules, extensions, operations, rate limits, crons and webhooks runs No asserts serve file watchers / recompiling On — edits recompile workers Off — serves the binaries already built serve keyboard shortcuts (c, m, p, r, q) On Off Generating migrations from schema changes On Off Applying pending migration SQL at startup On On build/zonai itself is always compiled without asserts; --release controls the workers beside it. A server started with --release still shuts down gracefully on SIGTERM / SIGINT. Migrations are generated during development and committed; build copies them into the bundle, and serve --release applies any that are pending when it opens the database. There is no separate migrate step on deploy."
         },
         {
           "h": "Pre-Build Checklist",

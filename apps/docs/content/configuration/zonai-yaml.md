@@ -26,6 +26,7 @@ All paths are optional. Zonai uses sensible defaults so you only need to set a p
 | `extensionsPath` | `lib/src/extensions` | Lifecycle hooks |
 | `rateLimitPath` | `lib/src/rate_limit` | Rate limit policies |
 | `cronsPath` | `lib/src/crons` | Cron job definitions |
+| `webhooksPath` | `lib/src/webhooks` | [Webhook](/webhooks/overview) handlers |
 | `emailTemplatesPath` | `lib/src/email_templates` | HTML email templates |
 | `migrationsPath` | `.zonai/migrations` | Generated SQL migration files |
 | `dataPath` | `.zonai/data` | SQLite database directory |
@@ -143,6 +144,7 @@ rulesPath: lib/src/rules
 extensionsPath: lib/src/extensions
 rateLimitPath: lib/src/rate_limit
 cronsPath: lib/src/crons
+webhooksPath: lib/src/webhooks
 emailTemplatesPath: lib/src/email_templates
 
 # Generated paths

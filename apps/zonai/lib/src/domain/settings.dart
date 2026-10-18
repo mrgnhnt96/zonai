@@ -27,6 +27,7 @@ class Settings {
     required this.cronsPath,
     required this.imagesPath,
     required this.path,
+    this.webhooksPath = 'lib/src/webhooks',
     this.host,
     this.port,
     this.basePath,
@@ -69,6 +70,7 @@ class Settings {
       emailTemplatesPath: normalize(['lib', 'src', 'email_templates']),
       rateLimitPath: normalize(['lib', 'src', 'rate_limit']),
       cronsPath: normalize(['lib', 'src', 'crons']),
+      webhooksPath: normalize(['lib', 'src', 'webhooks']),
       imagesPath: normalize([defaultZonaiDirectory, 'data', 'images']),
       buildSettings: BuildSettings.current(),
       version: kVersion,
@@ -128,6 +130,10 @@ class Settings {
       cronsPath: switch (map['cronsPath']) {
         final String value => normalize([value]),
         _ => defaultSettings.cronsPath,
+      },
+      webhooksPath: switch (map['webhooksPath']) {
+        final String value => normalize([value]),
+        _ => defaultSettings.webhooksPath,
       },
       imagesPath: switch (map['imagesPath']) {
         final String value => normalize([value]),
@@ -197,6 +203,7 @@ class Settings {
   final String rulesPath;
   final String rateLimitPath;
   final String cronsPath;
+  final String webhooksPath;
   final String imagesPath;
   final String operationsPath;
   final String configPath;
@@ -263,6 +270,8 @@ class Settings {
       _normalize([buildExecutableDirectory, 'db_extensions.exe']);
   String get buildCronsPath =>
       _normalize([buildExecutableDirectory, 'db_crons.exe']);
+  String get buildWebhooksPath =>
+      _normalize([buildExecutableDirectory, 'db_webhooks.exe']);
 
   /// Where `zonai build` places the target's shared libraries, matching the
   /// `.zonai/lib` path the running binary resolves them from.
@@ -294,6 +303,8 @@ class Settings {
       _normalize([compiledExecutableDirectory, 'db_rate_limit.exe']);
   String get compiledCronsPath =>
       _normalize([compiledExecutableDirectory, 'db_crons.exe']);
+  String get compiledWebhooksPath =>
+      _normalize([compiledExecutableDirectory, 'db_webhooks.exe']);
 
   String get pubspecLockPath => _normalize(['pubspec.lock']);
 

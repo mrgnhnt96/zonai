@@ -7,7 +7,7 @@ A **worker** is a compiled Dart native executable that handles one category of l
 
 **Ops and rules can also run in-process.** When your project depends on `package:zonai` itself, `zonai serve` (run from source) and `zonai build` produce a **project-linked** binary that calls your operations and authorization code in-process — no IPC hop on create/list/stream. A project scaffolded by `zonai dev` depends only on `zonai_schema`, so with the installed CLI its ops and rules run as workers like everything else. The two paths behave identically; `ZONAI_FORCE_WORKERS=1` forces the worker path even when linking is possible.
 
-Config, extensions, rate limits, and crons always run as worker processes.
+Config, extensions, rate limits, crons, and webhooks always run as worker processes.
 
 ## Worker Types
 
@@ -18,6 +18,7 @@ Config, extensions, rate limits, and crons always run as worker processes.
 | `extensions` | `lib/src/extensions/` | Lifecycle hooks around mutations and auth | Worker IPC |
 | `rate_limit` | `lib/src/rate_limit/` | Per-IP request quotas | Worker IPC |
 | `crons` | `lib/src/crons/` | Scheduled background jobs | Worker IPC |
+| `webhooks` | `lib/src/webhooks/` | Third-party callbacks at `POST /hooks/<name>` | Worker IPC |
 | `config` | `lib/src/config/` | App-wide settings (JWT, SMTP, …) | Worker IPC |
 
 ## Why Workers?
@@ -42,7 +43,7 @@ zonai compile
 zonai build --flavor prod --release
 ```
 
-Any change to rules, operations, extensions, config, rate_limit, or crons requires recompilation. When ops/rules are linked in-process, restart `zonai serve` (or rebuild) so the linked entry reloads.
+Any change to rules, operations, extensions, config, rate_limit, crons, or webhooks requires recompilation. When ops/rules are linked in-process, restart `zonai serve` (or rebuild) so the linked entry reloads.
 
 ## Hot-Reload in Development
 
