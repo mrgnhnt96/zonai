@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:test/test.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
@@ -66,6 +68,45 @@ void main() {
       expect(handled.statusCode, 404);
       expect(handled.body, {'error': 'Not found'});
       expect('${handled.body}', isNot(contains('_cron_jobs')));
+    });
+  });
+
+  group('a worker failure', () {
+    test("does not hand the caller the worker's stderr or cause", () {
+      // What a webhook past the 10s worker timeout used to answer with.
+      final handled = catcher
+          .onWorkerFailed(
+            WorkerProcessFailedException(
+              workerName: 'WEBHOOK',
+              executablePath: '/srv/app/.zonai/bin/db_webhooks',
+              stderr: 'Bad state: RESEND_WEBHOOK_SECRET is whsec_xyz',
+              cause: TimeoutException('Future not completed'),
+            ),
+          )
+          .asHandled;
+
+      expect(handled.statusCode, 503);
+      expect(handled.body, {'error': 'Service unavailable'});
+      final body = '${handled.body}';
+      expect(body, isNot(contains('WEBHOOK')));
+      expect(body, isNot(contains('whsec_')));
+      expect(body, isNot(contains('Timeout')));
+    });
+
+    test('does not name the uncompiled binary on disk', () {
+      final handled = catcher
+          .onExecutableUnavailable(
+            const ExecutableUnavailableException(
+              workerName: 'WEBHOOK',
+              executablePath: '/srv/app/.zonai/bin/db_webhooks',
+              message: 'not found',
+            ),
+          )
+          .asHandled;
+
+      expect(handled.statusCode, 503);
+      expect(handled.body, {'error': 'Service unavailable'});
+      expect('${handled.body}', isNot(contains('/srv/app')));
     });
   });
 }
