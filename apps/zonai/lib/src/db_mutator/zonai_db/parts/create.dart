@@ -68,7 +68,7 @@ extension _CreateX on ZonaiDb {
     Jwt? jwt, {
     required Map<String, Object?> object,
   }) async {
-    await _runExtension(
+    await _runAfterSuccessExtension(
       CreateExtensionRequest.afterSuccess(
         table: table,
         object: object,

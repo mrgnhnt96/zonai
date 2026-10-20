@@ -93,7 +93,7 @@ extension _DeleteX on ZonaiDb {
     Jwt? jwt, {
     required List<Map<String, Object?>> objects,
   }) async {
-    await _runExtension(
+    await _runAfterSuccessExtension(
       DeleteExtensionRequest.afterSuccess(
         table: table,
         objects: objects,

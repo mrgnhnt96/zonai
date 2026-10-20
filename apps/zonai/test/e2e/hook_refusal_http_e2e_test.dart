@@ -194,15 +194,20 @@ void main() {
       expect(crashed.body, isNot(contains('session_expired')));
     });
 
-    test('an after-hook HttpError is a 500, and the write stays', () async {
-      if (!_runningOnDartVm) return;
+    test(
+      'an after-hook HttpError does not fail a write that was saved',
+      () async {
+        if (!_runningOnDartVm) return;
 
-      final response = await create('after-refuse');
+        final response = await create('after-refuse');
 
-      expect(response.statusCode, 500, reason: response.body);
-      expect(response.body, isNot(contains('too_late')));
-      expect(await titlesWhere('after-refuse'), ['after-refuse']);
-    });
+        // A 500 here told the client a saved row was lost, and its retry hit
+        // the row it had just written.
+        expect(response.statusCode, 200, reason: response.body);
+        expect(response.body, isNot(contains('too_late')));
+        expect(await titlesWhere('after-refuse'), ['after-refuse']);
+      },
+    );
 
     test('a queued write its before-hook refuses is a 500, not a refusal of '
         "the request's own write", () async {

@@ -56,7 +56,7 @@ Update and delete follow the same shape with their own hooks. Hooks run **once p
 
 **Throwing from a `before*` hook aborts the request.** Nothing is written, and any side effects the hook queued are discarded. The client gets a server error (`500`), not your exception message. `beforeSignUp` is the one hook with a refusal the client can read; see [Declining a sign-up](/extensions/auth-hooks#declining-a-sign-up).
 
-**Throwing from an `after*Success` hook fails the request after the write has committed.** The row is already saved, but the client sees an error, and the side effects that hook queued never run. Keep after-hooks from throwing unless a failed response is really what you want.
+**Throwing from an `after*Success` hook does not fail the request.** The write has already committed, so the client gets it back as usual. The failure is logged as an error, and the side effects that hook queued are dropped. The same goes for an after-hook that runs past the extensions worker's 10s request timeout.
 
 ## Mutation Hooks
 
