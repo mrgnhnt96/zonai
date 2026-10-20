@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.2
+
+**Webhooks.** A `Webhook` subclass answers `POST /hooks/<name>`: its
+`handle(WebhookRequest)` gets the body bytes exactly as sent, the lower-cased
+headers and the caller's IP (enough to run `WebhookSignature`), and returns a
+`WebhookResponse` with a status and an optional text body. `DbWebhooks` is the
+worker entry that dispatches by name; an unknown name answers `404`. Needs the
+zonai CLI 0.12.0, which builds the webhooks worker; nothing changes for apps
+that define no webhooks.
+
 ## 0.8.1
 
 **`WebhookSignature` verifies Svix-signed webhooks.** Resend, Clerk and Svix
