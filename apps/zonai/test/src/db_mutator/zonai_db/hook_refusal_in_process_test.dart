@@ -27,9 +27,10 @@ import '../../../support/temp_directory.dart';
 ///
 /// The worker path is covered over HTTP by `hook_refusal_http_e2e_test.dart`.
 /// This file holds the in-process path to the same answers: only a `before*`
-/// hook's 4xx on the request's own write is a refusal, and everything else,
-/// a 5xx `HttpError`, an after-hook's `HttpError` or a refused queued write,
-/// fails as an ordinary error, which the server answers 500.
+/// hook's 4xx on the request's own write is a refusal. A 5xx `HttpError` or a
+/// refused queued write fails as an ordinary error, which the server answers
+/// 500. An after-hook's failure fails nothing: the write it follows was
+/// already saved, so it is logged and the write is returned.
 void main() {
   late io.Directory projectRoot;
   late Settings settings;
@@ -113,14 +114,18 @@ void main() {
     return [for (final row in result.rows) row[0]! as String];
   }
 
-  Future<Object?> create(ZonaiDb db, String title) async {
+  Future<Object?> capture(Future<Object?> Function() write) async {
     try {
-      await db.create('posts', CreatePayload(object: {'title': title}));
+      await write();
       return null;
     } on Object catch (e) {
       return e;
     }
   }
+
+  Future<Object?> create(ZonaiDb db, String title) => capture(
+    () => db.create('posts', CreatePayload(object: {'title': title})),
+  );
 
   test('a before-hook 4xx is the refusal, and nothing is written', () async {
     await run((db) async {
@@ -146,15 +151,69 @@ void main() {
     });
   });
 
-  test('an after-hook HttpError is an ordinary failure, after the write was '
+  test(
+    'an after-hook HttpError does not fail a write that was saved',
+    () async {
+      await run((db) async {
+        expect(await create(db, 'after-refuse'), isNull);
+        expect(await titles(db), ['after-refuse']);
+      });
+    },
+  );
+
+  test('an after-hook that crashes does not fail a write that was saved, and '
+      'the writes it queued are dropped', () async {
+    await run((db) async {
+      expect(await create(db, 'queue-then-crash'), isNull);
+      expect(await titles(db), ['queue-then-crash']);
+    });
+  });
+
+  test('an after-hook that finishes has its queued writes applied', () async {
+    // The control for the test above: without it, "dropped" could just as
+    // well mean the fixture's queued write never runs at all.
+    await run((db) async {
+      expect(await create(db, 'queue-ok'), isNull);
+      expect(await titles(db), ['queue-ok', 'queued']);
+    });
+  });
+
+  test('an after-update hook that crashes does not fail an update that was '
       'saved', () async {
     await run((db) async {
-      final failure = await create(db, 'after-refuse');
+      expect(await create(db, 'draft'), isNull);
 
-      expect(failure, isNot(isA<HookRefusedException>()));
-      expect(failure, isNot(isA<HttpError>()));
-      expect(failure, isNotNull);
-      expect(await titles(db), ['after-refuse']);
+      final failure = await capture(
+        () => db.update(
+          'posts',
+          UpdatePayload(
+            where: const Eq('title', 'draft'),
+            updates: [
+              Update.object(const {'title': 'after-update-crash'}),
+            ],
+          ),
+        ),
+      );
+
+      expect(failure, isNull);
+      expect(await titles(db), ['after-update-crash']);
+    });
+  });
+
+  test('an after-delete hook that crashes does not fail a delete that was '
+      'saved', () async {
+    await run((db) async {
+      expect(await create(db, 'after-delete-crash'), isNull);
+
+      final failure = await capture(
+        () => db.delete(
+          'posts',
+          const DeletePayload(where: Eq('title', 'after-delete-crash')),
+        ),
+      );
+
+      expect(failure, isNull);
+      expect(await titles(db), isEmpty);
     });
   });
 
@@ -230,6 +289,18 @@ final class _PostTableRules extends TableRules<_PostTable, _Post> {
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canView(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canList(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canDelete(Jwt? jwt) async => true;
 }
 
 final class _PostRowRules extends RowRules<_PostTable, _Post> {
@@ -237,6 +308,15 @@ final class _PostRowRules extends RowRules<_PostTable, _Post> {
 
   @override
   Future<bool> canCreate(Jwt? jwt, _Post row) async => true;
+
+  @override
+  Future<bool> canView(Jwt? jwt, _Post row) async => true;
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt, _Post before, _Post after) async => true;
+
+  @override
+  Future<bool> canDelete(Jwt? jwt, _Post row) async => true;
 }
 
 final class _PostExtensions extends Extension<_Post> {
@@ -261,24 +341,47 @@ final class _PostExtensions extends Extension<_Post> {
       case 'after-refuse':
         throw const HttpError.forbidden(code: 'too_late', message: 'Saved');
       case 'queue-refused':
-        // What `mutate.create` amounts to once it reaches the host. In
-        // process the worker-side `mutate` is not bound, so the write goes
-        // where Mailman puts the ones a worker's reply carries (as
-        // `push_fanout_test.dart` does).
-        mutations.addAll([
-          CreateRecordRequest(
-            table: 'posts',
-            objects: [
-              {'title': 'refuse'},
-            ],
-            parent: CreateExtensionRequest.afterSuccess(
-              table: 'posts',
-              object: {'title': row.title},
-              jwt: jwt,
-            ),
-            jwt: jwt,
-          ),
-        ]);
+        _queue('refuse', row, jwt);
+      case 'queue-then-crash':
+        _queue('queued', row, jwt);
+        throw StateError('hook crashed after queueing a write');
+      case 'queue-ok':
+        _queue('queued', row, jwt);
     }
+  }
+
+  @override
+  Future<void> afterUpdateSuccess(_Post before, _Post after, Jwt? jwt) async {
+    if (after.title == 'after-update-crash') {
+      throw StateError('afterUpdateSuccess crashed');
+    }
+  }
+
+  @override
+  Future<void> afterDeleteSuccess(_Post row, Jwt? jwt) async {
+    if (row.title == 'after-delete-crash') {
+      throw StateError('afterDeleteSuccess crashed');
+    }
+  }
+
+  /// What `mutate.create` amounts to once it reaches the host. In process
+  /// the worker-side `mutate` is not bound, so the write goes where Mailman
+  /// puts the ones a worker's reply carries (as `push_fanout_test.dart`
+  /// does).
+  void _queue(String title, _Post row, Jwt? jwt) {
+    mutations.addAll([
+      CreateRecordRequest(
+        table: 'posts',
+        objects: [
+          {'title': title},
+        ],
+        parent: CreateExtensionRequest.afterSuccess(
+          table: 'posts',
+          object: {'title': row.title},
+          jwt: jwt,
+        ),
+        jwt: jwt,
+      ),
+    ]);
   }
 }

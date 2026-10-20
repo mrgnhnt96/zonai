@@ -77,7 +77,7 @@ Mutations run in the order they were queued. Each one goes through the same pipe
 
 **Queued writes act as the hook's `jwt`.** A write queued from a user's request is checked against that user's rules, so the user needs permission to write the target table. In cron jobs the identity is `CronJwt`.
 
-**Queued writes only run if the request succeeds.** If a `before*` hook throws, the write itself fails, or an `after*Success` hook throws, everything queued so far is discarded. Writes queued in `after*Error` hooks never run either, because the request is failing.
+**Queued writes only run if the request succeeds.** If a `before*` hook throws or the write itself fails, everything queued so far is discarded. If an `after*Success` hook throws, only the writes that hook queued are dropped; the request still succeeds. Writes queued in `after*Error` hooks never run either, because the request is failing.
 
 ## The Chain Limit
 

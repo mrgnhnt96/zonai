@@ -70,6 +70,7 @@ class Mailman<S extends Request, R extends Response> {
     required R Function(Map<String, dynamic>) fromJson,
     this.snapshotPath,
     this.sourceEntryPath,
+    this.warmRequestTimeout = defaultWarmRequestTimeout,
     @visibleForTesting String? hostVmHash,
     @visibleForTesting String? hostSdkVersion,
     // Subprocess stdout preserves frame order (mutation RPCs before the reply).
@@ -99,6 +100,14 @@ class Mailman<S extends Request, R extends Response> {
   final String debugName;
   final R Function(Map<String, dynamic>) _fromJson;
   final String executablePath;
+
+  /// Request/reply timeout once this worker has answered at least once.
+  ///
+  /// [defaultWarmRequestTimeout] suits workers that only compute (rules,
+  /// operations). A worker running app code that does I/O -- an extension
+  /// hook calling out to a third party -- needs longer, or ordinary work
+  /// reads as a stuck worker.
+  final Duration warmRequestTimeout;
 
   /// Optional AOT snapshot for [Isolate.spawnUri] (ops/rules).
   final String? snapshotPath;
@@ -1319,15 +1328,17 @@ class Mailman<S extends Request, R extends Response> {
     return pendingResponse;
   }
 
-  /// Steady-state request/reply timeout for an already-established worker —
-  /// deliberately tight so a genuinely stuck worker fails fast.
-  static const _warmRequestTimeout = Duration(seconds: 1);
+  /// Default steady-state request/reply timeout for an already-established
+  /// worker -- deliberately tight so a genuinely stuck worker fails fast.
+  static const defaultWarmRequestTimeout = Duration(seconds: 1);
 
   /// Request/reply timeout while [_warmedUp] is still false, i.e. no
   /// request has completed since this worker was last (re)started. A freshly
   /// spawned worker still has to boot its runtime and open the DB before it
   /// can answer anything; under concurrent load (several workers cold
-  /// starting at once) that alone can take longer than [_warmRequestTimeout].
+  /// starting at once) that alone can take longer than [warmRequestTimeout].
+  /// A [warmRequestTimeout] longer than this wins, since a cold worker never
+  /// answers faster than a warm one.
   /// Matches the generous timeout already used elsewhere for other
   /// first-contact worker operations (see resqlite_native.dart's
   /// `_requestFromSpawner`).
@@ -1339,7 +1350,9 @@ class Mailman<S extends Request, R extends Response> {
   ) async {
     try {
       final (response, muts) = await pendingResponse.future.timeout(
-        _warmedUp ? _warmRequestTimeout : _coldStartRequestTimeout,
+        _warmedUp || warmRequestTimeout > _coldStartRequestTimeout
+            ? warmRequestTimeout
+            : _coldStartRequestTimeout,
       );
       _warmedUp = true;
 

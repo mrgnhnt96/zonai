@@ -165,7 +165,7 @@ extension _UpdateX on ZonaiDb {
     required List<Map<String, Object?>> before,
     required List<Map<String, Object?>> after,
   }) async {
-    await _runExtension(
+    await _runAfterSuccessExtension(
       AfterUpdateExtensionRequest(
         table: table,
         before: before,

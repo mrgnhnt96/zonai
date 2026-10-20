@@ -680,6 +680,29 @@ extension UtilsX on ZonaiDb {
     }
   }
 
+  /// Runs an `after*Success` hook, whose write has already committed.
+  ///
+  /// The row is saved by the time this runs, so a hook that throws or a worker
+  /// that times out cannot undo it. Failing the request here told the client
+  /// its write was lost when it was not, and a retry then collided with the
+  /// row it had already made. The failure is logged instead, and the writes
+  /// that hook queued before failing are dropped, as they always were: a hook
+  /// that did not finish should not have half of its effects applied.
+  Future<void> _runAfterSuccessExtension(ExtensionRequest request) async {
+    final queued = mutations.count;
+    try {
+      await _runExtension(request);
+    } catch (e, stack) {
+      mutations.discardFrom(queued);
+      logger.error(
+        '$_prefix: ${request.runtimeType} failed after the write was saved; '
+        "the write stands and the hook's queued writes were dropped",
+        e,
+        stack,
+      );
+    }
+  }
+
   bool _detectProjectExtensions() {
     if (HostWorkerRegistries.hasExtensions) {
       return _hasProjectExtensions = true;

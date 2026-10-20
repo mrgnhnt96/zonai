@@ -24,5 +24,12 @@ class Mutations {
   }
 
   int get count => _mutations.length;
+
+  /// Drops every mutation queued after the first [count].
+  void discardFrom(int count) {
+    if (count >= _mutations.length) return;
+    _mutations.removeRange(count, _mutations.length);
+  }
+
   List<MutationRequest> get missed => List.unmodifiable(_missed);
 }
