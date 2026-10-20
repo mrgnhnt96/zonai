@@ -14,6 +14,7 @@ import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/process.dart';
+import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
@@ -94,6 +95,19 @@ void main() {
       );
 
       expect(outcome, isTrue);
+    });
+
+    test('the extensions worker waits past the 1s default', () async {
+      // Hooks are app code that does I/O. Back at 1s, a slow after-hook's
+      // queued writes are dropped and a slow before-hook fails its request.
+      final mailman = runScoped(ExtensionsMailman.new, values: _scope());
+      addTearDown(mailman.dispose);
+
+      expect(mailman.warmRequestTimeout, ExtensionsMailman.requestTimeout);
+      expect(
+        mailman.warmRequestTimeout,
+        greaterThan(Mailman.defaultWarmRequestTimeout),
+      );
     });
   });
 }

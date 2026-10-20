@@ -114,14 +114,18 @@ void main() {
     return [for (final row in result.rows) row[0]! as String];
   }
 
-  Future<Object?> create(ZonaiDb db, String title) async {
+  Future<Object?> capture(Future<Object?> Function() write) async {
     try {
-      await db.create('posts', CreatePayload(object: {'title': title}));
+      await write();
       return null;
     } on Object catch (e) {
       return e;
     }
   }
+
+  Future<Object?> create(ZonaiDb db, String title) => capture(
+    () => db.create('posts', CreatePayload(object: {'title': title})),
+  );
 
   test('a before-hook 4xx is the refusal, and nothing is written', () async {
     await run((db) async {
@@ -171,6 +175,45 @@ void main() {
     await run((db) async {
       expect(await create(db, 'queue-ok'), isNull);
       expect(await titles(db), ['queue-ok', 'queued']);
+    });
+  });
+
+  test('an after-update hook that crashes does not fail an update that was '
+      'saved', () async {
+    await run((db) async {
+      expect(await create(db, 'draft'), isNull);
+
+      final failure = await capture(
+        () => db.update(
+          'posts',
+          UpdatePayload(
+            where: const Eq('title', 'draft'),
+            updates: [
+              Update.object(const {'title': 'after-update-crash'}),
+            ],
+          ),
+        ),
+      );
+
+      expect(failure, isNull);
+      expect(await titles(db), ['after-update-crash']);
+    });
+  });
+
+  test('an after-delete hook that crashes does not fail a delete that was '
+      'saved', () async {
+    await run((db) async {
+      expect(await create(db, 'after-delete-crash'), isNull);
+
+      final failure = await capture(
+        () => db.delete(
+          'posts',
+          const DeletePayload(where: Eq('title', 'after-delete-crash')),
+        ),
+      );
+
+      expect(failure, isNull);
+      expect(await titles(db), isEmpty);
     });
   });
 
@@ -246,6 +289,18 @@ final class _PostTableRules extends TableRules<_PostTable, _Post> {
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canView(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canList(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canDelete(Jwt? jwt) async => true;
 }
 
 final class _PostRowRules extends RowRules<_PostTable, _Post> {
@@ -253,6 +308,15 @@ final class _PostRowRules extends RowRules<_PostTable, _Post> {
 
   @override
   Future<bool> canCreate(Jwt? jwt, _Post row) async => true;
+
+  @override
+  Future<bool> canView(Jwt? jwt, _Post row) async => true;
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt, _Post before, _Post after) async => true;
+
+  @override
+  Future<bool> canDelete(Jwt? jwt, _Post row) async => true;
 }
 
 final class _PostExtensions extends Extension<_Post> {
@@ -283,6 +347,20 @@ final class _PostExtensions extends Extension<_Post> {
         throw StateError('hook crashed after queueing a write');
       case 'queue-ok':
         _queue('queued', row, jwt);
+    }
+  }
+
+  @override
+  Future<void> afterUpdateSuccess(_Post before, _Post after, Jwt? jwt) async {
+    if (after.title == 'after-update-crash') {
+      throw StateError('afterUpdateSuccess crashed');
+    }
+  }
+
+  @override
+  Future<void> afterDeleteSuccess(_Post row, Jwt? jwt) async {
+    if (row.title == 'after-delete-crash') {
+      throw StateError('afterDeleteSuccess crashed');
     }
   }
 
