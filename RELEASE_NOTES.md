@@ -8,6 +8,21 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.12.0
+
+- **Webhooks.** Put a `Webhook` class under `lib/src/webhooks` and it answers
+  `POST /hooks/<name>`, unauthenticated and rate limited per IP. The handler
+  gets the raw body, headers and caller IP, so it can check a Resend, Clerk or
+  Svix signature with `WebhookSignature`, and its writes commit once it
+  returns (dropped on a throw, `500`, or after 10s, `503`). Needs
+  `zonai_schema: ^0.8.2`.
+- **A failing worker no longer leaks its error text.** Callers get a bare
+  `503 {"error": "Service unavailable"}`; the detail is logged server-side.
+- **An `after*Success` hook can no longer fail a write that already saved.**
+  Its error is logged and the saved row is returned, instead of an error that
+  made clients retry into a unique-index conflict. The extensions worker's
+  timeout is now 10s instead of 1s, since hooks do I/O.
+
 ## 0.11.0
 
 - **Photos can live in an S3-compatible bucket** such as Cloudflare R2
