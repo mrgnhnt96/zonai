@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**`POST /db/many` works on a table with a `TableOperations` class.** A
+create-many travels to the operations worker as `operation: 'create'`, the
+same as a single create, and the worker rebuilt it as a single create, which
+read the absent `object` and failed. Every create-many to such a table
+answered `500` ("Invalid request payload"). The worker now tells the two apart
+by the `objects` in the payload. Apps get the fix by moving to this
+`zonai_schema` and re-running `zonai compile`; nothing changes on the CLI.
+
 ## 0.8.2
 
 **Webhooks.** A `Webhook` subclass answers `POST /hooks/<name>`: its
