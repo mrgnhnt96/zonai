@@ -162,6 +162,14 @@ final class PerformOperationRequest extends OperationRequest {
     final classicOperation = TableOperation.fromString(operation);
 
     switch (classicOperation) {
+      // A create-many travels as `create` too, since rules and
+      // `TableOperations` treat it as one: the same permission, and
+      // `TableOperation` has no separate value for it. Only its payload tells
+      // the two apart, so it is dispatched on `objects`. Without this every
+      // `POST /db/many` to a table with a `TableOperations` class failed in
+      // the worker, reading the absent `object` as a map.
+      case .create when p.containsKey('objects'):
+        return CreateManyOperationRequest.fromRequest(request);
       case .create:
         return CreateOperationRequest.fromRequest(request);
       case .update:
