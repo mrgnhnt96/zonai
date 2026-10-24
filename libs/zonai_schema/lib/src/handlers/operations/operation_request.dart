@@ -162,6 +162,11 @@ final class PerformOperationRequest extends OperationRequest {
     final classicOperation = TableOperation.fromString(operation);
 
     switch (classicOperation) {
+      // A create-many is still a `create` (its rules and policies are the
+      // create ones), so the payload's shape is the only thing on the wire
+      // that tells the two apart.
+      case .create when p.containsKey('objects'):
+        return CreateManyOperationRequest.fromRequest(request);
       case .create:
         return CreateOperationRequest.fromRequest(request);
       case .update:
