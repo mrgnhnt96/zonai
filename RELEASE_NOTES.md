@@ -22,6 +22,9 @@ do, and what stopped being broken. The commit list is already one click away.
   Its error is logged and the saved row is returned, instead of an error that
   made clients retry into a unique-index conflict. The extensions worker's
   timeout is now 10s instead of 1s, since hooks do I/O.
+- **`POST /db/many` no longer fails on tables with a `TableOperations`
+  class.** It answered `500` (`Invalid request payload` in the log) while a
+  single create worked. Needs `zonai_schema: ^0.8.2`; re-run `zonai compile`.
 
 ## 0.11.0
 
