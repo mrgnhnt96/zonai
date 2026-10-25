@@ -10,6 +10,13 @@ worker entry that dispatches by name; an unknown name answers `404`. Needs the
 zonai CLI 0.12.0, which builds the webhooks worker; nothing changes for apps
 that define no webhooks.
 
+**`POST /db/many` works with an operations worker.** A create-many reached the
+worker as a single create and failed with `Invalid request payload` (a `500`
+to the caller) for any table with a `TableOperations` class. It now decodes as
+a create-many; rules, policies and rate limits still see `create`. Re-run
+`zonai compile` after upgrading: a stale `.zonai/executables/*.exe` keeps the
+old decode.
+
 ## 0.8.1
 
 **`WebhookSignature` verifies Svix-signed webhooks.** Resend, Clerk and Svix
