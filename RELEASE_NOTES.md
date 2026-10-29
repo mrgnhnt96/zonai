@@ -8,6 +8,14 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.12.1
+
+- **`GET /db`, `/db/list` and `/db/count` find rows by long numeric strings.**
+  An `eq` or `in` lookup on a text column with an all-digit value past 19
+  digits (order numbers, for example) found nothing, because the `?body=`
+  value was coerced to a number. Those lookups now match, so a
+  look-up-then-create no longer hits the unique index with a `409`.
+
 ## 0.12.0
 
 - **Webhooks.** Put a `Webhook` class under `lib/src/webhooks` and it answers
