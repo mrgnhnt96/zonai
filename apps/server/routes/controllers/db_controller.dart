@@ -8,6 +8,7 @@ import 'package:zonai_schema/zonai_schema.dart' show RateLimitOperation;
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 import '../components/custom_body_rate_limit.dart';
+import '../components/query_body_pipe.dart';
 import '../components/query_rate_limit.dart';
 
 // ! Spell the rate-limit operation out as `RateLimitOperation.x`, never as the
@@ -30,7 +31,7 @@ class DbController {
   @Get()
   Future<Map<String, Object?>> get({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
-    @Query() required GetBody body,
+    @Query.pipe(GetBodyPipe) required GetBody body,
   }) async {
     return await dbHandler.get(authorization, body);
   }
@@ -39,7 +40,7 @@ class DbController {
   @Get('list')
   Future<Map<String, Object?>> list({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
-    @Query() required ListBody body,
+    @Query.pipe(ListBodyPipe) required ListBody body,
   }) async {
     return (await dbHandler.list(authorization, body)).toJson();
   }
@@ -122,7 +123,7 @@ class DbController {
   @Get('count')
   Future<int> count({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
-    @Query() required CountBody body,
+    @Query.pipe(CountBodyPipe) required CountBody body,
   }) async {
     return await dbHandler.count(authorization, body);
   }
