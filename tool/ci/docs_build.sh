@@ -20,8 +20,7 @@
 # diagnosis and an hour of reading content diffs.
 #
 # WHY HERE AND NOT IN THE WORKFLOW. `sip run test docs` reaches this from a
-# laptop and from CI, and the .game_loop rule for `apps/docs/lib/**` reaches it
-# too. One wrapper means all three see the same behaviour -- the same reasoning
+# laptop and from CI. One wrapper means both see the same behaviour -- the same reasoning
 # tool/ci/revali_generate.sh carries.
 set -uo pipefail
 

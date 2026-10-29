@@ -140,14 +140,6 @@ commit message, a doc, or a log line.
 
 - `feat/oauth` is **local only**: 53 commits, never pushed, no PR. Pushing is
   the human's call and has not been given.
-- `.game_loop/verify.yaml` still has **no rule covering `apps/web/**`**, so
-  every `apps/web` path in this campaign committed as NOT CHECKED. The write
-  guard refuses the edit as project policy and has now refused two sessions.
-  The exact YAML is at the bottom of `docs/design/admin-invite-design.md`; authorizing
-  it is the human's call.
-- `showrunner status` shows 2 stale claims and `oauth-admin-add` parked though
-  the code landed. `reap` checks liveness by bare pid — verify with
-  `ps -o lstart=` before ever running it with `--apply`.
 - After **any** change under `apps/server`, resync the embedded mirror or
   `apps/zonai` tests load stale code. `server.sync-to-cli` now regenerates
   swagger *before* the copy (fixed this session); from a worktree run the steps
@@ -277,16 +269,3 @@ Both live suites skip loudly by default and name the preset in the skip reason.
 
 - `feat/oauth` is **56 commits, local only, no PR**. Pushing is the human's
   call and has never been given.
-- `.game_loop/verify.yaml` still has no rule for `apps/web/**`, and now none
-  for the two new test paths either — `verify` reports them NOT CHECKED. The
-  write guard refuses the edit as project policy, correctly; it needs
-  `game_loop authorize`. The YAML is at the bottom of
-  `docs/design/admin-invite-design.md`.
-- `showrunner status` still shows 2 stale claims and `oauth-admin-add` parked
-  though it landed. `reap` checks liveness by bare pid — verify with
-  `ps -o lstart=` before ever running `--apply`.
-- A worktree-local `.game_loop` state home was found holding an orphaned,
-  still-active mandate for work that landed hours earlier; the real state home
-  is the main checkout. The orphan was cleared. Worth knowing that invoking
-  `game_loop` from inside a worktree reads a different state directory than
-  the hooks do.

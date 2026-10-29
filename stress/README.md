@@ -238,8 +238,7 @@ is now the wrong one, for a reason that was measured rather than assumed.
 
 **Why report-only was right.** The cell used to complete *exactly 64* requests in
 every run regardless of duration — 64 in all five pre-admission runner runs, and 64
-locally at both 5s and 15s
-(`.showrunner/scratch/write-queue-write-queue/FINDINGS.md`). Steady-state successful
+locally at both 5s and 15s. Steady-state successful
 deletes at concurrency 100 were **zero**. The 64 was the end-of-run *drain* of a write
 queue pinned at `_maxQueuedWrites`: once the generator stops starting iterations, the
 64 in-flight users finish their create-then-delete against an emptying queue. So its

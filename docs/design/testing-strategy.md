@@ -64,14 +64,16 @@ At the repo root it reports **7129 issues**. 6744 errors and 296 warnings come f
 `apps/web/build/` — Jaspr's compiled output, gitignored but invisible to the analyzer, which
 has no `analysis_options.yaml` exclude anywhere in the tree. **Zero errors exist outside that
 directory.** 25 real warnings do: 11 `libs/zonai_client`, 11 `apps/zonai`, 2
-`libs/zonai_schema`, 1 in `apps/web`'s own source. Those 25 are now the recorded showrunner
-baseline, not a clean bill of health.
+`libs/zonai_schema`, 1 in `apps/web`'s own source. Those 25 are a recorded baseline, not a
+clean bill of health.
 
 **4. The local gate is change-scoped by design, and cannot answer the release question.**
 `.game_loop/verify.yaml` is 810 lines of genuinely careful per-file rules, each with a
 recorded reason. It answers *"is what I touched verified?"*. It cannot answer *"is the repo
 releasable?"* — nothing sweeps the untouched. That is the correct division of labour; the
-release half is simply missing.
+release half is simply missing. (game_loop has since been removed from this repo, so
+`verify.yaml` and the per-file gate it drove no longer exist; the references to it below
+describe the state when this was written.)
 
 **5. `verify.yaml`'s known-failure exemptions have gone stale, and they under-verify now.**
 Five test files are downgraded to `dart analyze` on the recorded grounds that they "fail
@@ -139,10 +141,6 @@ Then `dart analyze .` must exit 0 (after the 25 real warnings are fixed or expli
 ignored). Verify by running it — a passing analyzer that excludes the interesting code is
 worse than no analyzer. Cross-check the exclude list against
 `find . -name '*.dart' -not -path ...` so nothing real is silently dropped.
-
-**Then update `.showrunner/config.json`'s `analyze` check back to `dart analyze .`** — its
-current explicit path list exists only to route around this, and carries the flaw that a new
-package is uncovered until someone remembers to add it.
 
 ### Step 2 — One entrypoint per layer *(half a day)*
 
@@ -327,7 +325,7 @@ monitoring does not; this is where that lands.
 **Re-ask exemptions on a schedule.** Gap 5 above is the failure mode to design against: six
 `verify.yaml` rules were downgraded for stated, reasonable, *then-true* reasons, and are now
 hiding a suite that passes. Every known-failure exemption — in `verify.yaml`, in
-`doc_snippets_baseline.txt`, in the showrunner baseline — needs a dated re-check, and the
+`doc_snippets_baseline.txt`, in the analyzer baseline — needs a dated re-check, and the
 re-check needs to be a job, not a habit.
 
 **Prefer the gate that would have caught the last bug.** This repo's bug history is
@@ -344,7 +342,7 @@ artifact here:
 
 - **Toolchain drift.** Every input file identical, a runner image ships a new C compiler —
   invisible to `native_build_stamp.dart` by its own admission, and invisible to all of this.
-- **The `lib/gen` snapshot problem.** Both CI and showrunner worktrees consume a *generated*
+- **The `lib/gen` snapshot problem.** Both CI and linked worktrees consume a *generated*
   `lib/gen`. A change to a server route signature or a native binding can analyze and test
   green against a stale copy. Only regenerating in place closes it.
 - **macOS x64 and linux-arm64 breadth.** The cross-target pair covers build-on-one/run-on-

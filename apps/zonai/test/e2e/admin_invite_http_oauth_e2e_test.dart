@@ -63,11 +63,7 @@ import '../support/zonai_cli.dart';
 /// accident.
 ///
 /// Neither fixture is modified, and neither is a new top-level `e2e/**`
-/// directory — both already exist and are reused as-is, so this leaf's
-/// commits do not touch `e2e/**` at all (see this leaf's brief on why:
-/// `tool/ci/check_verify_exemptions.sh` fails on stale RECHECK markers for
-/// push-notification probe files unrelated to this work, and only fires for
-/// changes under `e2e/**`).
+/// directory — both already exist and are reused as-is.
 ///
 /// What this file does NOT attempt: naturally expiring an invite (a real
 /// 7-day wait) or riding out the full one-minute resend window on a live

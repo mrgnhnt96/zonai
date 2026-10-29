@@ -154,7 +154,6 @@ end.
 | Trap | Handling |
 | --- | --- |
 | Crawlers in this campaign have twice closed a leaf without committing | Every brief says commit before closing; the orchestrator verifies the branch ref moved |
-| `.game_loop/verify.yaml` in the main checkout carries rules for push-notification probe files absent from this branch, failing `check_verify_exemptions.sh` | Only fires for leaves touching `e2e/**`; do not bypass the gate — report and park |
 | `apps/zonai/lib/gen` in a spawned worktree is a snapshot of another branch, and `analysis_options.yaml` hides it from `dart analyze` | Regenerate in-tree; only `dart test` catches a stale mirror |
 | `revali dev --generate-only` has failed in some worktrees | Reported by one crawler, refuted by another; if it fails, say so rather than working around it |
 
@@ -237,23 +236,3 @@ real component tree, through the same `renderComponent` entry point
 than just looking at. Grepping the two acceptance renders for the raw token
 returns zero hits in both branches, so "the token is never rendered" is
 observed, not just intended.
-
-### Owed to `.game_loop/verify.yaml`
-
-`apps/web` grew from a handful of components to a 259-test suite during this
-campaign, and `verify.yaml` still covers it with one single-file `dart analyze`.
-Every `apps/web` path this campaign touched therefore committed as NOT CHECKED.
-`dart analyze` cannot see any of what matters here: the Admins screen compiles
-perfectly well with the wrong button enabled, and both §4 item 6 refusals are
-held up by component tests alone — dropping the `refusal != null` guard fails
-exactly those two tests and nothing else.
-
-`.game_loop` is gitignored and belongs to the main checkout, so this cannot ride
-the branch and is left for whoever owns that tree:
-
-```yaml
-"apps/web/lib/**":
-  - "cd apps/web && dart test"
-"apps/web/test/**":
-  - "cd apps/web && dart test"
-```

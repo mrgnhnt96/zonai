@@ -262,8 +262,7 @@ void main() {
   // ---------------------------------------------------------------------
   // Group 2: derived sweep. Rather than hand-listing every symbol the
   // barrel is expected to export (a list that silently rots the day a new
-  // export is added, same failure shape verify.yaml already flags in
-  // help_test.dart), this walks lib/src/**.dart with the analyzer and
+  // export is added), this walks lib/src/**.dart with the analyzer and
   // computes, from source, every top-level public class/mixin/enum the
   // package actually declares. Each one must either:
   //   (a) be reachable from `import 'package:zonai_client/zonai_client.dart'`, or

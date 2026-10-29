@@ -296,10 +296,6 @@ test:
       # untracked and machine-local: any `git clean -xdf` destroys it, and no
       # runner ever had it. A gate must not rest on it.
       #
-      # Kept deliberately in step with the `resolve` check in .showrunner's
-      # config.json, which resolves the same set for the same reason -- plus
-      # argon2_builder, which that copy misses (it is the last 2 of the 226).
-      #
       # stress/fixture/ joined this loop 2026-08-14: it used to provably fail
       # here (transitive raindrop_cli -> `raindrop ^0.0.1`, only satisfiable
       # inside the root pub workspace), fixed via `dependency_overrides` in
@@ -334,10 +330,7 @@ test:
       # every machine anyone here develops on, stayed green.
       - bash tool/ci/check_shell_portability.sh
       - bash tool/ci/check_workflows.sh
-      # Lives in `static` rather than in .game_loop/verify.yaml, where the
-      # Crawler that found this proposed it: verify.yaml is gitignored, so a
-      # rule there cannot ride a branch and protects only the machine it was
-      # written on. The failure it prevents is one NO local check can see --
+      # The failure this prevents is one NO local check can see --
       # revali's codegen aborts on a dot-shorthand annotation argument on a CI
       # runner while every dev machine stays green (seven configurations tried,
       # docs/revali-dot-shorthand-codegen.md). A guard against a CI-only
@@ -379,18 +372,10 @@ test:
       # THIS HARNESS EXISTED AND NOTHING RAN IT. It was committed alongside the
       # script it controls and, grepped tree-wide on 2026-08-27, the only
       # occurrence of its name anywhere in the repo was inside itself: no
-      # workflow, no target here, no .game_loop rule. A control never executed
+      # workflow, no target here. A control never executed
       # is indistinguishable from one that cannot fail. 14 cases, 1.7s, driving
       # the real script against fabricated SDK trees and against whichever Dart
       # SDK is actually on PATH.
-      #
-      # LIVES HERE RATHER THAN IN .game_loop/verify.yaml, where it also belongs
-      # and where a Crawler was sent to put it: verify.yaml is gitignored
-      # (.gitignore:96, `.game_loop`), so a rule there rides no branch and
-      # protects only the machine it was written on -- and in a linked worktree
-      # it is a separate copy that integration cannot carry and cleanup deletes.
-      # Same reasoning, and the same resolution, as
-      # check_dot_shorthand_annotations.sh and server_mirror_check.dart below.
       - bash tool/ci/test_vm_snapshot_defines.sh
       # Guards the one gate whose output is PUBLISHED. release_notes.sh decides
       # both whether a release may go out without a summary and what text that
@@ -410,8 +395,7 @@ test:
       # failing to LOAD, with errors naming types the developer just added and
       # did nothing wrong with; it has cost four separate debugging sessions,
       # including every fresh git worktree, which gets the copy injected from
-      # whatever branch the main checkout is on. Lives in `static` rather than
-      # verify.yaml because verify.yaml is gitignored and cannot ride a branch.
+      # whatever branch the main checkout is on.
       - cd apps/zonai && dart run tool/server_mirror_check.dart
   unit:
     (description): >-

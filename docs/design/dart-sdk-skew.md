@@ -290,7 +290,7 @@ refuses everything.
 - **`tool/ci/test_vm_snapshot_defines.sh` is not wired into anything.** It is a
   real harness with real cases — including the seven-values regression above and
   a case driving the script against whichever SDK is on `PATH` — and nothing in
-  `scripts.yaml`, `.github/workflows/`, or `.game_loop/verify.yaml` references
+  `scripts.yaml` or `.github/workflows/` references
   it. Grepped, not assumed: the file has zero references outside itself. Until
   it is called, the two failure modes it was written to catch are uncaught, and
   the script that decides what runtime identity every released binary claims has

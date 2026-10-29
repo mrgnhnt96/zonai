@@ -93,7 +93,6 @@ zonai.sqlite*
 
 # AI stuff
 .llm_chat
-.game_loop
 # llm_chat identity for this project
 .llm_chat/
 
@@ -101,7 +100,7 @@ zonai.sqlite*
 .claude/settings.local.json
 
 # Session handoff and delegation write-ups. The rest of .claude/ IS tracked on
-# purpose (skills, settings), so this needs saying explicitly: these are notes
+# purpose (skills), so this needs saying explicitly: these are notes
 # one session leaves for another, not project history.
 .claude/handoff/
 apps/server/lib/gen/
@@ -109,10 +108,7 @@ apps/server/lib/gen/
 # deletes it, but an interrupted run can leave it behind.
 **/__doc_snippets__/
 
-# showrunner: per-agent orchestration state, not source
-.showrunner
-
-# showrunner Crawler worktrees
+# linked git worktrees
 .worktrees
 
 # Added by saggar — local files that shouldn't be committed

@@ -54,13 +54,11 @@ name: Test
 #              REAL compiled binary and no step in this job built one. The
 #              local proof came from a tree that already had build/zonai. So
 #              between bdaa61d and 2026-08-14 this job ran ZERO e2e tests while
-#              being recorded, here and in .game_loop, as the gate that
+#              being recorded here as the gate that
 #              mattered. A `Build zonai` step now exists; the claim below is
 #              only true because of it.
-#              This job is the ONLY gate on tool/ci/e2e/*.dart: the local
-#              .game_loop rule for that path is `dart analyze` and nothing
-#              more, because compiling per fixture does not belong in a
-#              per-commit gate. If this job is dropped, made non-blocking, or
+#              This job is the ONLY gate on tool/ci/e2e/*.dart. If this job
+#              is dropped, made non-blocking, or
 #              loses its build step, that file goes back to having no real
 #              check -- those are all one decision.
 #   windows -- has never run. Path separators, line endings and process
@@ -890,11 +888,9 @@ jobs:
   # run: 21 of 24 concurrent creates answering HTTP 500 from the rate limiter,
   # fixed in 4beb750 and now asserted here rather than reported.
   #
-  # This is the ONLY real gate on tool/ci/e2e/*.dart. The local .game_loop rule
-  # for that path runs `dart analyze` and nothing else, deliberately -- and an
-  # assertion that cannot pass analyzes perfectly clean, which is exactly the
-  # bug the second Crawler on that file found in the first one's work. So
-  # deleting this job, or making it non-blocking, silently removes the check on
+  # This is the ONLY real gate on tool/ci/e2e/*.dart -- an assertion that
+  # cannot pass analyzes perfectly clean, so `dart analyze` alone is no check
+  # on it. Deleting this job, or making it non-blocking, silently removes the check on
   # the code that checks everything else.
   #
   # Bootstrap here is the floor, not a claim of sufficiency: run_e2e.sh needs a
@@ -1146,9 +1142,8 @@ jobs:
       # on Windows, tool/ci/run_e2e.sh:125-143). Nothing here produced it, so on
       # the first real CI run (2026-08-14, run 31830243531) all three legs exited
       # 70 on `no compiled zonai binary at .../build/zonai` before a single
-      # assertion ran -- while test.yml's own comments, and the local
-      # .game_loop rule for tool/ci/e2e/**, both recorded this job as "the gate
-      # that matters" for the e2e driver. It gated nothing.
+      # assertion ran -- while test.yml's own comments recorded this job as
+      # "the gate that matters" for the e2e driver. It gated nothing.
       #
       # Same invocation compile.yml uses to produce the release binary, so there
       # is one way to build zonai on CI rather than two that can drift. It is
