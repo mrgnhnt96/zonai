@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # The browser leg of the observation, as one command.
 #
-# Wraps `bin/probe.dart --serve` because the harness must run through
-# showrunner's `device` lock, and that verb's argument parser swallows leading
-# `--flags` in the command it is given -- a script takes none.
+# Wraps `bin/probe.dart --serve` so the browser leg is a single command that
+# takes no `--flags`.
 #
-#   showrunner lock run --holder <crawler> device \
-#     bash e2e/legacy_reclaim_redirect/tool/browser_leg.sh <code> [browser]
+#   bash e2e/legacy_reclaim_redirect/tool/browser_leg.sh <code> [browser]
 #
 # Defaults to the Chrome for Testing binary in the Playwright cache, which is
 # what was on this machine; pass a path to use a different browser. Set

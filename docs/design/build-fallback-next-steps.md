@@ -351,10 +351,6 @@ compiled in.
 - No measurement of the dispatch cost this saves has been taken. Do not quote
   a number that does not exist.
 
-A `verify.yaml` rule for these files is in place on this machine.
-`.game_loop/` is gitignored, so it travels with the checkout it was written in
-and not with the repo — a fresh clone has to add it again.
-
 #### What it actually buys
 
 Narrower than "it makes deploys faster", and worth stating precisely because
@@ -379,7 +375,7 @@ the change is invisible in every other way:
 `kIsCompiled` is a compile-time constant `false` under `dart test`, so no local
 suite can reach that branch. The stamp predicate itself is unit-tested
 (`native_library_stamp_test.dart`, 8 cases) and the guard was exercised by hand.
-Declared as a known gap in `.game_loop/verify.yaml`. Closing it needs a
+Closing it needs a
 `*_compiled_e2e_test.dart` that compiles a binary, plants a stamped library, and
 asserts it survives.
 

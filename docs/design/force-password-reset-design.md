@@ -573,5 +573,5 @@ leans on that endpoint. Still worth its own fix.
 | The typed client exception, its `toString()` withholding the token, and the confirm round trip | `libs/zonai_client/test/password_reset_required_test.dart` (9 tests) |
 | The three routes refusing a non-admin bearer, and acting on the collection `?table=` names rather than on the `AsAdmin` one | `apps/server/test/require_password_reset_admin_gate_test.dart` (19 tests) |
 | The dashboard's requirement summary and reason spelling | `apps/web/test/password_reset_requirement_test.dart` (12 tests) |
-| The dashboard sign-in swap and the row action **rendering** | **nothing** — both are asserted only through the pure helpers above; no component/render coverage exists in `apps/web` yet (`verify.yaml` says so under its `apps/web/lib/**` RECHECK) |
+| The dashboard sign-in swap and the row action **rendering** | **nothing** — both are asserted only through the pure helpers above; no component/render coverage exists in `apps/web` yet |
 | The 403 **over the wire** | **nothing yet** — see "Not built" |

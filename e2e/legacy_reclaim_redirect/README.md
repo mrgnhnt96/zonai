@@ -55,13 +55,11 @@ dart run bin/probe.dart --code 307
 bash tool/browser_leg.sh 307 [/path/to/browser]
 ```
 
-`tool/browser_leg.sh` exists because the browser leg consumes a single-consumer
-resource and must run through showrunner's lock, whose argument parser swallows
-leading `--flags` in the command it is handed. A script takes none:
+`tool/browser_leg.sh` wraps `bin/probe.dart --serve` so the browser leg is a
+single command that takes no `--flags`:
 
 ```sh
-showrunner lock run --holder <crawler> device \
-  bash e2e/legacy_reclaim_redirect/tool/browser_leg.sh 307
+bash e2e/legacy_reclaim_redirect/tool/browser_leg.sh 307
 ```
 
 ## What it measured

@@ -5,8 +5,7 @@
 # `git worktree add` provisions the outer repo only, so a fresh worktree has an
 # empty libs/raindrop and libs/resqlite. `dart pub get` then fails outright --
 # "zonai depends on resqlite from path which doesn't exist" -- and every
-# showrunner check (`sip run test static`, `sip run test unit`) is unrunnable,
-# so no Crawler can close a leaf with a real artifact.
+# check (`sip run test static`, `sip run test unit`) is unrunnable.
 #
 # WHY A COPY AND NOT `git submodule update --init`
 # .git/modules/<name> is SHARED across every worktree of the parent. Running
@@ -33,7 +32,7 @@
 # the whole directory.
 #
 # usage: tool/provision_worktree_submodules.sh [worktree-path]
-#        (defaults to the worktree you are standing in, so a Crawler can
+#        (defaults to the worktree you are standing in, so a session can
 #         provision its own tree as its first step)
 set -euo pipefail
 

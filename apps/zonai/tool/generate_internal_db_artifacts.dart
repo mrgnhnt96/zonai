@@ -284,7 +284,7 @@ Future<void> _writeMigrationsDartFile(Directory packageRoot) async {
 ///
 /// An unconditional write moves the mtime of a file whose content is identical,
 /// and anything downstream that decides "has this changed since I last checked
-/// it?" from timestamps -- `.game_loop`'s verify gate, a build cache -- then
+/// it?" from timestamps -- a build cache, say -- then
 /// re-runs work for a file nobody touched. Regenerating is supposed to be a
 /// no-op when nothing moved, and this is what makes it one.
 void _writeIfChanged(File file, String contents) {

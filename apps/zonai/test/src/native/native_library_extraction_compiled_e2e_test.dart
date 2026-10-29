@@ -24,8 +24,7 @@ import '../../support/temp_directory.dart';
 /// `native_library_stamp_test.dart` covers the predicate. It cannot cover the
 /// guard: `kIsCompiled` is `bool.fromEnvironment('__ZONAI_COMPILED__')`, a
 /// compile-time constant `false` under `dart test`, so the branch holding it is
-/// not in the test binary at all. This compiles one where it is. The gap it
-/// closes was declared in .game_loop/verify.yaml.
+/// not in the test binary at all. This compiles one where it is.
 void main() {
   late Directory workspace;
   late String probePath;

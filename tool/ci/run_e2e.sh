@@ -55,8 +55,7 @@
 # There is deliberately no "make an assertion fail" switch. A gate with a
 # built-in way to lie is worse than one nobody has proved can fail; the proof
 # for this one is a recorded pair of runs against a one-line edit to an
-# expected value in drive.dart, captured under
-# .showrunner/scratch/orchestrator-e2e-layer/.
+# expected value in drive.dart.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

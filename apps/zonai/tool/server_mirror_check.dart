@@ -16,8 +16,8 @@
 //     is the sharpest version -- the mirror's exception_catcher.dart still
 //     switches exhaustively over the old set, so it fails to compile with an
 //     error naming a type the developer just added and did nothing wrong with.
-//  2. A git worktree gets the mirror INJECTED from the main checkout
-//     (.showrunner/config.json, `inject`), which is usually on a different
+//  2. A git worktree gets the mirror COPIED from the main checkout
+//     (tool/provision_worktree_submodules.sh), which is usually on a different
 //     branch. Every test in apps/server and apps/zonai then fails to load with
 //     an error about a type from somebody else's feature.
 //
