@@ -570,10 +570,40 @@ extension _AuthUtilsX on ZonaiDb {
       throw const JwtRecordNotFoundException();
     }
 
-    return await _withServerDerivedAdmin(
-      jwt,
-      isAnonymous: jwtRecord.first.anonymous,
-    );
+    final record = jwtRecord.first;
+    if (record.replaces case final replaced?) {
+      await _retireReplacedSession(session: record.id, replaced: replaced);
+    }
+
+    return await _withServerDerivedAdmin(jwt, isAnonymous: record.anonymous);
+  }
+
+  /// The first use of a refreshed [session] proves the client stored it, so
+  /// the session it was refreshed from ([JwtEntry.replaces]) can go.
+  ///
+  /// Best effort, like recording an API token's last use: a failure leaves
+  /// `replaces` set, so the next request tries again, and the old token only
+  /// stays usable a little longer -- never longer than its own expiry.
+  Future<void> _retireReplacedSession({
+    required JwtId session,
+    required JwtId replaced,
+  }) async {
+    try {
+      final db = this.db;
+      if (db == null) return;
+      await db.delete(from: jwts).where(jwts.id.equals(replaced));
+      await db
+          .update(jwts)
+          .set(jwts.replaces.to(null))
+          .where(jwts.id.equals(session));
+      logger.trace('jwt_replaced_retired');
+    } on Object catch (e) {
+      logger.verbose(
+        'Could not retire session ${replaced.value} replaced by '
+        '${session.value}: $e',
+        prefix: _prefix,
+      );
+    }
   }
 
   /// Replaces the token's `admin` claim with the one the server derives, so a

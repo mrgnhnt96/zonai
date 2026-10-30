@@ -85,6 +85,13 @@
       "when": 1790713713163,
       "tag": "0011_anonymous_auth",
       "snapshotId": "3a612380-c080-43d7-8a2a-a8175000bb01"
+    },
+    {
+      "idx": 12,
+      "version": "1",
+      "when": 1793331768518,
+      "tag": "0012_jwt_replaces",
+      "snapshotId": "6c1573f9-4647-438a-bc1c-55767f66c5c9"
     }
   ]
 }

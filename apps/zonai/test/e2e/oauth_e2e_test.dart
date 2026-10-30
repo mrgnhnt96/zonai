@@ -775,20 +775,21 @@ void main() {
           expect(parsed, isNotNull);
           expect(parsed!.user['id'], sub);
 
-          // Refresh mints a new token and retires the old one -- the old
-          // token must stop working, not just "also still work".
+          // Refresh mints a new token, and the first use of it retires the
+          // old one -- the old token must stop working, not just "also still
+          // work".
           final refreshed = await db.refreshToken(firstJwt);
           expect(refreshed, isNotNull);
           expect(refreshed!.user['id'], sub);
           final secondJwt = refreshed.jwt;
           expect(secondJwt, isNot(firstJwt));
 
+          expect((await db.parseJwt(secondJwt))!.user['id'], sub);
           await expectLater(
             db.parseJwt(firstJwt),
             throwsA(isA<JwtRecordNotFoundException>()),
-            reason: 'refresh must retire the token it replaces',
+            reason: 'using the new token must retire the one it replaces',
           );
-          expect((await db.parseJwt(secondJwt))!.user['id'], sub);
 
           // Logout revokes the current token -- a request bearing it must be
           // rejected afterward, not merely "no longer refreshable".
