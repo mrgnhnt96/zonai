@@ -48,17 +48,20 @@ extension _AuthX on ZonaiDb {
         throw UserNotFoundAuthException(table: oldJwt.table);
       }
 
+      // The old row is kept, not deleted: the reply carrying the new token
+      // can be lost, and the old token is then all the client has. Deleting
+      // it here turned every lost reply into a sign-out. The new row records
+      // the session it replaces, and the first request made with the new
+      // token deletes the old one ([_validateJwt]). Until then the old token
+      // can be traded again, and keeps its own expiry.
       step = 'sign_in';
       final result = await _issueSession(
         table: oldJwt.table,
         user: user,
         extensionStep: .onRefresh,
+        replaces: oldJwt.jwtId,
       );
       logger.trace('sign_in');
-
-      step = 'jwt_db_delete_old';
-      await db.delete(from: jwts).where(jwts.id.equals(oldJwt.jwtId));
-      logger.trace('done');
 
       return result;
     } catch (e) {
@@ -167,12 +170,16 @@ extension _AuthX on ZonaiDb {
 
   /// Mints a session for an already-resolved, sanitized [user] row and runs
   /// the sign-in or refresh hook for it.
+  ///
+  /// [replaces] is the session a refresh is extending; see
+  /// [JwtEntry.replaces].
   Future<_AuthResult> _issueSession({
     required String table,
     required Map<String, Object?> user,
     required AuthExtensionStep extensionStep,
+    JwtId? replaces,
   }) async {
-    final (newJwt, token) = await _createJwt(table, user);
+    final (newJwt, token) = await _createJwt(table, user, replaces: replaces);
     logger.trace('jwt_create');
 
     await _runExtension(switch (extensionStep) {
@@ -256,8 +263,9 @@ extension _AuthX on ZonaiDb {
 
   Future<(Jwt, String)> _createJwt(
     String table,
-    Map<String, Object?> user,
-  ) async {
+    Map<String, Object?> user, {
+    JwtId? replaces,
+  }) async {
     final jwtId = JwtId.generate();
     final userIdColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .id),
@@ -309,6 +317,7 @@ extension _AuthX on ZonaiDb {
         userId: jwt.userId,
         expiresAt: jwt.expiresAt,
         anonymous: jwt.isAnonymous,
+        replaces: replaces,
       ),
     ]);
 

@@ -1,0 +1,1 @@
+ALTER TABLE "_jwt" ADD COLUMN "replaces" TEXT;

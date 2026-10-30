@@ -9,10 +9,23 @@ extension _LogoutX on ZonaiDb {
 
     final db = await open();
 
+    // A refresh keeps the session it extends until the new token is used
+    // ([JwtEntry.replaces]), so signing out drops both sides of a refresh
+    // still in flight: the sessions refreshed from this one, whose replies may
+    // have been lost, and the one this was refreshed from.
     final result = await db
         .delete(from: jwts)
-        .where(jwts.id.equals(appJwt.jwtId))
+        .where(
+          jwts.id.equals(appJwt.jwtId) | jwts.replaces.equals(appJwt.jwtId),
+        )
         .returning();
+
+    for (final session in result) {
+      if (session.id.value != appJwt.jwtId.value) continue;
+      if (session.replaces case final replaced?) {
+        await db.delete(from: jwts).where(jwts.id.equals(replaced));
+      }
+    }
 
     if (result.isEmpty) {
       logger.verbose('No JWT record found', prefix: _prefix);

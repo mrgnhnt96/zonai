@@ -201,4 +201,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS "anonymous_credential_hash_unique" ON "_anonym
 
 CREATE INDEX IF NOT EXISTS "anonymous_credential_account" ON "_anonymous_credentials" ("table", "user_id");''',
   ),
+  const Migration('0012_jwt_replaces', '''
+ALTER TABLE "_jwt" ADD COLUMN "replaces" TEXT;'''),
 ];

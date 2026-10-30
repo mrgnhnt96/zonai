@@ -6,6 +6,7 @@ class JwtEntry {
     required this.userId,
     required this.expiresAt,
     this.anonymous = false,
+    this.replaces,
   });
 
   final JwtId id;
@@ -17,6 +18,15 @@ class JwtEntry {
   /// way it re-derives `admin` from the schema: a token claiming it is not
   /// anonymous proves nothing, even with a leaked signing key.
   final bool anonymous;
+
+  /// The session this one was refreshed from, until this one is first used.
+  ///
+  /// A refresh keeps the old row instead of deleting it, because the reply
+  /// carrying the new token can be lost (the app suspended mid-request, the
+  /// signal dropped) and the old token is then all the client has. Deleting
+  /// it at refresh signed those clients out. The first request -- or refresh
+  /// -- made with this session deletes the row named here and clears it.
+  final JwtId? replaces;
 }
 
 class JwtTable extends Table<JwtEntry> {
@@ -47,12 +57,21 @@ class JwtTable extends Table<JwtEntry> {
         'anonymous',
         (s) => s.anonymous,
         defaultValue: false,
+      ),
+      replaces = $.id<JwtId, JwtId?>(
+        'replaces',
+        (s) => s.replaces,
+        fromString: JwtId.new,
+        generate: () => throw Exception('A replaced JWT ID is never generated'),
+        isPrimaryKey: false,
+        synthetic: const JwtId('__zonai_schema_registration__'),
       );
 
   final IdColumn<JwtId> id;
   final IdColumn<UnknownId> userId;
   final DateTimeColumn expiresAt;
   final BooleanColumn anonymous;
+  final ColumnType<JwtId?> replaces;
 
   @override
   JwtEntry fromRow(RowReader read) {
@@ -61,6 +80,7 @@ class JwtTable extends Table<JwtEntry> {
       userId: read(userId),
       expiresAt: read(expiresAt),
       anonymous: read(anonymous),
+      replaces: read(replaces),
     );
   }
 }
