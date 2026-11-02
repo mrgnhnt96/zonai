@@ -5,6 +5,7 @@ import 'package:zonai_client/src/db.dart';
 import 'package:zonai_client/src/emails.dart';
 import 'package:zonai_client/src/photos.dart';
 import 'package:zonai_client/src/utils/interceptor.dart';
+import 'package:zonai_client/src/utils/stream_framing_interceptor.dart';
 import 'package:zonai_client/src/utils/zonai_storage_memory.dart';
 import 'package:zonai_client/src/utils/zonai_storage_resolve.dart';
 
@@ -42,6 +43,11 @@ class ZonaiClient {
   /// default constructor does, unless [server] already carries one. It used to
   /// be added only by the default constructor, so a client built here stored
   /// a token from [Auth.setToken] and never sent it.
+  ///
+  /// Registers a [StreamFramingInterceptor] too, unless [server] already
+  /// carries one, so `db.listen` gets whole messages however the network
+  /// splits them. Add your own to [server] first to choose where its errors
+  /// are reported.
   ZonaiClient.server({required Server server})
     : _server = server,
       auth = Auth(auth: server.auth, storage: server.storage),
@@ -51,6 +57,9 @@ class ZonaiClient {
     final interceptors = server.client.interceptors;
     if (!interceptors.any((interceptor) => interceptor is Interceptor)) {
       interceptors.insert(0, Interceptor(auth: auth));
+    }
+    if (!interceptors.any((i) => i is StreamFramingInterceptor)) {
+      interceptors.add(const StreamFramingInterceptor());
     }
   }
 
