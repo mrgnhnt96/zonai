@@ -480,6 +480,11 @@ const _exclusions = <String, String>{
   // consumer an Interceptor instance, so there is nothing for a consumer to
   // need a type name for.
   'Interceptor': 'internal HttpInterceptor wiring, never handed to a consumer',
+
+  // The byte-level framer StreamFramingInterceptor runs /db/stream* responses
+  // through. Consumers configure the interceptor, which is exported; the
+  // transformer inside it is an implementation detail.
+  'JsonValueFramer': 'internal to StreamFramingInterceptor, never handed to a consumer',
 };
 
 /// Walks up from this test file looking for the package root (identified by

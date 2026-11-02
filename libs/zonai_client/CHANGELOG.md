@@ -1,3 +1,21 @@
+## Unreleased
+
+- **`db.listen` gets whole messages however the network splits them.** The
+  server writes each live-query update as one JSON object with no separator,
+  and the generated `/db/stream*` readers decoded every network read as its
+  own message and dropped the ones that failed. An update bigger than one
+  read (about 1 KB, so any real list) arrived in pieces, every piece failed,
+  and the listener never got it: the page never loaded and new rows never
+  showed. Several small updates in one read were lost the same way.
+  `ZonaiClient` now installs a `StreamFramingInterceptor` that re-chunks
+  those responses into one whole JSON value each before they are decoded.
+  Apps that worked around this with their own interceptor can drop it.
+- **Live-stream errors are reported, not just swallowed.** A message the
+  stream ends inside of, bytes between messages that aren't JSON, and a
+  failed connection are logged under the `zonai_client` name. To send them
+  somewhere else, put a `StreamFramingInterceptor(onError: ...)` on the
+  `Server` you pass to `ZonaiClient.server`.
+
 ## 0.3.3
 
 - **Allows `zonai_schema` 0.8.0.** The constraint is now `>=0.6.0 <0.9.0`.

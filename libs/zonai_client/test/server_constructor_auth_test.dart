@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:zonai_client/server.dart';
+import 'package:zonai_client/src/utils/interceptor.dart';
 import 'package:zonai_client/zonai_client.dart';
 
 /// `ZonaiClient.server(...)` sends the stored token, like the factory does.
@@ -72,6 +73,6 @@ void main() {
     ZonaiClient.server(server: server);
     ZonaiClient.server(server: server);
 
-    expect(server.client.interceptors, hasLength(1));
+    expect(server.client.interceptors.whereType<Interceptor>(), hasLength(1));
   });
 }

@@ -114,6 +114,10 @@ export 'package:zonai_schema/src/types/id.dart' show UnknownId;
 export 'package:zonai_schema/src/types/jwt.dart' show Jwt;
 export 'package:zonai_schema/src/types/jwt_id.dart' show JwtId;
 
+// Built in by `ZonaiClient`; exported so an app can pass its own error
+// reporter by putting one on the `Server` it hands to `ZonaiClient.server`.
+export 'src/utils/stream_framing_interceptor.dart'
+    show StreamErrorReporter, StreamFramingInterceptor;
 export 'src/utils/zonai_storage_memory.dart'
     show ZonaiMemoryStorage, ZonaiNoStorage, ZonaiStorage;
 export 'src/zonai_client.dart';
