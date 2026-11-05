@@ -81,6 +81,7 @@ export 'src/handlers/messages/message_handler.dart'
 export 'src/internal/tables/abusers_table.dart';
 export 'src/internal/tables/photos_table.dart';
 export 'src/operations/table_operations.dart';
+export 'src/rate_limit/rate_limit_counter.dart';
 export 'src/rate_limit/rate_limit_policy.dart';
 export 'src/rate_limits/table/rate_limits.dart'
     show AuthTableRateLimits, TableRateLimits, RateLimits;

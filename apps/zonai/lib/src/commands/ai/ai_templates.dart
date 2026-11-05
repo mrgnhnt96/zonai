@@ -664,6 +664,10 @@ Data policy methods: `getPolicy` (`/db`, `/db/stream`), `limitPolicy` (list),
 `countPolicy`, `createPolicy`, `updatePolicy`, `deletePolicy`,
 `customPolicy(String? operation)`. A `/many` request counts once.
 
+`createCounters()` returns `RateLimitCounter`s that also count creates on a
+column of the submitted row (per API key, per device) instead of per IP; map
+the raw value through `key:` so callers can't rotate onto fresh counters.
+
 Auth policy methods (on `AuthTableRateLimits`, a separate class for auth
 routes only): `authenticatePolicy` (`POST /auth`: password, OTP and
 magic-link sends), `signInPolicy`, `signUpPolicy`, `sendResetPasswordPolicy`,
@@ -1872,6 +1876,11 @@ Data policy methods (all default to 100 req/min):
 
 A `/many` request counts once. `operation` is `null` when the name can't be
 validated (workers path); then all custom operations share one counter.
+
+`createCounters()` adds counters for creates keyed on a column of the submitted
+row instead of the IP (`RateLimitCounter(name:, column:, key:, policy:)`). Rows
+with no usable key, or a `key:` that returns `null`, fall back to the IP with
+`policy(null)`. See `/rate-limiting/keyed-counters`.
 
 ## Auth collection
 

@@ -217,6 +217,9 @@
     <loc>https://docs.zonai.dev/rate-limiting/configuring-policies/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/rate-limiting/keyed-counters/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/rate-limiting/auth-rate-limits/</loc>
   </url>
   <url>

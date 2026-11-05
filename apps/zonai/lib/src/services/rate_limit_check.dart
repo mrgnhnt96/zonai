@@ -21,6 +21,7 @@ final class RateLimitCheck {
     required this.remaining,
     required this.resetAt,
     this.customOperation,
+    this.counter,
   });
 
   /// No policy applies to this bucket, so the request always passes and
@@ -30,6 +31,7 @@ final class RateLimitCheck {
     required this.operation,
     this.customOperation,
   }) : allowed = true,
+       counter = null,
        limit = null,
        remaining = null,
        resetAt = null;
@@ -47,6 +49,13 @@ final class RateLimitCheck {
   /// [RateLimitOperation.custom] and the name was validated. `null` for
   /// every other operation, and for the coarse per-table custom bucket.
   final String? customOperation;
+
+  /// The name of the table's keyed counter (`TableRateLimits.createCounters`)
+  /// this verdict describes, or `null` for the per-IP counter. When a request
+  /// is counted against several counters, a refusal names the spent counter
+  /// that resets last, and an allowed request the counter with the fewest
+  /// requests left.
+  final String? counter;
 
   /// The policy's `maxRequests`. `null` when unlimited.
   final int? limit;

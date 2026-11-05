@@ -25,12 +25,14 @@ void main() {
     String table = 'items',
     RateLimitOperation operation = RateLimitOperation.create,
     String? customOperation,
+    String? counter,
     int limit = 100,
   }) => RateLimitCheck(
     allowed: false,
     table: table,
     operation: operation,
     customOperation: customOperation,
+    counter: counter,
     limit: limit,
     remaining: 0,
     resetAt: resetAt,
@@ -133,6 +135,21 @@ void main() {
       );
 
       expect(bodyOf(result), isNot(contains('customOperation')));
+    });
+
+    test('a keyed counter is named, and the per-IP one is not', () {
+      final keyed = exceededAt(
+        t0,
+        refusedAt(t0.add(const Duration(seconds: 42)), counter: 'device'),
+      );
+      final perIp = exceededAt(
+        t0,
+        refusedAt(t0.add(const Duration(seconds: 42))),
+      );
+
+      expect(bodyOf(keyed)['counter'], 'device');
+      expect(bodyOf(keyed)['collection'], 'items');
+      expect(bodyOf(perIp), isNot(contains('counter')));
     });
   });
 

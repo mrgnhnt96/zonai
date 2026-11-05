@@ -364,13 +364,18 @@ const List<NavGroup> navigation = [
   NavGroup(
     'Rate Limiting',
     icon: NavIcons.gauge,
-    summary: 'Per-IP limits, applied before rules run.',
+    summary: 'Per-IP and per-key limits, applied before rules run.',
     items: [
       NavItem('Overview', '/rate-limiting/overview', summary: 'Where limits apply and what the defaults are.'),
       NavItem(
         'Configuring Policies',
         '/rate-limiting/configuring-policies',
         summary: 'Per-table and per-operation policy classes.',
+      ),
+      NavItem(
+        'Keyed Counters',
+        '/rate-limiting/keyed-counters',
+        summary: 'Limiting creates per API key or per device instead of per IP.',
       ),
       NavItem('Auth Rate Limits', '/rate-limiting/auth-rate-limits'),
       NavItem(

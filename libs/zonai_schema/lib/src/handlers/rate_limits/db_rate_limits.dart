@@ -2,11 +2,29 @@ import 'package:zonai_schema/src/rate_limits/table/rate_limits.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
+import 'package:zonai_schema/src/rate_limit/rate_limit_counter.dart';
 import 'package:zonai_schema/src/rate_limit/rate_limit_policy.dart';
 
 class _RateLimitRules {
   TableRateLimits? tableRateLimits;
   AuthTableRateLimits? auth;
+
+  Map<String, RateLimitCounter>? _createCounters;
+  Map<String, RateLimitCounter> get createCounters {
+    if (_createCounters case final counters?) return counters;
+
+    final counters = <String, RateLimitCounter>{};
+    for (final counter in tableRateLimits?.createCounters() ?? const []) {
+      if (counters.containsKey(counter.name)) {
+        throw StateError(
+          'Two create counters named "${counter.name}" on '
+          '${tableRateLimits?.runtimeType}. Each counter needs its own name.',
+        );
+      }
+      counters[counter.name] = counter;
+    }
+    return _createCounters = counters;
+  }
 }
 
 class DbRateLimits {
@@ -55,6 +73,10 @@ class DbRateLimits {
   Future<RateLimitResponse> dispatch(RateLimitRequest request) async {
     final bucket = byTable[request.table];
     final defaults = _defaultBucket;
+
+    if (request.counter case final name?) {
+      return _counter(request, bucket, name);
+    }
 
     final policy = switch (request.operation) {
       .refreshToken => switch (bucket?.auth) {
@@ -162,7 +184,50 @@ class DbRateLimits {
       },
     };
 
-    return RateLimitResponse(id: request.id, policy: await policy);
+    return RateLimitResponse(
+      id: request.id,
+      policy: await policy,
+      counters: switch (request.operation) {
+        .create => {
+          for (final MapEntry(key: name, value: counter)
+              in (bucket?.createCounters ?? const {}).entries)
+            name: counter.columnName,
+        },
+        _ => const {},
+      },
+    );
+  }
+
+  Future<RateLimitResponse> _counter(
+    RateLimitRequest request,
+    _RateLimitRules? bucket,
+    String name,
+  ) async {
+    final counter = switch (request.operation) {
+      .create => bucket?.createCounters[name],
+      _ => null,
+    };
+    if (counter == null) {
+      throw StateError(
+        'No ${request.operation.name} counter named "$name" on '
+        '${request.table}.',
+      );
+    }
+
+    final key = switch ((request.value, counter.key)) {
+      (null, _) => null,
+      (final value?, null) => value,
+      (final value?, final normalize?) => switch (await normalize(value)) {
+        final key? when key.isNotEmpty => key,
+        _ => null,
+      },
+    };
+
+    return RateLimitResponse(
+      id: request.id,
+      policy: await counter.policy(key),
+      key: key,
+    );
   }
 }
 

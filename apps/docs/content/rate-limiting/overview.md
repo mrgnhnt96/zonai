@@ -3,7 +3,7 @@ title: Rate Limiting Overview
 description: How Zonai throttles requests per IP address and per table.
 ---
 
-Zonai tracks requests per client IP address, per table, per operation (`get`, `create`, `signIn`, and so on). When a client exceeds the configured limit within a time window, further requests receive a `429 Too Many Requests` response until the window resets.
+Zonai tracks requests per client IP address, per table, per operation (`get`, `create`, `signIn`, and so on). When a client exceeds the configured limit within a time window, further requests receive a `429 Too Many Requests` response until the window resets. A table can also count its creates per API key, per device, or by another column of the submitted row; see [Keyed Counters](/rate-limiting/keyed-counters).
 
 Rate limiting is the first check a request meets. It runs before rules, extensions or SQL, so a throttled request costs the server almost nothing.
 
@@ -81,6 +81,7 @@ The body names the policy that was hit, so a client throttled on `create` knows 
 - **`collection`**: the table the request targeted, or a shared bucket for routes that carry no table, such as `__auth_confirm__` for `POST /auth/confirm`. The full list is in [Auth Rate Limits](/rate-limiting/auth-rate-limits#endpoints-that-carry-no-table).
 - **`operation`**: the operation name (`get`, `create`, `signIn`, `custom`, ...).
 - **`customOperation`**: only on `PATCH /db/custom/:operation`, when the name could be validated. See [Configuring Policies](/rate-limiting/configuring-policies#when-operation-is-null).
+- **`counter`**: only on creates refused by one of the table's [keyed counters](/rate-limiting/keyed-counters), naming that counter.
 - **`retryAfter`**: the same number as the `Retry-After` header.
 
 Wait `Retry-After` seconds, then retry once. Every client behind one IP shares the same window and the same reset time, so several clients on one address should all wait for `X-RateLimit-Reset` instead of each retrying on its own schedule.

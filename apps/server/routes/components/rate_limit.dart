@@ -53,6 +53,7 @@ class RateLimit {
         'collection': check.table,
         'operation': check.operation.name,
         if (check.customOperation case final custom?) 'customOperation': custom,
+        if (check.counter case final counter?) 'counter': counter,
         'retryAfter': retryAfter,
       },
     );
@@ -150,6 +151,12 @@ class RateLimit {
         table: table,
         ipAddress: ipAddress,
         operation: operation,
+        // What a table's keyed create counters read their key from.
+        rows: switch (body) {
+          CreateBody(:final object) => [object],
+          CreateManyBody(:final objects) => objects,
+          _ => const [],
+        },
       ),
     );
   }

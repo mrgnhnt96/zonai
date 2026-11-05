@@ -15,7 +15,23 @@ base class TableRateLimits<S extends Table<R>, R> implements RateLimits<S, R> {
 
   Future<RateLimitPolicy?> countPolicy() async => .defaultPolicy;
 
+  /// The policy for the per-IP counter every create is counted against.
+  /// Return `null` to drop the per-IP counter, for instance when
+  /// [createCounters] limits creates by something other than the caller's
+  /// address.
   Future<RateLimitPolicy?> createPolicy() async => .defaultPolicy;
+
+  /// Counters a create is counted against besides [createPolicy]'s per-IP
+  /// one, each keyed on a column of the submitted row. See
+  /// [RateLimitCounter] for where the key comes from and what happens when a
+  /// row has none.
+  ///
+  /// None by default, so a table that doesn't override this is limited per
+  /// IP address only.
+  ///
+  /// Read once per table for the life of the server, so return the same
+  /// counters every time.
+  List<RateLimitCounter> createCounters() => const [];
 
   Future<RateLimitPolicy?> updatePolicy() async => .defaultPolicy;
 

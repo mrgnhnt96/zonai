@@ -59,6 +59,8 @@ Streaming shares the read policies above. Details: [Streaming](/operations/strea
 
 A `/many` request counts as **one** request against the policy, however many rows it carries.
 
+Creates can also be counted per API key, per device, or by another column of the submitted row, alongside or instead of the per-IP counter. Override `createCounters()`; see [Keyed Counters](/rate-limiting/keyed-counters).
+
 Methods you do not override keep the default: `PostRateLimits` above overrides only `createPolicy`, `getPolicy` and `limitPolicy`, so `count`, `update`, `delete` and custom operations on `posts` stay at 100 per minute.
 
 `customPolicy` buckets separately per operation name (`fill` and `reserve` on the same table get independent counters), but only for a name that's actually registered in that table's rules — an unrecognized `:operation` is rejected with `404` before it ever reaches the rate limiter:
