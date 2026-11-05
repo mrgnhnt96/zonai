@@ -61,9 +61,9 @@ bool isAllowedOrigin(String origin, {Set<String> configured = const {}}) =>
 
 /// What a response should say about cross-origin access, for a given request.
 ///
-/// [allowOrigin] of `null` means emit no `Access-Control-Allow-Origin` at all,
-/// which is what makes a browser refuse to hand the response to the page.
-typedef CorsDecision = ({String? allowOrigin, bool allowCredentials});
+/// [allowOrigin] is either the caller's own origin (only ever with
+/// credentials) or `*` (never with credentials).
+typedef CorsDecision = ({String allowOrigin, bool allowCredentials});
 
 /// Decides the CORS headers for a request whose `Origin` was [origin].
 CorsDecision decideCors(String? origin, {Set<String> configured = const {}}) {
@@ -80,7 +80,13 @@ CorsDecision decideCors(String? origin, {Set<String> configured = const {}}) {
     return (allowOrigin: origin, allowCredentials: true);
   }
 
-  return (allowOrigin: null, allowCredentials: false);
+  // An origin nobody listed -- a customer's site running the web SDK, which
+  // no operator can enumerate. It gets the same public grant as a request
+  // with no Origin: the browser hands it the reply, but sends no cookies or
+  // HTTP auth with the request and exposes nothing that relies on them.
+  // Refusing it outright (no Allow-Origin) did not stop the request: a POST
+  // was still stored, and the page only saw a network error.
+  return (allowOrigin: '*', allowCredentials: false);
 }
 
 /// Replaces `@AllowOrigins.all()`, which expanded to `{'*'}`.
@@ -122,11 +128,10 @@ class Cors implements LifecycleComponent {
       configured: configuredOrigins(),
     );
 
-    if (decision.allowOrigin case final allowed?) {
-      result.headers.set(HttpHeaders.accessControlAllowOriginHeader, allowed);
-    } else {
-      result.headers.remove(HttpHeaders.accessControlAllowOriginHeader);
-    }
+    result.headers.set(
+      HttpHeaders.accessControlAllowOriginHeader,
+      decision.allowOrigin,
+    );
 
     if (!decision.allowCredentials) {
       result.headers.remove(HttpHeaders.accessControlAllowCredentialsHeader);

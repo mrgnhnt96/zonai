@@ -48,18 +48,32 @@ void main() {
       expect(decision.allowCredentials, isTrue);
     });
 
-    test('gives a hostile origin no Allow-Origin and no credentials', () {
-      // The finding, exactly: `Origin: https://evil.example` came back
-      // reflected, with Access-Control-Allow-Credentials: true.
+    test('gives an unlisted origin the public wildcard, never credentials', () {
+      // A web SDK runs on customer sites nobody can list. Withholding
+      // Allow-Origin did not stop the request -- a POST was still stored --
+      // it only showed the page a network error. And the original finding
+      // still holds: an unlisted origin must never come back reflected, nor
+      // with Access-Control-Allow-Credentials: true.
       final decision = decideCors('https://evil.example');
 
-      expect(
-        decision.allowOrigin,
-        isNull,
-        reason:
-            'emitting no Allow-Origin is what makes the browser refuse '
-            'to hand the response to the page',
+      expect(decision.allowOrigin, '*');
+      expect(decision.allowCredentials, isFalse);
+    });
+
+    test('does not reflect an unlisted origin even when others are listed', () {
+      final decision = decideCors(
+        'https://customer.example',
+        configured: {'https://app.example.com'},
       );
+
+      expect(decision.allowOrigin, '*');
+      expect(decision.allowCredentials, isFalse);
+    });
+
+    test('never reflects a lookalike of loopback', () {
+      final decision = decideCors('https://localhost.evil.example');
+
+      expect(decision.allowOrigin, '*');
       expect(decision.allowCredentials, isFalse);
     });
 
