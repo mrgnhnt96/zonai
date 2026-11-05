@@ -121,6 +121,7 @@ Full walkthrough: https://docs.zonai.dev/getting-started/quick-start
 
 - [Rate Limiting Overview](https://docs.zonai.dev/rate-limiting/overview)
 - [Configuring Policies](https://docs.zonai.dev/rate-limiting/configuring-policies)
+- [Keyed Counters](https://docs.zonai.dev/rate-limiting/keyed-counters): limiting creates per API key or per device instead of per IP
 - [Auth Rate Limits](https://docs.zonai.dev/rate-limiting/auth-rate-limits)
 - [Trusted Proxies](https://docs.zonai.dev/rate-limiting/trusted-proxies)
 

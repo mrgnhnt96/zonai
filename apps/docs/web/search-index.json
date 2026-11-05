@@ -2069,7 +2069,7 @@
         {
           "h": "Where Hooks Run",
           "a": "where-hooks-run",
-          "b": "For a create, the order is: rate limit → table rules → row rules → beforeCreate → INSERT → afterCreateSuccess → queued side effects ↓ (INSERT failed) afterCreateError Update and delete follow the same shape with their own hooks. Hooks run once per row: POST /db/many calls beforeCreate for each object, and a delete that matches ten rows calls beforeDelete and afterDeleteSuccess ten times. Throwing from a before hook aborts the request. Nothing is written, and any side effects the hook queued are discarded. The client gets a server error (500), not your exception message. beforeSignUp is the one hook with a refusal the client can read; see Declining a sign-up. Throwing from an afterSuccess hook fails the request after the write has committed. The row is already saved, but the client sees an error, and the side effects that hook queued never run. Keep after-hooks from throwing unless a failed response is really what you want."
+          "b": "For a create, the order is: rate limit → table rules → row rules → beforeCreate → INSERT → afterCreateSuccess → queued side effects ↓ (INSERT failed) afterCreateError Update and delete follow the same shape with their own hooks. Hooks run once per row: POST /db/many calls beforeCreate for each object, and a delete that matches ten rows calls beforeDelete and afterDeleteSuccess ten times. Throwing from a before hook aborts the request. Nothing is written, and any side effects the hook queued are discarded. The client gets a server error (500), not your exception message. beforeSignUp is the one hook with a refusal the client can read; see Declining a sign-up. Throwing from an afterSuccess hook does not fail the request. The write has already committed, so the client gets it back as usual. The failure is logged as an error, and the side effects that hook queued are dropped. The same goes for an after-hook that runs past the extensions worker's 10s request timeout."
         },
         {
           "h": "Mutation Hooks",
@@ -2331,7 +2331,7 @@
         {
           "h": "Queuing Behavior",
           "a": "queuing-behavior",
-          "b": "Mutations run in the order they were queued. Each one goes through the same pipeline as an HTTP request to the target table: table rules, row rules, operations, and that table's extension hooks. (Rate limits are not applied; they only guard HTTP routes.) This means: A delete on comments triggers CommentExtensions.afterDeleteSuccess That hook could queue further mutations, up to the chain limit Queued writes act as the hook's jwt. A write queued from a user's request is checked against that user's rules, so the user needs permission to write the target table. In cron jobs the identity is CronJwt. Queued writes only run if the request succeeds. If a before hook throws, the write itself fails, or an afterSuccess hook throws, everything queued so far is discarded. Writes queued in afterError hooks never run either, because the request is failing."
+          "b": "Mutations run in the order they were queued. Each one goes through the same pipeline as an HTTP request to the target table: table rules, row rules, operations, and that table's extension hooks. (Rate limits are not applied; they only guard HTTP routes.) This means: A delete on comments triggers CommentExtensions.afterDeleteSuccess That hook could queue further mutations, up to the chain limit Queued writes act as the hook's jwt. A write queued from a user's request is checked against that user's rules, so the user needs permission to write the target table. In cron jobs the identity is CronJwt. Queued writes only run if the request succeeds. If a before hook throws or the write itself fails, everything queued so far is discarded. If an afterSuccess hook throws, only the writes that hook queued are dropped; the request still succeeds. Writes queued in afterError hooks never run either, because the request is failing."
         },
         {
           "h": "The Chain Limit",
@@ -3200,7 +3200,7 @@
       "g": "Rate Limiting",
       "s": [
         {
-          "b": "Zonai tracks requests per client IP address, per table, per operation (get, create, signIn, and so on). When a client exceeds the configured limit within a time window, further requests receive a 429 Too Many Requests response until the window resets. Rate limiting is the first check a request meets. It runs before rules, extensions or SQL, so a throttled request costs the server almost nothing. Stream routes share read policies: getPolicy → /db/stream, limitPolicy → /db/stream/list, countPolicy → /db/stream/count. Long-lived streams still count as requests when they open. See Streaming."
+          "b": "Zonai tracks requests per client IP address, per table, per operation (get, create, signIn, and so on). When a client exceeds the configured limit within a time window, further requests receive a 429 Too Many Requests response until the window resets. A table can also count its creates per API key, per device, or by another column of the submitted row; see Keyed Counters. Rate limiting is the first check a request meets. It runs before rules, extensions or SQL, so a throttled request costs the server almost nothing. Stream routes share read policies: getPolicy → /db/stream, limitPolicy → /db/stream/list, countPolicy → /db/stream/count. Long-lived streams still count as requests when they open. See Streaming."
         },
         {
           "h": "Default Policy",
@@ -3220,7 +3220,7 @@
         {
           "h": "The 429 Response",
           "a": "the-429-response",
-          "b": "HTTP/1.1 429 Too Many Requests retry-after: 42 x-ratelimit-limit: 100 x-ratelimit-remaining: 0 x-ratelimit-reset: 1788307242 content-type: application/json {\"error\":\"Rate limit exceeded\",\"collection\":\"items\",\"operation\":\"create\",\"retryAfter\":42} Header Value Retry-After Whole seconds until the window resets, rounded up and never 0 X-RateLimit-Limit The policy's maxRequests X-RateLimit-Remaining 0 X-RateLimit-Reset When the window resets, as a Unix timestamp in whole seconds (UTC) The body names the policy that was hit, so a client throttled on create knows it can keep reading: collection: the table the request targeted, or a shared bucket for routes that carry no table, such as __auth_confirm__ for POST /auth/confirm. The full list is in Auth Rate Limits. operation: the operation name (get, create, signIn, custom, ...). customOperation: only on PATCH /db/custom/:operation, when the name could be validated. See Configuring Policies. retryAfter: the same number as the Retry-After header. Wait Retry-After seconds, then retry once. Every client behind one IP shares the same window and the same reset time, so several clients on one address should all wait for X-RateLimit-Reset instead o"
+          "b": "HTTP/1.1 429 Too Many Requests retry-after: 42 x-ratelimit-limit: 100 x-ratelimit-remaining: 0 x-ratelimit-reset: 1788307242 content-type: application/json {\"error\":\"Rate limit exceeded\",\"collection\":\"items\",\"operation\":\"create\",\"retryAfter\":42} Header Value Retry-After Whole seconds until the window resets, rounded up and never 0 X-RateLimit-Limit The policy's maxRequests X-RateLimit-Remaining 0 X-RateLimit-Reset When the window resets, as a Unix timestamp in whole seconds (UTC) The body names the policy that was hit, so a client throttled on create knows it can keep reading: collection: the table the request targeted, or a shared bucket for routes that carry no table, such as __auth_confirm__ for POST /auth/confirm. The full list is in Auth Rate Limits. operation: the operation name (get, create, signIn, custom, ...). customOperation: only on PATCH /db/custom/:operation, when the name could be validated. See Configuring Policies. counter: only on creates refused by one of the table's keyed counters, naming that counter. retryAfter: the same number as the Retry-After header. Wait Retry-After seconds, then retry once. Every client behind one IP shares the same window and the same r"
         },
         {
           "h": "Client IP Resolution",
@@ -3253,7 +3253,7 @@
         {
           "h": "Per-Operation Methods",
           "a": "per-operation-methods",
-          "b": "All methods are async and return Future<RateLimitPolicy?>. Paths use a JSON table in the body (or ?body=), not a path segment. Method Endpoints createPolicy() POST /db, POST /db/many updatePolicy() PATCH /db, PATCH /db/many deletePolicy() DELETE /db, DELETE /db/many getPolicy() GET /db, GET /db/stream limitPolicy() GET /db/list, GET /db/stream/list countPolicy() GET /db/count, GET /db/stream/count customPolicy(operation) PATCH /db/custom/:operation, PATCH /db/custom/:operation/many Streaming shares the read policies above. Details: Streaming. A /many request counts as one request against the policy, however many rows it carries. Methods you do not override keep the default: PostRateLimits above overrides only createPolicy, getPolicy and limitPolicy, so count, update, delete and custom operations on posts stay at 100 per minute. customPolicy buckets separately per operation name (fill and reserve on the same table get independent counters), but only for a name that's actually registered in that table's rules — an unrecognized :operation is rejected with 404 before it ever reaches the rate limiter: @override Future<RateLimitPolicy?> customPolicy(String? operation) async { return swit"
+          "b": "All methods are async and return Future<RateLimitPolicy?>. Paths use a JSON table in the body (or ?body=), not a path segment. Method Endpoints createPolicy() POST /db, POST /db/many updatePolicy() PATCH /db, PATCH /db/many deletePolicy() DELETE /db, DELETE /db/many getPolicy() GET /db, GET /db/stream limitPolicy() GET /db/list, GET /db/stream/list countPolicy() GET /db/count, GET /db/stream/count customPolicy(operation) PATCH /db/custom/:operation, PATCH /db/custom/:operation/many Streaming shares the read policies above. Details: Streaming. A /many request counts as one request against the policy, however many rows it carries. Creates can also be counted per API key, per device, or by another column of the submitted row, alongside or instead of the per-IP counter. Override createCounters(); see Keyed Counters. Methods you do not override keep the default: PostRateLimits above overrides only createPolicy, getPolicy and limitPolicy, so count, update, delete and custom operations on posts stay at 100 per minute. customPolicy buckets separately per operation name (fill and reserve on the same table get independent counters), but only for a name that's actually registered in that tabl"
         },
         {
           "h": "When operation is null",
@@ -3269,6 +3269,52 @@
           "h": "Example: Different Limits for Reads and Writes",
           "a": "example-different-limits-for-reads-and-writes",
           "b": "import 'package:my_app/src/schemas/articles.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class ArticleRateLimits extends TableRateLimits<ArticleTable, Article> { ArticleRateLimits() : super(articles); // Strict limits for writes @override Future<RateLimitPolicy?> createPolicy() async => const RateLimitPolicy(maxRequests: 5, window: Duration(minutes: 1)); @override Future<RateLimitPolicy?> updatePolicy() async => const RateLimitPolicy(maxRequests: 20, window: Duration(minutes: 1)); @override Future<RateLimitPolicy?> deletePolicy() async => const RateLimitPolicy(maxRequests: 5, window: Duration(minutes: 1)); // Relaxed limits for reads @override Future<RateLimitPolicy?> getPolicy() async => const RateLimitPolicy(maxRequests: 2000, window: Duration(minutes: 1)); @override Future<RateLimitPolicy?> limitPolicy() async => const RateLimitPolicy(maxRequests: 1000, window: Duration(minutes: 1)); } ArticleRateLimits main() => ArticleRateLimits();"
+        }
+      ]
+    },
+    {
+      "u": "/rate-limiting/keyed-counters",
+      "t": "Keyed Counters",
+      "d": "Limiting creates per API key or per device instead of per IP.",
+      "g": "Rate Limiting",
+      "s": [
+        {
+          "b": "Every policy in Configuring Policies counts per client IP address. That is the wrong unit when many honest callers share one address. A company's office, a school, or a mobile carrier's NAT can put hundreds of devices behind one IP, and together they use up a budget meant for one caller. For creates, a table can count on a value from the submitted row instead, such as the row's API key or install id. It can also keep several counters at once, each with its own policy."
+        },
+        {
+          "h": "Defining Counters",
+          "a": "defining-counters",
+          "b": "Override createCounters() on your TableRateLimits and return one RateLimitCounter per counter: import 'package:my_app/src/schemas/uploads.dart'; import 'package:zonai_schema/zonai_schema.dart'; /// API key to the app it belongs to. In a real project this would be a /// lookup of your own. const _apps = {'pk_live_acme': 'acme', 'pk_live_globex': 'globex'}; const _enterprise = {'acme'}; final class UploadRateLimits extends TableRateLimits<UploadTable, Upload> { UploadRateLimits() : super(uploads); // The counters below replace the per-IP one. @override Future<RateLimitPolicy?> createPolicy() async => null; @override List createCounters() => [ RateLimitCounter( name: 'app', column: schema.apiKey, // Only API keys of real apps get a counter of their own. key: (apiKey) async => _apps[apiKey], policy: (app) async => switch (app) { // No known API key: counted per IP, at a low limit. null => const RateLimitPolicy( maxRequests: 20, window: Duration(minutes: 5), ), final app when _enterprise.contains(app) => const RateLimitPolicy( maxRequests: 10000, window: Duration(minutes: 5), ), _ => const RateLimitPolicy( maxRequests: 1000, window: Duration(minutes: 5), ), }, ), RateLimitCounter( name:"
+        },
+        {
+          "h": "The Per-IP Counter",
+          "a": "the-per-ip-counter",
+          "b": "createPolicy() still defines the per-IP counter, and it is counted alongside the keyed ones. Leaving it at its default of 100 per minute per IP keeps that cap in front of your counters. Return null, as above, when one address legitimately sends more than that. A table that doesn't override createCounters() has none, and is limited per IP exactly as before."
+        },
+        {
+          "h": "When a Row Has No Key",
+          "a": "when-a-row-has-no-key",
+          "b": "A create has no key for a counter when the column is missing from the row, empty, null, neither a string nor a number, or when key returns null or an empty string. A POST /db/many whose rows don't all have the same value has no key either, so one request can't spread its rows over several counters. A create with no key isn't let through or refused. It is counted on the caller's IP address, in the counter's own bucket, apart from the per-IP counter, and at the policy that policy(null) returns. In the example above, an upload without a known API key gets 20 per 5 minutes per address."
+        },
+        {
+          "h": "Callers Who Rotate Keys",
+          "a": "callers-who-rotate-keys",
+          "b": "The key comes from the row, and the caller writes the row. Without key, a caller can send a new value on every request, and each new value starts on a fresh counter. Use key for anything that grants a bigger budget. Map the value to an identity you issued and return null for anything else. Made-up values then all land on the same keyless, per-IP counter. Pair a counter whose key is invented with one whose key isn't. In the example, a caller can make up install ids, but every create still counts against its app's counter, so new device ids never add up to more than the app's budget. The column is fixed by the table. A caller can't choose a different column, header or value to be counted under. Counters key on the stored row's value as the client sent it, before any beforeCreate extension changes it."
+        },
+        {
+          "h": "Storage",
+          "a": "storage",
+          "b": "Keyed counters share the internal _rate_limit table with the per-IP ones, and the _delete_old_rate_limits cron job clears them out the same way. No migration is needed. The key is stored as a SHA-256 hash, so the table never holds a raw API key."
+        },
+        {
+          "h": "The 429 Response",
+          "a": "the-429-response",
+          "b": "A create refused by a keyed counter carries the same status, headers and body as any other 429 (see The 429 Response), with one more field: {\"error\":\"Rate limit exceeded\",\"collection\":\"uploads\",\"operation\":\"create\",\"counter\":\"device\",\"retryAfter\":42} counter: the name of the keyed counter that refused the request. It is absent when the per-IP counter refused it. When more than one counter is spent, the 429 names the one that resets last, so retrying after Retry-After gets through. Clients behind one IP no longer share a reset time for keyed counters; each waits for its own."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Configuring Policies Rate Limiting Overview Trusted Proxies"
         }
       ]
     },
