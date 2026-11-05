@@ -102,6 +102,8 @@ const kZonaiClientExports = <String>[
   'StartsWith',
   'StreamBody',
   'StreamCountBody',
+  'StreamErrorReporter',
+  'StreamFramingInterceptor',
   'StreamListBody',
   'UnknownId',
   'Update',

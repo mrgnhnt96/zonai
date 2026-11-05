@@ -1119,19 +1119,33 @@ Future<void> _authSurface(Api api) async {
     actual: newToken != null && newToken != oldToken,
     expected: true,
   );
+  // The old token stays tradeable until the new one is used, so a client
+  // that lost the refresh reply is not signed out (#117). Use the new token
+  // once -- any authenticated request counts -- before checking the old one.
+  final newTokenUse = await api._sendRaw(
+    'GET',
+    '/dashboard/metrics',
+    authorization: newToken,
+  );
+  api.expect(
+    'the NEW token works for an authenticated request',
+    actual: newTokenUse.status,
+    expected: 200,
+  );
   final oldTokenRefreshAgain = await api._sendRaw(
     'POST',
     '/auth/refresh',
     authorization: oldToken,
   );
   api.expect(
-    'the OLD token is revoked once refreshed -- it cannot refresh again',
+    'the OLD token is revoked once the new one is used -- it cannot refresh '
+    'again',
     actual: oldTokenRefreshAgain.status,
     expected: 401,
     why:
-        'a refresh that left the old token alive would let a caller hold two '
-        'live sessions from one refresh call, which defeats the point of '
-        'rotating the token at all.',
+        'a refresh that left the old token alive after the new one is in use '
+        'would let a caller hold two live sessions from one refresh call, '
+        'which defeats the point of rotating the token at all.',
   );
 
   // -- reset-password: send, then rate-limited on a second send ------------
