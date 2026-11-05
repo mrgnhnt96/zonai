@@ -1,19 +1,34 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:revali_router/revali_router.dart';
 import 'package:test/test.dart';
 
 import '../routes/apps/dev_app.dart';
 
+const _listed = 'https://app.example.com';
+const _unlisted = 'https://customer.example';
+const _loopback = 'http://localhost:8080';
+
+/// Attaches [Cors] the way the generated server does.
+final class _CorsWrapper implements RequestWrapper {
+  const _CorsWrapper(this.policy);
+
+  final CorsPolicy policy;
+
+  @override
+  WrapperResult wrap(Context context, NextResponse next) =>
+      Cors(policy: policy).wrap(context, next);
+}
+
 /// Pins the CORS policy that replaced `@AllowOrigins.all()`.
 ///
-/// The live behaviour being defended: revali_router reflects the caller's
-/// `Origin` into `Access-Control-Allow-Origin` and sets
-/// `Access-Control-Allow-Credentials: true` unconditionally
-/// (`run_origin_check.dart`). With `{'*'}` as the allow-list every origin
-/// matched, so a page on any domain could make credentialed calls here and
-/// read the replies.
-///
-/// What this does *not* cover: the `OPTIONS` preflight, which revali_router
-/// answers before any middleware runs. See the note on [Cors].
+/// The live behaviour being defended: revali_router's default [CorsPolicy]
+/// reflects the caller's `Origin` with `Access-Control-Allow-Credentials: true`.
+/// Left in place, a page on any domain could make credentialed calls here and
+/// read the replies. `over a real connection` runs a preflight and a real
+/// request through a router wired like the generated one, because a preflight
+/// never reaches [Cors].
 void main() {
   group('Cors component wiring', () {
     test('is typed as a LifecycleComponent, so it is actually generated', () {
@@ -27,6 +42,113 @@ void main() {
             'without this the annotation is inert and every response '
             'keeps the reflected origin and credentials header',
       );
+    });
+  });
+
+  group('over a real connection', () {
+    late HttpServer server;
+    late HttpClient client;
+
+    setUp(() async {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      client = HttpClient();
+
+      final policy = ZonaiCorsPolicy(configured: () => {_listed});
+      final router = Router(
+        cors: policy,
+        globalComponents: LifecycleComponentsImpl(
+          requestWrappers: [_CorsWrapper(policy)],
+        ),
+        routes: [
+          Route(
+            'db',
+            method: 'POST',
+            handler: (context) async {
+              context.response.statusCode = HttpStatus.ok;
+            },
+          ),
+        ],
+      );
+
+      unawaited(handleRouterRequests(server, router, server.close));
+    });
+
+    tearDown(() async {
+      client.close(force: true);
+      await server.close(force: true);
+    });
+
+    Future<HttpClientResponse> send(String method, {String? origin}) async {
+      final request = await client.openUrl(
+        method,
+        Uri.parse('http://127.0.0.1:${server.port}/db'),
+      );
+      if (origin != null) request.headers.set('origin', origin);
+      if (method == 'OPTIONS') {
+        request.headers.set('access-control-request-method', 'POST');
+      }
+
+      final response = await request.close();
+      await response.drain<void>();
+
+      return response;
+    }
+
+    void expectGrant(
+      HttpClientResponse response, {
+      required String allowOrigin,
+      required String? allowCredentials,
+    }) {
+      expect(response.statusCode, HttpStatus.ok);
+      expect(
+        response.headers.value('access-control-allow-origin'),
+        allowOrigin,
+      );
+      expect(
+        response.headers.value('access-control-allow-credentials'),
+        allowCredentials,
+      );
+      expect(response.headers.value('vary'), 'Origin');
+    }
+
+    for (final method in ['OPTIONS', 'POST']) {
+      group(method, () {
+        test('gives an unlisted origin * without credentials', () async {
+          expectGrant(
+            await send(method, origin: _unlisted),
+            allowOrigin: '*',
+            allowCredentials: null,
+          );
+        });
+
+        test('reflects a listed origin with credentials', () async {
+          expectGrant(
+            await send(method, origin: _listed),
+            allowOrigin: _listed,
+            allowCredentials: 'true',
+          );
+        });
+
+        test('reflects a loopback origin with credentials', () async {
+          expectGrant(
+            await send(method, origin: _loopback),
+            allowOrigin: _loopback,
+            allowCredentials: 'true',
+          );
+        });
+      });
+    }
+
+    test('varies on Origin for a request that sent none', () async {
+      // A cache would otherwise replay this `*` to a listed origin, whose
+      // credentialed request the browser would then refuse.
+      expectGrant(await send('POST'), allowOrigin: '*', allowCredentials: null);
+    });
+  });
+
+  group('ZonaiCorsPolicy', () {
+    test('is what the app hands revali_router', () {
+      expect(DevApp().cors, isA<ZonaiCorsPolicy>());
     });
   });
 
