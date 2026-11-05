@@ -8,6 +8,24 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.13.0
+
+- **Rate-limit creates per API key or per device.** A table's
+  `TableRateLimits` can return `RateLimitCounter`s from `createCounters()`,
+  each counting creates on one column of the submitted row with its own
+  policy, so many devices behind one office or carrier IP no longer share one
+  budget. A refusal counts against none of the counters, and the `429` names
+  the one that refused in a new `counter` field. Tables that define no
+  counters are limited per IP exactly as before. Needs `zonai_schema: ^0.8.3`.
+- **A lost refresh reply no longer signs the user out.** A refresh used to
+  retire the old token at once, so an app suspended mid-request was left
+  holding a dead token. The old token now stays valid until the new one is
+  first used. Adds a nullable `_jwt.replaces` column (internal migration,
+  applied automatically).
+- **`db.listen` in `zonai_client` 0.3.4 gets whole messages however the
+  network splits them.** Live-query updates bigger than about 1 KB, or several
+  arriving in one read, used to be dropped, so lists never loaded.
+
 ## 0.12.1
 
 - **`GET /db`, `/db/list` and `/db/count` find rows by long numeric strings.**
