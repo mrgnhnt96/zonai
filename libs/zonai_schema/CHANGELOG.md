@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.3
+
+**Rate limits can count creates per API key or per device, not just per IP.**
+`TableRateLimits.createCounters()` returns `RateLimitCounter`s, each counting
+creates on the value of one column of the submitted row (an API key, an install
+id) with its own policy. They run alongside `createPolicy()`'s per-IP counter,
+or instead of it when `createPolicy()` returns `null`. An optional `key:`
+mapper turns raw values into trusted identities; a value it turns down, and a
+missing or mixed one, is counted on the caller's IP at `policy(null)`. A table
+that does not override `createCounters()` is limited exactly as before. Needs
+the zonai CLI 0.13.0, which checks the counters; the new rate-limit message
+fields are optional, so 0.8.2 workers and older CLIs keep working.
+
 ## 0.8.2
 
 **Webhooks.** A `Webhook` subclass answers `POST /hooks/<name>`: its

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.4
 
 - **`db.listen` gets whole messages however the network splits them.** The
   server writes each live-query update as one JSON object with no separator,
