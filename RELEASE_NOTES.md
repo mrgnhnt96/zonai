@@ -8,8 +8,20 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
-## 0.13.0
+## 0.13.1
 
+- **A web SDK on a customer's site can read its replies.** A browser request
+  from an origin not in `ZONAI_ALLOWED_ORIGINS` used to be stored and then
+  shown to the page as a network error. It now gets
+  `Access-Control-Allow-Origin: *` with no
+  `Access-Control-Allow-Credentials`, so the page gets the reply but no
+  cookies or HTTP auth go with it. A page that sends
+  `credentials: 'include'` from such an origin is still refused by the
+  browser; add it to `ZONAI_ALLOWED_ORIGINS`. Listed and loopback origins are
+  unchanged.
+- **Preflights follow the same rule.** An `OPTIONS` request used to reflect any
+  origin with `Access-Control-Allow-Credentials: true`. It now gets the same
+  answer as the real request.
 - **Rate-limit creates per API key or per device.** A table's
   `TableRateLimits` can return `RateLimitCounter`s from `createCounters()`,
   each counting creates on one column of the submitted row with its own
@@ -25,6 +37,8 @@ do, and what stopped being broken. The commit list is already one click away.
 - **`db.listen` in `zonai_client` 0.3.4 gets whole messages however the
   network splits them.** Live-query updates bigger than about 1 KB, or several
   arriving in one read, used to be dropped, so lists never loaded.
+- **0.13.0 was never published.** Its release stopped on a failing check, so
+  everything it carried ships here; upgrade straight from 0.12.1.
 
 ## 0.12.1
 

@@ -45,34 +45,6 @@ decouple `_inProcessHttp` from `hasOperations`. To verify a fix, the repro
 should log the `[*_EXE]: Started` lines and answer a request end to end.
 Binding the port is not enough, because that part already works.
 
-## 7. CORS preflight still reflects any `Origin` with credentials
-
-The original gap, no CORS support at all, is fixed. The `@Cors()` lifecycle
-component (`apps/server/routes/apps/dev_app.dart`) allows loopback origins plus
-`ZONAI_ALLOWED_ORIGINS`, and it strips `Access-Control-Allow-Origin` and
-`-Allow-Credentials` from real responses sent to any other origin. What is left
-is the preflight.
-
-**Symptom.** Send `OPTIONS` with `Origin: https://evil.example`. The response
-carries `Access-Control-Allow-Origin: https://evil.example` and
-`Access-Control-Allow-Credentials: true`. The actual request that follows is
-stripped by `Cors.wrap`, so a hostile page cannot read any response. The
-preflight still grants something it should not.
-
-**Where.** revali_router 5.1.2, `RunOriginCheck.run` (`run_origin_check.dart`).
-With an empty allow-list it reflects any `Origin` and always sets
-credentials `true`. `RunOptions` returns that response before any middleware
-runs, so no app-level component can reach it. `apps/server/test/cors_policy_test.dart`
-states that it does not cover this path.
-
-**Workaround.** None needed for data safety, because the real response is
-stripped. A reverse proxy can answer or filter `OPTIONS` if you need a clean
-preflight.
-
-**Fix direction.** Upstream in revali_router: do not reflect an unmatched
-origin, and do not set credentials unless the origin matched. Alternatively,
-run middleware on preflights.
-
 ## 6. `AsAdmin` makes every row of the table an admin
 
 **Symptom.** Every JWT issued for any row in an `AsAdmin` table carries

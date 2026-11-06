@@ -59,14 +59,11 @@ Set<String> parseOrigins(String? raw) {
 bool isAllowedOrigin(String origin, {Set<String> configured = const {}}) =>
     configured.contains(origin) || loopbackOrigin.hasMatch(origin);
 
-/// What a response should say about cross-origin access, for a given request.
+/// Decides the CORS grant for a request whose `Origin` was [origin].
 ///
-/// [allowOrigin] of `null` means emit no `Access-Control-Allow-Origin` at all,
-/// which is what makes a browser refuse to hand the response to the page.
-typedef CorsDecision = ({String? allowOrigin, bool allowCredentials});
-
-/// Decides the CORS headers for a request whose `Origin` was [origin].
-CorsDecision decideCors(String? origin, {Set<String> configured = const {}}) {
+/// The granted origin is either the caller's own (only ever with credentials)
+/// or `*` (never with credentials).
+CorsGrant decideCors(String? origin, {Set<String> configured = const {}}) {
   // No `Origin` means this is not a cross-origin browser request at all --
   // a native client, curl, or server-to-server. revali_router answers those
   // with `*`, which is fine on its own and must never carry credentials:
@@ -80,31 +77,47 @@ CorsDecision decideCors(String? origin, {Set<String> configured = const {}}) {
     return (allowOrigin: origin, allowCredentials: true);
   }
 
-  return (allowOrigin: null, allowCredentials: false);
+  // An origin nobody listed -- a customer's site running the web SDK, which
+  // no operator can enumerate. It gets the same public grant as a request
+  // with no Origin: the browser hands it the reply, but sends no cookies or
+  // HTTP auth with the request and exposes nothing that relies on them.
+  // Refusing it outright (no Allow-Origin) did not stop the request: a POST
+  // was still stored, and the page only saw a network error.
+  return (allowOrigin: '*', allowCredentials: false);
 }
 
-/// Replaces `@AllowOrigins.all()`, which expanded to `{'*'}`.
+/// Applies [decideCors] to every request revali_router admits.
 ///
-/// `{'*'}` matched every origin, and revali_router pairs a matched origin with
-/// `Access-Control-Allow-Credentials: true` while reflecting the caller's own
-/// `Origin` straight back (`run_origin_check.dart`, which sets both headers
-/// unconditionally). Any page on any domain could therefore make credentialed
-/// calls here and read the replies.
+/// `RunOriginCheck` asks this before anything else runs, which is the only
+/// point that reaches an `OPTIONS` preflight: `RunOptions` answers those
+/// without running a lifecycle component, so [Cors] alone would leave
+/// revali_router's default in place there -- the caller's own `Origin`,
+/// reflected, with credentials.
+final class ZonaiCorsPolicy extends CorsPolicy {
+  const ZonaiCorsPolicy({this.configured = configuredOrigins});
+
+  /// Reads the listed origins, once per request.
+  final Set<String> Function() configured;
+
+  @override
+  CorsGrant grant(String? origin) =>
+      decideCors(origin, configured: configured());
+}
+
+/// Holds a finished response to the same decision as [ZonaiCorsPolicy].
 ///
-/// The decision is made here rather than in an `@AllowOrigins` annotation
+/// [ZonaiCorsPolicy] only writes the response a route starts with, so this is
+/// what covers a response built some other way, such as one from an exception
+/// catcher. It also marks a response from a request with no `Origin` as varying
+/// on it, which `RunOriginCheck` does not: a cache that stored that `*` would
+/// otherwise replay it to a listed origin expecting its credentialed grant.
+///
+/// The decision is made at runtime rather than in an `@AllowOrigins` annotation
 /// because the generator re-emits an annotation's *value* into generated
 /// source: a pattern containing `$` fails to parse, and one containing `\.`
 /// or `\d` is silently rewritten to `.` and `d` -- an allow-list that looks
 /// anchored and is not. A runtime regex is never round-tripped through
 /// generated source, so it means what it says.
-///
-/// **What this does not cover.** `RunOriginCheck` runs before the router
-/// decides an `OPTIONS` request is a preflight, and `RunOptions` returns that
-/// already-populated response without running middleware -- so a *preflight*
-/// still answers a hostile origin with reflected credentials. The real request
-/// that follows is stripped by this component, so nothing can be read; but
-/// closing the preflight itself needs a fix in revali_router. Nothing this app
-/// can express reaches that path.
 ///
 /// Typed as a [LifecycleComponent] deliberately: revali's generator matches
 /// annotations against that marker to decide they contribute anything at all.
@@ -112,23 +125,26 @@ CorsDecision decideCors(String? origin, {Set<String> configured = const {}}) {
 /// the component silently does nothing -- the same failure as
 /// the bug fixed in 111b8dfd. `cors_policy_test.dart` pins it.
 class Cors implements LifecycleComponent {
-  const Cors();
+  const Cors({this.policy = const ZonaiCorsPolicy()});
+
+  final CorsPolicy policy;
 
   Future<Response> wrap(Context context, NextResponse next) async {
     final result = await next();
 
-    final decision = decideCors(
-      context.request.headers.get('origin'),
-      configured: configuredOrigins(),
+    final grant = policy.grant(context.request.headers.get('origin'));
+
+    result.headers.set(
+      HttpHeaders.accessControlAllowOriginHeader,
+      grant.allowOrigin,
     );
 
-    if (decision.allowOrigin case final allowed?) {
-      result.headers.set(HttpHeaders.accessControlAllowOriginHeader, allowed);
+    if (grant.allowCredentials) {
+      result.headers.set(
+        HttpHeaders.accessControlAllowCredentialsHeader,
+        'true',
+      );
     } else {
-      result.headers.remove(HttpHeaders.accessControlAllowOriginHeader);
-    }
-
-    if (!decision.allowCredentials) {
       result.headers.remove(HttpHeaders.accessControlAllowCredentialsHeader);
     }
 
@@ -136,7 +152,11 @@ class Cors implements LifecycleComponent {
     // its `Access-Control-Allow-Origin` both vary by `Origin`. Without this a
     // shared cache can hand one origin's response -- carrying that origin's
     // Allow-Origin -- to a different one.
-    result.headers.add('vary', 'origin');
+    final vary = result.headers.get(HttpHeaders.varyHeader) ?? '';
+    final varies = vary
+        .split(',')
+        .any((value) => value.trim().toLowerCase() == 'origin');
+    if (!varies) result.headers.add(HttpHeaders.varyHeader, 'Origin');
 
     return result;
   }
@@ -170,6 +190,9 @@ final class DevApp extends AppConfig {
 
   @override
   TrustedProxy get trustedProxy => _trustedProxy;
+
+  @override
+  CorsPolicy get cors => const ZonaiCorsPolicy();
 
   @override
   Future<void> configureDependencies(DI di) async {
