@@ -941,10 +941,10 @@ packages:
     dependency: transitive
     description:
       name: revali
-      sha256: "961d2a47afd21b152f431d22bfc030cc65fdc630236546927813949d1712503d"
+      sha256: b7afc18c591a53b74e6438da44170d4e331170367c8105a67d0c9c1b602608b7
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.5"
+    version: "3.4.0"
   revali_annotations:
     dependency: transitive
     description:
@@ -997,10 +997,10 @@ packages:
     dependency: transitive
     description:
       name: revali_router
-      sha256: "29a9d871b629647648808f94f8720d800fb681dec284483e8ab5ae4758b759b2"
+      sha256: "5bb69bcde31ac1907f8cc2c1abcbed7c8d7be73495662d070e4b61abe51add2f"
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.2"
+    version: "5.3.0"
   revali_swagger:
     dependency: transitive
     description:
