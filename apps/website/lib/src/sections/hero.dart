@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../ui.dart';
 
 const _schema = r'''
+// Task is a plain Dart class with these fields.
 final class TaskTable extends Table<Task> {
   TaskTable(super.$)
     : id = $.id('id', (s) => s.id,
@@ -20,11 +21,17 @@ final class TaskTable extends Table<Task> {
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
 
+  @override
+  Task fromRow(RowReader read) => Task(
+    id: read(id), title: read(title), isComplete: read(isComplete),
+    createdAt: read(createdAt), updatedAt: read(updatedAt),
+  );
+
   final IdColumn<TasksId> id;
   final TextColumn title;
-  final BoolColumn isComplete;
-  final CreatedAtColumn createdAt;
-  final UpdatedAtColumn updatedAt;
+  final BooleanColumn isComplete;
+  final DateTimeColumn createdAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final tasks = table('tasks', TaskTable.new);
@@ -51,19 +58,6 @@ class Hero extends StatelessComponent {
     return section(classes: 'hero', [
       div(classes: 'wrap', [
         div(classes: 'hero-top', [
-          a(
-            classes: 'hero-badge',
-            href: Links.release,
-            target: .blank,
-            attributes: const {'rel': 'noopener'},
-            [
-              span(classes: 'hero-badge-dot', []),
-              .text('v$zonaiVersion is out'),
-              span(classes: 'hero-badge-sep', []),
-              span(classes: 'hero-badge-more', [.text('release notes'), arrowIcon()]),
-            ],
-          ),
-
           h1(classes: 'hero-title', [
             .text('Your schema '),
             span(classes: 'hero-em', [.text('is')]),
@@ -74,9 +68,9 @@ class Hero extends StatelessComponent {
 
           p(classes: 'hero-lede', [
             .text(
-              'Zonai is a batteries-included backend framework for Dart. Define your tables, write your rules, '
-              'and get a complete REST API — auth, live query streams, file uploads, email, and cron — compiled '
-              'into a single binary you host yourself.',
+              'Zonai is a self-hosted backend framework for Dart. Define your tables, write your rules, and get a '
+              'REST API with auth, live query streams, file uploads, email and cron. Free, open source and MIT '
+              'licensed.',
             ),
           ]),
 
@@ -94,7 +88,7 @@ class Hero extends StatelessComponent {
           const InstallCommand(command: installCommand),
 
           p(classes: 'hero-fine', [
-            .text('macOS · Linux · Windows · one self-extracting binary · '),
+            .text('macOS and Linux in one file · Windows as a zip · '),
             a(href: '#download', [.text('all downloads')]),
           ]),
         ]),
@@ -109,7 +103,7 @@ class Hero extends StatelessComponent {
 
           div(classes: 'pane endpoints', [
             div(classes: 'window-bar', [
-              span(classes: 'endpoints-title', [.text('Generated routes')]),
+              span(classes: 'endpoints-title', [.text('Routes you get')]),
               span(classes: 'window-badge', [.text('zonai handles this')]),
             ]),
             ul(classes: 'endpoint-list', [
@@ -126,8 +120,8 @@ class Hero extends StatelessComponent {
                 ),
             ]),
             div(classes: 'endpoints-foot', [
-              strong([.text('9 endpoints')]),
-              .text(' per table · '),
+              strong([.text('12 routes')]),
+              .text(' for every table, with bulk writes on /db/many · '),
               strong([.text('0 lines')]),
               .text(' of HTTP code · no codegen step'),
             ]),
@@ -159,36 +153,6 @@ class Hero extends StatelessComponent {
       // overflow the gutter; cap them at the container width.
       css('.hero-top > *').styles(maxWidth: 100.percent),
 
-      // Badge -------------------------------------------------------------
-      css('.hero-badge').styles(
-        display: .inlineFlex,
-        padding: .symmetric(vertical: 6.px, horizontal: 14.px),
-        border: .all(color: .variable('--edge'), width: 1.px),
-        radius: .circular(999.px),
-        transition: Transition('border-color', duration: 160.ms),
-        alignItems: .center,
-        gap: .all(9.px),
-        color: .variable('--fg-dim'),
-        fontFamily: .variable('--mono'),
-        fontSize: 12.px,
-        backgroundColor: .rgba(255, 255, 255, 0.025),
-      ),
-      css('.hero-badge:hover').styles(color: .variable('--fg'), raw: {'border-color': 'var(--zon-deep)'}),
-      css('.hero-badge-dot').styles(
-        width: 6.px,
-        height: 6.px,
-        radius: .circular(50.percent),
-        animation: Animation(name: 'pulse-fade', duration: 2.seconds, curve: .easeInOut),
-        backgroundColor: .variable('--zon'),
-        raw: {'box-shadow': '0 0 8px var(--zon)', 'animation-iteration-count': 'infinite'},
-      ),
-      css('.hero-badge-sep').styles(width: 1.px, height: 11.px, backgroundColor: .variable('--edge-2')),
-      css('.hero-badge-more').styles(
-        display: .inlineFlex,
-        alignItems: .center,
-        gap: .all(5.px),
-        color: .variable('--zon'),
-      ),
       // Headline ----------------------------------------------------------
       css('.hero-title').styles(
         margin: .only(top: 6.px),
@@ -216,7 +180,7 @@ class Hero extends StatelessComponent {
         gap: .all(12.px),
       ),
       css('.hero-fine').styles(
-        color: .variable('--fg-mute'),
+        color: .variable('--fg-dim'),
         fontFamily: .variable('--mono'),
         fontSize: 12.px,
       ),

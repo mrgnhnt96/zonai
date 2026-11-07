@@ -1,26 +1,76 @@
 /// The page shell: document head, then every section in reading order.
 library;
 
+import 'dart:convert';
+
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'sections/dashboard.dart';
-import 'sections/download.dart';
 import 'sections/features.dart';
 import 'sections/footer.dart';
 import 'sections/hero.dart';
 import 'sections/honest.dart';
 import 'sections/live.dart';
 import 'sections/nav.dart';
-import 'sections/pipeline.dart';
 import 'sections/start.dart';
-import 'sections/tour.dart';
+import 'theme.dart';
 
-const _title = 'Zonai — Your schema is the API';
+const _title = 'Zonai: self-hosted Dart backend framework. Your schema is the API';
 const _description =
-    'A batteries-included Dart backend framework. Define tables in Dart and get a complete REST API with auth, '
-    'authorization rules, live query streams, file uploads, email, and cron — compiled into one binary you own.';
+    'A self-hosted backend framework for Dart. Define tables in Dart and get a REST API with auth, rules, live query '
+    'streams, file uploads, email and cron. Free, open source and MIT licensed.';
 const _origin = 'https://zonai.dev';
+
+const _headingFont = '/fonts/space-grotesk-latin-wght-normal.woff2';
+const _bodyFont = '/fonts/inter-latin-wght-normal.woff2';
+
+// Written by hand because `css.fontFace` cannot express a variable weight range
+// or `font-display`.
+const _fontFaces =
+    "@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;"
+    "src:url('$_headingFont') format('woff2')}"
+    "@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;"
+    "src:url('$_bodyFont') format('woff2')}";
+
+final _structuredData = jsonEncode({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': '$_origin/#website',
+      'url': '$_origin/',
+      'name': 'Zonai',
+      'publisher': {'@id': '$_origin/#organization'},
+    },
+    {
+      '@type': 'Organization',
+      '@id': '$_origin/#organization',
+      'name': 'Zonai',
+      'url': '$_origin/',
+      'logo': '$_origin/images/logo-192.png',
+      'sameAs': [Links.github],
+    },
+    {
+      '@type': 'SoftwareApplication',
+      'name': 'Zonai',
+      'url': '$_origin/',
+      'description': _description,
+      'applicationCategory': 'DeveloperApplication',
+      'operatingSystem': 'macOS, Linux, Windows',
+      'softwareVersion': zonaiVersion,
+      'license': '${Links.github}/blob/main/LICENSE',
+      'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'},
+      'publisher': {'@id': '$_origin/#organization'},
+    },
+  ],
+});
+
+Component _fontPreload(String href) => link(
+  rel: 'preload',
+  href: href,
+  attributes: const {'as': 'font', 'type': 'font/woff2', 'crossorigin': ''},
+);
 
 class ZonaiSite extends StatelessComponent {
   const ZonaiSite({super.key});
@@ -54,17 +104,14 @@ class ZonaiSite extends StatelessComponent {
         meta(name: 'twitter:description', content: _description),
         meta(name: 'twitter:image', content: '$_origin/images/og.png'),
 
-        // Fonts. Preconnect first so the display face lands with the hero.
-        link(rel: 'preconnect', href: 'https://fonts.googleapis.com'),
-        link(rel: 'preconnect', href: 'https://fonts.gstatic.com', attributes: const {'crossorigin': ''}),
-        link(
-          rel: 'stylesheet',
-          href:
-              'https://fonts.googleapis.com/css2'
-              '?family=Space+Grotesk:wght@500;600;700'
-              '&family=Inter:wght@400;500;600'
-              '&family=JetBrains+Mono:wght@400;500;600'
-              '&display=swap',
+        _fontPreload(_headingFont),
+        _fontPreload(_bodyFont),
+        Component.element(tag: 'style', children: [RawText(_fontFaces)]),
+
+        Component.element(
+          tag: 'script',
+          attributes: const {'type': 'application/ld+json'},
+          children: [RawText(_structuredData)],
         ),
       ],
       body: div(classes: 'site', [
@@ -75,10 +122,7 @@ class ZonaiSite extends StatelessComponent {
           LiveQueries(),
           AdminDashboard(),
           Features(),
-          Pipeline(),
-          Tour(),
           Honest(),
-          Downloads(),
           QuickStart(),
           FinalCta(),
         ]),

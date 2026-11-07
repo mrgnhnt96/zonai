@@ -12,12 +12,11 @@ import '../theme.dart';
 import '../ui.dart';
 
 const _navLinks = <(String, String)>[
-  ('Features', '#features'),
   ('Live Queries', '#live'),
   ('Dashboard', '#dashboard'),
-  ('Pipeline', '#pipeline'),
-  ('Download', '#download'),
+  ('Features', '#features'),
   ('Quick Start', '#start'),
+  ('Download', '#download'),
 ];
 
 @client

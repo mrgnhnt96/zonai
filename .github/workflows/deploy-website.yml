@@ -110,7 +110,7 @@ jobs:
           done
 
           # Jaspr leaves build metadata behind; it should not be published.
-          rm -rf .dart_tool .build.manifest
+          rm -rf .dart_tool .build.manifest packages
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

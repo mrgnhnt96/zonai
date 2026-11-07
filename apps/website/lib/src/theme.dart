@@ -20,7 +20,9 @@ abstract final class Links {
   static const installation = 'https://docs.zonai.dev/getting-started/installation';
   static const streaming = 'https://docs.zonai.dev/operations/streaming';
   static const rules = 'https://docs.zonai.dev/rules/overview';
+  static const rowRules = 'https://docs.zonai.dev/rules/row-rules/';
   static const pipeline = 'https://docs.zonai.dev/core-concepts/request-pipeline';
+  static const auth = 'https://docs.zonai.dev/authentication/overview/';
   static const client = 'https://docs.zonai.dev/dart-client/overview';
   static const push = 'https://docs.zonai.dev/push/overview';
   static const deployment = 'https://docs.zonai.dev/deployment/building-for-production';
@@ -52,15 +54,14 @@ const installCommand =
 
 const _assetBase = 'https://github.com/mrgnhnt96/zonai/releases/download/v$zonaiVersion';
 
-/// One downloadable build. [note] is the arch line, [size] the real asset size.
-typedef Download = ({String os, String note, String size, String href, String icon});
+/// One downloadable build. [note] is the arch line.
+typedef Download = ({String os, String note, String href, String icon});
 
 /// The self-extracting build: every macOS/Linux arch in one file, picked at
 /// runtime. Not a Windows executable — Windows needs [windowsDownload].
 const universalDownload = (
   os: 'macOS + Linux',
-  note: 'Universal — detects your OS and architecture',
-  size: '34.9 MiB',
+  note: 'Universal: detects your OS and architecture',
   href: '$_assetBase/zonai',
   icon: 'spark',
 );
@@ -68,23 +69,16 @@ const universalDownload = (
 const windowsDownload = (
   os: 'Windows',
   note: 'x64',
-  size: '12.0 MiB',
   href: '$_assetBase/zonai-windows-x64.zip',
   icon: 'windows',
 );
 
 /// Per-platform builds, for when the universal file is more than you want.
 const downloads = <Download>[
-  (
-    os: 'macOS',
-    note: 'Apple Silicon (arm64)',
-    size: '11.8 MiB',
-    href: '$_assetBase/zonai-macos-arm64.zip',
-    icon: 'apple',
-  ),
-  (os: 'macOS', note: 'Intel (x64)', size: '12.5 MiB', href: '$_assetBase/zonai-macos-x64.zip', icon: 'apple'),
-  (os: 'Linux', note: 'x64', size: '11.9 MiB', href: '$_assetBase/zonai-linux-x64.zip', icon: 'linux'),
-  (os: 'Linux', note: 'arm64', size: '11.5 MiB', href: '$_assetBase/zonai-linux-arm64.zip', icon: 'linux'),
+  (os: 'macOS', note: 'Apple Silicon (arm64)', href: '$_assetBase/zonai-macos-arm64.zip', icon: 'apple'),
+  (os: 'macOS', note: 'Intel (x64)', href: '$_assetBase/zonai-macos-x64.zip', icon: 'apple'),
+  (os: 'Linux', note: 'x64', href: '$_assetBase/zonai-linux-x64.zip', icon: 'linux'),
+  (os: 'Linux', note: 'arm64', href: '$_assetBase/zonai-linux-arm64.zip', icon: 'linux'),
   windowsDownload,
 ];
 
@@ -122,7 +116,7 @@ const _tokens = {
   // Type.
   '--sans': "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
   '--body': "'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-  '--mono': "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+  '--mono': "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
 
   // Layout.
   '--max': '1160px',
@@ -206,6 +200,7 @@ List<StyleRule> get globalStyles => [
     transition: Transition('color', duration: 160.ms),
   ),
   css('a:hover').styles(color: .variable('--zon-soft')),
+  css('p a, .foot-built a').styles(raw: {'text-decoration': 'underline', 'text-underline-offset': '2px'}),
 
   css('code, pre').styles(fontFamily: .variable('--mono')),
 

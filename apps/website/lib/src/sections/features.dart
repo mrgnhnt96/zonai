@@ -26,38 +26,22 @@ const _features = <Feature>[
     body:
         'Password sign-up/sign-in, one-time passcodes, and magic links — each a single trait mixed into an auth '
         'table. Sessions, refresh, and logout come with it.',
-    link: Links.docs,
+    link: Links.auth,
   ),
   (
     icon: 'shield',
-    title: 'Rules before SQL',
+    title: 'Rules in plain Dart',
     body:
-        'Table and row rules are plain Dart returning true or false. They run ahead of the query, so a denial costs '
-        'a 403 and nothing else.',
+        'Table rules run before any SQL. Row rules then check each fetched row, and one failure returns a 403 with no '
+        'data. Anything you do not override is admin-only.',
     link: Links.rules,
-  ),
-  (
-    icon: 'stream',
-    title: 'Live query streams',
-    body:
-        'GET /db/stream, /db/stream/list and /db/stream/count push new payloads as SQLite changes. In Dart, that is '
-        'client.db.listen.',
-    link: Links.streaming,
-  ),
-  (
-    icon: 'gauge',
-    title: 'Built-in admin dashboard',
-    body:
-        'Served at /_ from the same binary: browse and edit every table, watch requests and errors, check cron '
-        'status, and run the auth flows. Nothing extra to deploy.',
-    link: null,
   ),
   (
     icon: 'dart',
     title: 'Generated Dart client',
     body:
         'zonai_client wraps auth, admin auth, db, photos, and email so your Flutter app never hand-rolls an HTTP '
-        'call or a JSON map.',
+        'call.',
     link: Links.client,
   ),
   (
@@ -94,10 +78,10 @@ const _features = <Feature>[
   ),
   (
     icon: 'box',
-    title: 'One binary to deploy',
+    title: 'One folder to deploy',
     body:
-        './zonai build links your project into build/zonai. Cross-compile it, copy it to a host, run it. SQLite is '
-        'bundled; nothing else is required.',
+        './zonai build writes everything into build/. Cross-compile for Linux, copy the folder to your server and run '
+        'it. The server does not need the Dart SDK.',
     link: Links.deployment,
   ),
 ];

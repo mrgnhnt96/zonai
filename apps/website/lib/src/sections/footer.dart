@@ -56,7 +56,7 @@ class SiteFooter extends StatelessComponent {
             const RuneMark(size: 30, glow: false),
             span(classes: 'brand-name', [.text('zonai')]),
           ]),
-          p([.text('A batteries-included Dart backend framework. Self-hosted, compiled, and yours.')]),
+          p([.text('A self-hosted backend framework for Dart, open source under the MIT license.')]),
           span(classes: 'foot-ver', [.text('v$zonaiVersion · MIT')]),
         ]),
 
@@ -66,7 +66,7 @@ class SiteFooter extends StatelessComponent {
               classes: 'foot-col',
               attributes: {'aria-label': heading},
               [
-                h4([.text(heading)]),
+                h3([.text(heading)]),
                 for (final (label, href) in links)
                   // Same-page anchors stay in this tab; everything else leaves.
                   if (href.startsWith('/'))
@@ -123,7 +123,7 @@ class SiteFooter extends StatelessComponent {
         gap: .all(24.px),
       ),
       css('.foot-col').styles(display: .flex, flexDirection: .column, gap: .all(9.px)),
-      css('.foot-col h4').styles(
+      css('.foot-col h3').styles(
         margin: .only(bottom: 3.px),
         color: .variable('--fg'),
         fontSize: 12.px,

@@ -7,43 +7,46 @@ import 'package:jaspr/jaspr.dart';
 import '../code.dart';
 import '../theme.dart';
 import '../ui.dart';
+import 'download.dart';
 
-// Uses the same pinned install line as the hero and the download section, so
-// there is exactly one place a release URL can go stale.
+// Uses the same pinned install line as the hero, so there is exactly one place a
+// release URL can go stale.
 const _step1 =
-    r'$ dart create my_app && cd my_app'
+    r'$ mkdir my_app && cd my_app'
     '\n'
-    r'$ dart pub add zonai_schema'
-    '\n'
-    '\$ $installCommand\n';
+    '\$ $installCommand\n'
+    r'$ ./zonai dev'
+    '\n';
 
-const _step2 = r'''
-$ ./zonai dev
-# no zonai.yaml yet? dev walks you through creating one
+const _step2 = '''
+# press n in the dev screen, then write
+lib/src/schemas/tasks.dart
+lib/src/rules/task_table_rules.dart
+lib/src/rules/task_row_rules.dart
 ''';
 
 const _step3 = r'''
-$ ./zonai db migrate generate -n init
+$ ./zonai db migrate generate --name tasks
 $ ./zonai db migrate apply
-$ ./zonai serve
 ''';
 
 const _steps = <(String, String, String)>[
   (
-    'Drop in the binary',
-    'A Zonai app is an ordinary Dart package. Add the schema library, then put the zonai executable in the project '
-        'root — it is not a pub dependency, and it resolves your project relative to where it sits.',
+    'Start a project',
+    'Put the zonai binary in an empty folder and run dev. It offers to set up the project, writes the starter files '
+        'and starts a server on localhost:8080. On Windows, use the zip below.',
     _step1,
   ),
   (
-    'Define tables and start dev',
-    'Write your tables under lib/src/schemas/, then start the dev server. It watches worker sources, recompiles them, '
-        'and gives you a TUI dashboard.',
+    'Add a table and its rules',
+    'Press n in the dev screen to scaffold a schema and its ID type, then fill in the columns. Each table needs a '
+        'table rules file and a row rules file, or its requests are refused.',
     _step2,
   ),
   (
-    'Migrate and serve',
-    'Generate a migration from your schema, apply it, and the REST API — including the stream routes — is live.',
+    'Migrate',
+    'From a second terminal, generate a migration from your schema and apply it. Press s twice in the dev screen to '
+        'restart the server, and the REST API for the new table is live, stream routes included.',
     _step3,
   ),
 ];
@@ -56,10 +59,10 @@ class QuickStart extends StatelessComponent {
     return Section(
       id: 'start',
       eyebrow: 'Quick start',
-      title: .fragment([.text('Running in '), accent('a couple of minutes'), .text('.')]),
+      title: .fragment([.text('From an empty folder to a '), accent('running API'), .text('.')]),
       lede:
-          'Download the binary, define a table, serve. No global install, no Docker, no account. The long version, '
-          'with the full schema and rules, is in the docs.',
+          'You need the Dart SDK (3.13.x) and the zonai binary. The docs quick start has the full schema, the rules '
+          'and your first request.',
       children: [
         ol(classes: 'steps', [
           for (final (index, (title, body, code)) in _steps.indexed)
@@ -74,6 +77,8 @@ class QuickStart extends StatelessComponent {
               div(classes: 'pane step-code', [CodeBlock(code, lang: Lang.shell)]),
             ]),
         ]),
+
+        const Downloads(),
 
         // The agent pitch — genuinely differentiating, so it gets real estate.
         div(classes: 'agents', [
@@ -195,8 +200,7 @@ class FinalCta extends StatelessComponent {
         ]),
         p(classes: 'lede cta-lede', [
           .text(
-            'Zonai is open source under the MIT license, versioned, and used in production by the people who build '
-            'it. Clone it, read it, break it.',
+            'Zonai is open source under the MIT license, so you can read every line before you build on it.',
           ),
         ]),
         div(classes: 'cta-buttons', [

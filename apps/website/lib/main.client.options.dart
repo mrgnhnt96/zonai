@@ -6,8 +6,6 @@
 
 import 'package:jaspr/client.dart';
 
-import 'package:zonai_website/src/interactive/code_tabs.dart'
-    deferred as _code_tabs;
 import 'package:zonai_website/src/interactive/install_command.dart'
     deferred as _install_command;
 import 'package:zonai_website/src/interactive/stream_demo.dart'
@@ -32,16 +30,6 @@ import 'package:zonai_website/src/sections/nav.dart' deferred as _nav;
 /// ```
 ClientOptions get defaultClientOptions => ClientOptions(
   clients: {
-    'code_tabs': ClientLoader(
-      (p) => _code_tabs.CodeTabs(
-        labels: (p['labels'] as List<Object?>).cast<String>(),
-        filenames: (p['filenames'] as List<Object?>).cast<String>(),
-        sources: (p['sources'] as List<Object?>).cast<String>(),
-        captions: (p['captions'] as List<Object?>).cast<String>(),
-        langs: (p['langs'] as List<Object?>).cast<String>(),
-      ),
-      loader: _code_tabs.loadLibrary,
-    ),
     'install_command': ClientLoader(
       (p) => _install_command.InstallCommand(command: p['command'] as String),
       loader: _install_command.loadLibrary,

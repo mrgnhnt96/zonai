@@ -91,7 +91,7 @@ class StreamDemoState extends State<StreamDemo> {
 
     return div(classes: 'pane demo', [
       div(classes: 'demo-bar', [
-        span(classes: 'demo-live', [span(classes: 'demo-dot', []), .text('streaming')]),
+        span(classes: 'demo-live', [span(classes: 'demo-dot', []), .text('simulated demo')]),
         code(classes: 'demo-route', [.text('GET /db/stream/list')]),
         span(classes: 'demo-events', [.text('$_events pushed')]),
       ]),
@@ -196,7 +196,7 @@ class StreamDemoState extends State<StreamDemo> {
         textDecoration: TextDecoration(line: .lineThrough),
       ),
       css('.demo-id').styles(
-        color: .variable('--fg-mute'),
+        color: .variable('--fg-dim'),
         fontFamily: .variable('--mono'),
         fontSize: 11.px,
       ),

@@ -43,7 +43,7 @@ class InstallCommandState extends State<InstallCommand> {
     return button(
       classes: _copied ? 'install install-copied' : 'install',
       onClick: _copy,
-      attributes: {'aria-label': 'Copy install command', 'title': 'Copy to clipboard'},
+      attributes: {'title': 'Copy to clipboard'},
       [
         span(classes: 'install-prompt', [.text(r'$')]),
         span(classes: 'install-cmd', [.text(component.command)]),
@@ -89,7 +89,7 @@ class InstallCommandState extends State<InstallCommand> {
       css('.install-copy').styles(
         padding: .symmetric(vertical: 2.px, horizontal: 7.px),
         radius: .circular(5.px),
-        color: .variable('--fg-mute'),
+        color: .variable('--fg-dim'),
         fontSize: 10.px,
         textTransform: .upperCase,
         letterSpacing: 0.8.px,

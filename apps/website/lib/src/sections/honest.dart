@@ -15,18 +15,13 @@ const _limits = <(String, String)>[
   ),
   (
     'Not a managed cloud service',
-    'There is no dashboard to sign up for and no per-seat bill. You host the binary yourself, anywhere that runs '
-        'Linux, macOS, or Windows.',
+    'There is no account to sign up for and no per-seat bill. You build your project and run it on a server of your '
+        'own.',
   ),
   (
     'Not a general-purpose ORM',
     'It is opinionated about how APIs are shaped and it uses SQLite. If you need arbitrary joins across Postgres, '
         'this is the wrong tool and that is fine.',
-  ),
-  (
-    'Not poll-only for live UI',
-    'The live path is /db/stream* and client.db.listen. If you find yourself writing a Timer.periodic against a '
-        'Zonai backend, you have taken a wrong turn.',
   ),
 ];
 
@@ -82,7 +77,7 @@ class Honest extends StatelessComponent {
     css('.honest-grid', [
       css('&').styles(
         display: .grid,
-        gridTemplate: gridCols(2),
+        gridTemplate: gridCols(3),
         gap: .all(16.px),
       ),
       css('.honest-card').styles(
