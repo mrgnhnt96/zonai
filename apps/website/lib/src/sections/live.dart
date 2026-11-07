@@ -15,7 +15,7 @@ final sub = client.db.listen
     .list(
       body: StreamListBody(
         table: 'tasks',
-        where: Eq('isComplete', false),
+        where: Eq('is_complete', false),
         limit: 50,
       ),
       fromJson: (row) => row,
@@ -39,9 +39,9 @@ class LiveQueries extends StatelessComponent {
       eyebrow: 'Live queries',
       title: .fragment([.text('Stop '), accent('polling'), .text('.')]),
       lede:
-          'Every table gets three streaming endpoints alongside the ordinary reads. The server holds the connection '
-          'open and pushes a new payload whenever the underlying query result changes. No WebSocket setup, no pub/sub '
-          'broker, no separate "realtime" product to bolt on.',
+          'Every table gets three streaming routes alongside the ordinary reads. The server holds the connection open '
+          'and pushes a new payload whenever the query result changes. There is no WebSocket server or message broker '
+          'to set up.',
       children: [
         div(classes: 'live-grid', [
           const CodeWindow(

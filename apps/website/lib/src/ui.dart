@@ -32,7 +32,8 @@ class LinkButton extends StatelessComponent {
       classes: 'btn btn-${kind.name}',
       href: href,
       target: external ? .blank : null,
-      attributes: external ? const {'rel': 'noopener'} : null,
+      // The nav hides the visible label on narrow screens.
+      attributes: {'aria-label': label, if (external) 'rel': 'noopener'},
       [
         span(classes: 'btn-label', [.text(label)]),
         if (icon case final glyph?) span(classes: 'btn-icon', [glyph]),
@@ -281,14 +282,7 @@ Component mono(String text) => code(classes: 'inline-code', [.text(text)]);
 
 @css
 List<StyleRule> get textStyles => [
-  css('.accent').styles(
-    raw: {
-      'background': 'linear-gradient(120deg, var(--zon-soft), var(--zon) 45%, var(--sky))',
-      '-webkit-background-clip': 'text',
-      'background-clip': 'text',
-      'color': 'transparent',
-    },
-  ),
+  css('.accent').styles(color: .variable('--zon')),
   css('.inline-code').styles(
     padding: .symmetric(vertical: 2.px, horizontal: 6.px),
     border: .all(color: .variable('--edge'), width: 1.px),

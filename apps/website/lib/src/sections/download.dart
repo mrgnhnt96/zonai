@@ -4,7 +4,6 @@ library;
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
-import '../interactive/install_command.dart';
 import '../theme.dart';
 import '../ui.dart';
 
@@ -67,110 +66,113 @@ class Downloads extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return Section(
-      id: 'download',
-      eyebrow: 'Download',
-      title: .fragment([.text('Every platform, '), accent('one binary'), .text('.')]),
-      lede:
-          'The CLI runs from your project root. Grab the universal build and it works out which OS and architecture '
-          'you are on by itself; or take the exact one you need.',
-      children: [
-        div(classes: 'dl-top', [
-          // The recommended path: curl, or the same file as a click.
-          div(classes: 'pane dl-card dl-hero', [
-            div(classes: 'dl-hero-head', [
-              span(classes: 'dl-hero-icon', [_platformIcon(universalDownload.icon)]),
-              div([
-                h3([.text(universalDownload.os)]),
-                p([.text(universalDownload.note)]),
-              ]),
-              span(classes: 'dl-size', [.text(universalDownload.size)]),
-            ]),
-            const InstallCommand(command: installCommand),
-            div(classes: 'dl-hero-actions', [
-              a(classes: 'dl-btn', href: universalDownload.href, [
-                _downloadIcon(),
-                .text('Download the universal binary'),
-              ]),
-            ]),
-            p(classes: 'dl-note', [
-              .text('One self-extracting file containing macOS arm64, macOS x64, Linux x64 and Linux arm64. '),
-              .text('It caches the right build on first run. '),
-              strong([.text('Not a Windows executable')]),
-              .text(' — Windows takes the zip below.'),
+    return div(id: 'download', classes: 'dl-block', [
+      h3(classes: 'dl-title', [.text('macOS and Linux in one file, Windows as a zip')]),
+      p(classes: 'lede dl-lede', [
+        .text(
+          'The CLI runs from your project root. The universal build works out your OS and architecture by itself, or '
+          'take the exact build you need.',
+        ),
+      ]),
+      div(classes: 'dl-top', [
+        // The recommended path: curl, or the same file as a click.
+        div(classes: 'pane dl-card dl-hero', [
+          div(classes: 'dl-hero-head', [
+            span(classes: 'dl-hero-icon', [_platformIcon(universalDownload.icon)]),
+            div([
+              h4([.text(universalDownload.os)]),
+              p([.text(universalDownload.note)]),
             ]),
           ]),
-
-          // Windows gets equal billing rather than a footnote.
-          div(classes: 'pane dl-card dl-windows', [
-            div(classes: 'dl-hero-head', [
-              span(classes: 'dl-hero-icon', [_platformIcon(windowsDownload.icon)]),
-              div([
-                h3([.text(windowsDownload.os)]),
-                p([.text(windowsDownload.note)]),
-              ]),
-              span(classes: 'dl-size', [.text(windowsDownload.size)]),
+          div(classes: 'dl-hero-actions', [
+            a(classes: 'dl-btn', href: universalDownload.href, [
+              _downloadIcon(),
+              .text('Download the universal binary'),
             ]),
-            div(classes: 'dl-hero-actions', [
-              a(classes: 'dl-btn', href: windowsDownload.href, [
-                _downloadIcon(),
-                .text('Download for Windows'),
-              ]),
-            ]),
-            p(classes: 'dl-note', [
-              .text('Extract the zip and put '),
-              mono('zonai.exe'),
-              .text(' in your project root.'),
-            ]),
+          ]),
+          p(classes: 'dl-note', [
+            .text('One self-extracting file containing macOS arm64, macOS x64, Linux x64 and Linux arm64. '),
+            .text('It caches the right build on first run. '),
+            strong([.text('Not a Windows executable')]),
+            .text(' — Windows has its own zip.'),
           ]),
         ]),
 
-        h3(classes: 'dl-sub', [.text('All builds')]),
-        ul(classes: 'dl-grid', [
-          for (final d in downloads)
-            li([
-              a(classes: 'dl-row', href: d.href, [
-                span(classes: 'dl-row-icon', [_platformIcon(d.icon)]),
-                span(classes: 'dl-row-os', [.text(d.os)]),
-                span(classes: 'dl-row-note', [.text(d.note)]),
-                span(classes: 'dl-row-size', [.text(d.size)]),
-                _downloadIcon(),
-              ]),
+        // Windows gets equal billing rather than a footnote.
+        div(classes: 'pane dl-card dl-windows', [
+          div(classes: 'dl-hero-head', [
+            span(classes: 'dl-hero-icon', [_platformIcon(windowsDownload.icon)]),
+            div([
+              h4([.text(windowsDownload.os)]),
+              p([.text(windowsDownload.note)]),
             ]),
-        ]),
-
-        div(classes: 'dl-foot', [
-          span(classes: 'dl-foot-ver', [
-            .text('Latest CLI release: '),
-            a(
-              href: Links.release,
-              target: .blank,
-              attributes: const {'rel': 'noopener'},
-              [
-                strong([.text('v$zonaiVersion')]),
-              ],
-            ),
           ]),
-          div(classes: 'dl-foot-links', [
-            docsLink('Release notes', Links.release),
-            docsLink('All releases', Links.allReleases),
-            docsLink('Install guide', Links.installation),
+          div(classes: 'dl-hero-actions', [
+            a(classes: 'dl-btn', href: windowsDownload.href, [
+              _downloadIcon(),
+              .text('Download for Windows'),
+            ]),
+          ]),
+          p(classes: 'dl-note', [
+            .text('Extract the zip and put '),
+            mono('zonai.exe'),
+            .text(' in your project root.'),
           ]),
         ]),
+      ]),
 
-        p(classes: 'dl-update', [
-          .text('Already installed? '),
-          mono('./zonai version check'),
-          .text(' tells you if there is a newer build, and '),
-          mono('./zonai version update'),
-          .text(' replaces the binary in place.'),
+      h4(classes: 'dl-sub', [.text('All builds')]),
+      ul(classes: 'dl-grid', [
+        for (final d in downloads)
+          li([
+            a(classes: 'dl-row', href: d.href, [
+              span(classes: 'dl-row-icon', [_platformIcon(d.icon)]),
+              span(classes: 'dl-row-os', [.text(d.os)]),
+              span(classes: 'dl-row-note', [.text(d.note)]),
+              _downloadIcon(),
+            ]),
+          ]),
+      ]),
+
+      div(classes: 'dl-foot', [
+        span(classes: 'dl-foot-ver', [
+          .text('Latest CLI release: '),
+          a(
+            href: Links.release,
+            target: .blank,
+            attributes: const {'rel': 'noopener'},
+            [
+              strong([.text('v$zonaiVersion')]),
+            ],
+          ),
         ]),
-      ],
-    );
+        div(classes: 'dl-foot-links', [
+          docsLink('Release notes', Links.release),
+          docsLink('All releases', Links.allReleases),
+          docsLink('Install guide', Links.installation),
+        ]),
+      ]),
+
+      p(classes: 'dl-update', [
+        .text('Already installed? '),
+        mono('./zonai version check'),
+        .text(' tells you if there is a newer build, and '),
+        mono('./zonai version update'),
+        .text(' replaces the binary in place. The CLI also asks GitHub for the latest release when it runs; add '),
+        mono('--no-version-check'),
+        .text(' to skip that.'),
+      ]),
+    ]);
   }
 
   @css
   static List<StyleRule> get styles => [
+    css('.dl-block').styles(margin: .only(top: 64.px)),
+    css('.dl-title').styles(color: .variable('--fg'), fontSize: 24.px, fontWeight: .w600),
+    css('.dl-lede').styles(
+      margin: .only(top: 10.px, bottom: 24.px),
+    ),
+
     css('.dl-top').styles(
       display: .grid,
       gridTemplate: gridFr([1.25, 1]),
@@ -203,15 +205,8 @@ class Downloads extends StatelessComponent {
         backgroundColor: .rgba(47, 224, 172, 0.07),
         raw: {'flex': '0 0 auto'},
       ),
-      css('h3').styles(color: .variable('--fg'), fontSize: 17.px, fontWeight: .w600),
+      css('h4').styles(color: .variable('--fg'), fontSize: 17.px, fontWeight: .w600),
       css('.dl-hero-head p').styles(color: .variable('--fg-mute'), fontSize: 13.px),
-      css('.dl-size').styles(
-        color: .variable('--fg-mute'),
-        fontFamily: .variable('--mono'),
-        fontSize: 11.5.px,
-        whiteSpace: .noWrap,
-        raw: {'margin-left': 'auto', 'flex': '0 0 auto'},
-      ),
       css('.dl-hero-actions').styles(display: .flex, flexWrap: .wrap, gap: .all(10.px)),
       css('.dl-note').styles(color: .variable('--fg-mute'), fontSize: 12.5.px, lineHeight: 1.6.em),
       css('.dl-note strong').styles(color: .variable('--fg-dim'), fontWeight: .w600),
@@ -298,13 +293,7 @@ class Downloads extends StatelessComponent {
       css('.dl-row:hover .dl-row-icon').styles(color: .variable('--zon')),
       css('.dl-row-os').styles(color: .variable('--fg'), fontWeight: .w600, raw: {'flex': '0 0 auto'}),
       css('.dl-row-note').styles(color: .variable('--fg-mute'), fontFamily: .variable('--mono'), fontSize: 11.5.px),
-      css('.dl-row-size').styles(
-        color: .variable('--fg-mute'),
-        fontFamily: .variable('--mono'),
-        fontSize: 11.px,
-        whiteSpace: .noWrap,
-        raw: {'margin-left': 'auto'},
-      ),
+      css('.dl-row svg:last-child').styles(raw: {'margin-left': 'auto', 'flex': '0 0 auto'}),
     ]),
 
     css('.dl-foot', [
