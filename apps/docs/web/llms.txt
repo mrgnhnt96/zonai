@@ -72,6 +72,7 @@ Full walkthrough: https://docs.zonai.dev/getting-started/quick-start
 
 - [Operations Overview](https://docs.zonai.dev/operations/overview): Default vs custom operations; when to override SQL.
 - [Default Operations](https://docs.zonai.dev/operations/default-operations): CRUD endpoints, request/response JSON, where/order_by shapes.
+- [Batch Writes](https://docs.zonai.dev/operations/batch-writes): `POST /db/batch` and `client.db.batch`: writes across several tables in one transaction, so every write lands or none do.
 - [Streaming (Live Queries)](https://docs.zonai.dev/operations/streaming): `/db/stream*` and `client.db.listen`.
 - [Auth Operations](https://docs.zonai.dev/operations/auth-operations): JWT claims, reset/OTP/magic-link URL paths.
 - [Views](https://docs.zonai.dev/operations/views): A read-only table defined by a query (join or projection), served on the same `/db` endpoints. Writes are refused.

@@ -21,6 +21,9 @@ Every table registered with `table()` or `authTable()` automatically gets these 
 | `update many` | `PATCH`  | `/db/many`         | JSON body      |
 | `delete`      | `DELETE` | `/db`              | JSON body      |
 | `delete many` | `DELETE` | `/db/many`         | JSON body      |
+| `batch`       | `POST`   | `/db/batch`        | JSON body      |
+
+`batch` applies several creates, updates and deletes, across any tables, so that every write lands or none do. See [Batch Writes](/operations/batch-writes).
 
 Live updates use the `stream-*` routes (and `client.db.listen` in `zonai_client`). See [Streaming (Live Queries)](/operations/streaming).
 
