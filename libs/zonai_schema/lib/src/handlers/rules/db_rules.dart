@@ -491,6 +491,7 @@ class DbRules {
         rowRules.table.safeCreate(
           rowRules.table.simulateUpdate(request.data, request.updates),
           stored: true,
+          fromCaller: true,
         ),
       ),
       .delete => rowRules.canDelete(request.jwt, object),
@@ -503,6 +504,7 @@ class DbRules {
               rowRules.table.safeCreate(
                 rowRules.table.simulateUpdate(request.data, request.updates),
                 stored: true,
+                fromCaller: true,
               ),
             ) ??
             Future.value(
@@ -563,6 +565,7 @@ class DbRules {
           rowRules.table.safeCreate(
             rowRules.table.simulateUpdate(data, request.updates),
             stored: true,
+            fromCaller: true,
           ),
         ),
         .delete => rowRules.canDelete(request.jwt, object),
@@ -575,6 +578,7 @@ class DbRules {
                 rowRules.table.safeCreate(
                   rowRules.table.simulateUpdate(data, request.updates),
                   stored: true,
+                  fromCaller: true,
                 ),
               ) ??
               Future.value(
