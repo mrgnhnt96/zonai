@@ -63,7 +63,22 @@ On success: `canSignIn` (or `canSignUp` for a new account) in auth row rules is 
 
 ## Single-Use Guarantee
 
-Each link works exactly once. A successful exchange consumes it, and a wrong secret uses up its one attempt. Expired or already-used links return `401` — the user requests a new one.
+Each link works exactly once. A successful exchange consumes it. Expired, already-used and invalid links return `401` — the user requests a new one.
+
+Each link names its own challenge, so opening one never affects another. A wrong or tampered link does not use up the current link either.
+
+When a newer link has been sent to the same address, the older link returns `401` with a `magic_link_replaced` code instead, and the newer link still works. Tell the user to open the newest email:
+
+```json
+{
+  "error": {
+    "code": "magic_link_replaced",
+    "message": "This magic link was replaced by a newer one"
+  }
+}
+```
+
+In the Dart client, `auth.confirm` throws this as `MagicLinkReplacedException`.
 
 ## Configuration
 

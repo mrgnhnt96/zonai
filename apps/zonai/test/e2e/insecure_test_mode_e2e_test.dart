@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
@@ -10,6 +11,7 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
+import 'package:zonai/src/email/courier.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -311,6 +313,77 @@ void main() {
         timeout: const Timeout(Duration(minutes: 3)),
       );
     }
+    // #124. A second send expires the first challenge. Opening the FIRST
+    // email's link used to look the challenge up by address, land on the
+    // SECOND one, fail its hash and spend its only attempt -- so neither link
+    // signed anyone in. The link names its own challenge now, so the old one
+    // answers "replaced" and the new one is untouched.
+    test('an older magic link does not burn the newest one', () async {
+      if (!_runningOnDartVm) return;
+
+      debugInsecureTestMode = null;
+      final courier = _CapturingCourier();
+      await _withDb(settings, appConfig, courier: courier, (db) async {
+        final email =
+            'replaced-${DateTime.now().microsecondsSinceEpoch}@example.com';
+        final start = clock.now();
+
+        await db.authenticate('users', SendMagicLinkAuthPayload(email: email));
+        // Past the one-minute resend cooldown, inside the 10-minute expiry.
+        await withClock(
+          Clock.fixed(start.add(const Duration(minutes: 2))),
+          () =>
+              db.authenticate('users', SendMagicLinkAuthPayload(email: email)),
+        );
+        final [older, newer] = courier.magicLinkTokens;
+
+        await withClock(
+          Clock.fixed(start.add(const Duration(minutes: 3))),
+          () async {
+            await expectLater(
+              db.confirmAuth(VerifyMagicLinkAuthPayload(secret: older)),
+              throwsA(isA<MagicLinkReplacedException>()),
+            );
+
+            expect(
+              await db.confirmAuth(VerifyMagicLinkAuthPayload(secret: newer)),
+              isNotNull,
+              reason: 'the newest link must still sign in',
+            );
+          },
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    // Links already in inboxes when this shipped are `secret:email`, as are
+    // the ones insecure-test-mode clients build by hand. Those are still
+    // looked up by address, so a wrong one must not spend the newest attempt.
+    test('a wrong secret:email link does not burn the newest one', () async {
+      if (!_runningOnDartVm) return;
+
+      debugInsecureTestMode = null;
+      final courier = _CapturingCourier();
+      await _withDb(settings, appConfig, courier: courier, (db) async {
+        final email =
+            'legacy-${DateTime.now().microsecondsSinceEpoch}@example.com';
+
+        await db.authenticate('users', SendMagicLinkAuthPayload(email: email));
+
+        await expectLater(
+          db.confirmAuth(
+            VerifyMagicLinkAuthPayload(secret: _linkToken('wrong', email)),
+          ),
+          throwsA(isA<InvalidOrExpiredCodeException>()),
+        );
+
+        expect(
+          await db.confirmAuth(
+            VerifyMagicLinkAuthPayload(secret: courier.magicLinkTokens.single),
+          ),
+          isNotNull,
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
   });
 
   group('insecureTestModeFromEnvironment', () {
@@ -349,8 +422,9 @@ String _linkToken(String secret, String email) =>
 Future<void> _withDb(
   Settings settings,
   AppConfig appConfig,
-  Future<void> Function(ZonaiDb db) body,
-) async {
+  Future<void> Function(ZonaiDb db) body, {
+  Courier? courier,
+}) async {
   late ZonaiDb db;
   await runMergedScopedFuture(
     () async {
@@ -362,7 +436,7 @@ Future<void> _withDb(
       }
     },
     override: {
-      ..._e2eScopeOverrides(settings, appConfig: appConfig),
+      ..._e2eScopeOverrides(settings, appConfig: appConfig, courier: courier),
       zonaiDbProvider.overrideWith(
         () =>
             () => db,
@@ -377,6 +451,7 @@ bool get _runningOnDartVm =>
 Set<ScopedRef<dynamic>> _e2eScopeOverrides(
   Settings settings, {
   AppConfig? appConfig,
+  Courier? courier,
 }) {
   return {
     fsProvider.overrideWith(LocalFileSystem.new),
@@ -389,7 +464,10 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
     executableStopProvider,
     // The challenge flows send an email. `AppConfig.email` is null here, so
     // the courier logs and returns — but it still has to exist.
-    courierProvider,
+    if (courier != null)
+      courierProvider.overrideWith(() => courier)
+    else
+      courierProvider,
     if (appConfig != null)
       configResolverProvider.overrideWith(
         () => ConfigResolver.fixed(appConfig),
@@ -439,4 +517,23 @@ void _copyTree(Directory source, Directory destination) {
       entity.copySync(targetPath);
     }
   }
+}
+
+/// Keeps every email instead of sending it, so a test can open the link.
+class _CapturingCourier extends Courier {
+  _CapturingCourier() : super(emailTemplatesPath: '');
+
+  final sent = <Email>[];
+
+  /// The `s=` token of each magic-link email, oldest first.
+  List<String> get magicLinkTokens => [
+    for (final email in sent)
+      if (email is SendMagicLinkEmail)
+        Uri.parse(
+          email.variables['magicLinkUrl'] as String,
+        ).queryParameters['s']!,
+  ];
+
+  @override
+  void sendInBackground(Email email) => sent.add(email);
 }

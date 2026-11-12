@@ -18,6 +18,7 @@ export 'src/emails.dart' show Emails;
 export 'src/password_reset_required_exception.dart'
     show PasswordResetRequiredException;
 export 'src/email_in_use_exception.dart' show EmailInUseException;
+export 'src/magic_link_replaced_exception.dart' show MagicLinkReplacedException;
 export 'src/photos.dart' show Photos;
 // Every non-2xx response is thrown as this, so a consumer must be able to name
 // it to catch it -- without taking a direct dependency on the transport package

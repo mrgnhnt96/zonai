@@ -247,6 +247,17 @@ final class Exceptions implements LifecycleComponent {
           },
         ).toEnvelope(),
       ),
+      // Structured, so a client can branch on it: the recovery is "open the
+      // newest email", not "ask for another link" (#124). Still a 401 -- the
+      // link signs nobody in -- so a client that only reads the status reacts
+      // as it did when this was InvalidOrExpiredCodeException.
+      MagicLinkReplacedException() => .handled(
+        statusCode: 401,
+        body: HttpError.unauthorized(
+          code: 'magic_link_replaced',
+          message: '$exception',
+        ).toEnvelope(),
+      ),
       AlreadyAuthenticatedException() => .handled(
         statusCode: 409,
         body: {'error': '$exception'},
