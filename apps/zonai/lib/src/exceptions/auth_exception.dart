@@ -68,6 +68,18 @@ final class CodeExpiredException extends AuthException {
   String toString() => '$codeType code expired';
 }
 
+/// The magic link was valid, but a newer one was sent to the same address
+/// since, which replaced it.
+///
+/// Only thrown once the link's secret has matched its own challenge, so it
+/// tells nobody but the link's holder that a newer link exists.
+final class MagicLinkReplacedException extends AuthException {
+  const MagicLinkReplacedException();
+
+  @override
+  String toString() => 'This magic link was replaced by a newer one';
+}
+
 final class AuthRateLimitException extends AuthException {
   const AuthRateLimitException({required this.waitDuration});
 

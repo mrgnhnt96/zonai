@@ -89,12 +89,17 @@ extension _MagicLinkX on ZonaiDb {
     };
     final hashedSecret = await _hashPassword.hash(password: secret);
 
-    final encodedToken = base64Encode('$secret:${payload.email}'.codeUnits);
+    final challengeId = AuthChallengeId.generate();
+    final encodedToken = _MagicLinkToken.encode(
+      challengeId: challengeId,
+      secret: secret,
+      email: payload.email,
+    );
 
     final db = await open();
     await db.insert(into: authChallenges).values([
       AuthChallenge.magicLink(
-        id: AuthChallengeId.generate(),
+        id: challengeId,
         expiresAt: clock.now().add(magicLink.expiresIn),
         metadata: payload.object,
         secretHash: hashedSecret,
@@ -132,21 +137,16 @@ extension _MagicLinkX on ZonaiDb {
     VerifyMagicLinkAuthPayload payload, {
     bool isAdmin = false,
   }) async {
-    final decodedToken = base64Decode(payload.secret);
-    final [secret, email] = utf8.decode(decodedToken).split(':');
+    final token = _MagicLinkToken.decode(payload.secret);
+    if (token == null) {
+      throw const InvalidOrExpiredCodeException(codeType: 'magic link');
+    }
+    final _MagicLinkToken(:secret, :email) = token;
 
-    final challenge = await _lastChallenge(
-      table: null,
-      email: email,
-      type: .magicLink,
-    );
+    final challenge = await _magicLinkChallenge(token);
 
     if (challenge == null) {
       throw const InvalidOrExpiredCodeException(codeType: 'magic link');
-    }
-
-    if (challenge.expiresAt.isBefore(clock.now())) {
-      throw const CodeExpiredException(codeType: 'magic link');
     }
 
     final hasAuthRecord = await _hasAuthRecord(
@@ -172,15 +172,6 @@ extension _MagicLinkX on ZonaiDb {
     await _requireAuthTableAccess(challenge.table, payload);
     await _requireAuthRecordAccess(challenge.table, operation, payload);
 
-    final secretMatches = await _hashPassword.verify(
-      rawPassword: secret,
-      passwordHash: challenge.secretHash,
-    );
-    if (!secretMatches) {
-      await _challengeFailed(challenge);
-      throw const InvalidOrExpiredCodeException(codeType: 'magic link');
-    }
-
     await _consumeChallenge(challenge);
 
     if (hasAuthRecord) {
@@ -198,6 +189,66 @@ extension _MagicLinkX on ZonaiDb {
       object: challenge.metadata,
       jwt: payload.jwt,
     );
+  }
+
+  /// The live challenge [token] opens, after checking its secret.
+  ///
+  /// A token that names its challenge is checked against that challenge
+  /// only, so a link from an older email can never touch the newest one
+  /// (#124). Once the secret matches, a replaced challenge says so, rather
+  /// than "invalid or expired", because its holder's recovery is to open the
+  /// newer email.
+  ///
+  /// A `secret:email` token (links sent before ids were added, and the ones
+  /// insecure-test-mode clients build) is matched against the address's
+  /// current challenge, as before.
+  ///
+  /// A wrong secret never spends an attempt. The secret is 256 random bits,
+  /// so there is nothing to guess, and spending one is what let an older
+  /// link lock out the newest.
+  Future<AuthChallenge?> _magicLinkChallenge(_MagicLinkToken token) async {
+    final AuthChallenge? challenge;
+    if (token.challengeId case final id?) {
+      final db = await open();
+      final rows = await db
+          .select()
+          .from(authChallenges)
+          .where(
+            authChallenges.id.equals(id) &
+                authChallenges.type.equals(AuthChallengeType.magicLink) &
+                authChallenges.target.equals(token.email),
+          )
+          .limit(1);
+      challenge = rows.singleOrNull;
+    } else {
+      challenge = await _lastChallenge(
+        table: null,
+        email: token.email,
+        type: .magicLink,
+      );
+    }
+
+    if (challenge == null) return null;
+
+    final secretMatches = await _hashPassword.verify(
+      rawPassword: token.secret,
+      passwordHash: challenge.secretHash,
+    );
+    if (!secretMatches) return null;
+
+    if (challenge.consumedAt != null) return null;
+
+    if (!challenge.canConsume) {
+      throw const MagicLinkReplacedException();
+    }
+
+    if (challenge.expiresAt.isBefore(clock.now())) {
+      throw const CodeExpiredException(codeType: 'magic link');
+    }
+
+    if (challenge.allowedAttempts <= 0) return null;
+
+    return challenge;
   }
 
   Future<_AuthResult> _signUpWithMagicLink(
@@ -263,4 +314,57 @@ extension _MagicLinkX on ZonaiDb {
 
     return (user: user, jwt: token);
   }
+}
+
+/// What a magic link's `s=` parameter carries: base64 of
+/// `<challenge id>:<secret>:<email>`.
+///
+/// Links sent before #124 carry `<secret>:<email>`, with no id. Those still
+/// decode, with a null [challengeId]. An id always ends in `_ach` and
+/// neither a secret nor an id contains `:`, so the two cannot be confused.
+class _MagicLinkToken {
+  const _MagicLinkToken({
+    required this.challengeId,
+    required this.secret,
+    required this.email,
+  });
+
+  final AuthChallengeId? challengeId;
+  final String secret;
+  final String email;
+
+  static String encode({
+    required AuthChallengeId challengeId,
+    required String secret,
+    required String email,
+  }) => base64Encode(utf8.encode('${challengeId.value}:$secret:$email'));
+
+  /// Null when [token] is not a magic-link token at all.
+  static _MagicLinkToken? decode(String token) {
+    final String decoded;
+    try {
+      decoded = utf8.decode(base64Decode(token));
+    } on FormatException {
+      return null;
+    }
+
+    final parts = decoded.split(':');
+    if (parts.length < 2) return null;
+
+    if (parts.length >= 3 && _idPattern.hasMatch(parts.first)) {
+      return _MagicLinkToken(
+        challengeId: AuthChallengeId(parts.first),
+        secret: parts[1],
+        email: parts.skip(2).join(':'),
+      );
+    }
+
+    return _MagicLinkToken(
+      challengeId: null,
+      secret: parts.first,
+      email: parts.skip(1).join(':'),
+    );
+  }
+
+  static final _idPattern = RegExp(r'^[0-9a-f]{15}_ach$');
 }
