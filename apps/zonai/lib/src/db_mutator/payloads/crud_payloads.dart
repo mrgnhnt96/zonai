@@ -83,6 +83,13 @@ class DeleteOnePayload extends JwtPayload implements DeletePayload {
   Where get where => Eq(column, id);
 }
 
+/// Writes across tables that all land or none do -- see [BatchBody].
+class BatchPayload extends JwtPayload {
+  const BatchPayload({required this.operations, super.jwt});
+
+  final List<BatchOperation> operations;
+}
+
 class ListPayload extends JwtPayload {
   ListPayload({
     required this.where,
