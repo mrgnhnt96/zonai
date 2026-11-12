@@ -1,3 +1,16 @@
+## 0.3.5
+
+- **`db.batch` writes across tables in one transaction.** It sends a
+  `BatchBody` to `POST /db/batch` (zonai CLI 0.13.2) and returns one
+  `BatchResult` per step. The first failing step rolls the batch back and is
+  thrown as that step's error; a failed `expect` is a
+  `PreconditionFailedException`, as with `update`. The batch types are
+  exported from this package.
+- **`auth.confirm` throws `MagicLinkReplacedException`** when the magic link
+  was replaced by a newer one sent to the same address (`401
+  magic_link_replaced`). Nobody was signed in and the newer link still works.
+- Requires `zonai_schema` 0.8.4, which defines the batch types.
+
 ## 0.3.4
 
 - **`db.listen` gets whole messages however the network splits them.** The

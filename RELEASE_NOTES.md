@@ -8,6 +8,28 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.13.2
+
+- **A create missing a required column is a `400`, not a `500`.** A body that
+  left out a non-null column, sent it as `null`, or sent a value of the wrong
+  type used to throw inside the rules worker and answer `500`. It now answers
+  the usual `400 invalid_body`, naming the column ("is required", "cannot be
+  null", "cannot hold a <type>"). The check runs in the worker, so it needs
+  `zonai_schema: ^0.8.4`. **Upgrade `zonai_schema` with the CLI:** this CLI
+  refuses to run a project on an older one.
+- **Write across tables in one transaction.** `POST /db/batch` takes a list of
+  create, update and delete steps on any tables and applies all of them or
+  none. Each step is checked by the same rules and hooks as its own route and
+  rate limited as if sent alone; the first failing step rolls the batch back
+  and is returned as that step's error. `zonai_client` 0.3.5 adds
+  `db.batch`.
+- **An older magic link no longer spends the newest one's attempt.** Opening
+  an earlier link used to fail the newest link's check and use up its only
+  attempt, so neither link signed anyone in. A replaced link now answers
+  `401 magic_link_replaced`, the newest link still works, and
+  `zonai_client` 0.3.5 throws `MagicLinkReplacedException` for it. Links
+  already sent keep working.
+
 ## 0.13.1
 
 - **A web SDK on a customer's site can read its replies.** A browser request

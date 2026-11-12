@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.4
+
+**A create body missing a required column is refused with a 400.** A body
+that left out a non-null column, sent it as `null`, or sent a value its column
+cannot hold used to throw a `TypeError` from the app's `fromRow` in the rules
+worker, before any rule ran, and the server answered 500. `safeCreate` now
+turns that into an `InvalidBodyException` naming the column, and the worker
+sends it to the host as a refusal, so the caller gets `400 invalid_body`. An
+update's after-row counts as the caller's too; a stored row that cannot be
+built is still a server fault. Needs the zonai CLI 0.13.2 to answer 400: an
+older CLI does not read the new refusal and still answers 500.
+
+**Batch write payloads.** `BatchBody`, `BatchOperation` (`create`,
+`createMany`, `update`, `updateMany`, `delete`, `deleteMany`) and
+`BatchResult`, the wire types for `POST /db/batch` in the zonai CLI 0.13.2.
+More than 100 steps is refused as an invalid body.
+
 ## 0.8.3
 
 **Rate limits can count creates per API key or per device, not just per IP.**
