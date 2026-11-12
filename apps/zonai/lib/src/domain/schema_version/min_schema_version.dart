@@ -34,7 +34,16 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.8.0`. A `before*` hook's refusal and a declined sign-up reach
+/// Currently `0.8.4`. A create body missing a required column, sent as null,
+/// or carrying a value its column cannot hold is refused by the rules worker
+/// as an `InvalidBodyException` refusal, which this CLI answers with `400
+/// invalid_body`. The worker is compiled against the *project's*
+/// `zonai_schema`, and `0.8.3` and older throw a bare `TypeError` instead, so
+/// a project left there answers its callers' bad bodies with `500`. 0.8.4 is
+/// also the lowest schema the published `zonai_client` 0.3.5 allows, since it
+/// exports the batch payload types 0.8.4 added.
+///
+/// **`0.8.0`.** A `before*` hook's refusal and a declined sign-up reach
 /// the host as `MessageErrorResponse.refusal`, a field the extensions worker
 /// sets. The worker is compiled against the *project's* `zonai_schema`, and
 /// `0.7.0` and older write no such field: they put a text marker in the error
@@ -112,4 +121,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.8.2';
+const kMinSchemaVersion = '0.8.4';

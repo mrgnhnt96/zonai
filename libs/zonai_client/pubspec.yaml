@@ -6,7 +6,7 @@ name: zonai_client
 description: >-
   Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
   and live SQLite query streams over HTTP.
-version: 0.3.4
+version: 0.3.5
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/dart-client/overview
@@ -53,7 +53,10 @@ dependencies:
   # 0.8.0's breaks (worker refusals as a structured field, and
   # `SignUpDeclinedException.tryParse` removed) are server-side too. The CLI's
   # floor moves to 0.8.0 with them, so the published client must allow it.
-  zonai_schema: ">=0.6.0 <0.9.0"
+  # 0.8.4 is the lower bound because this barrel exports `BatchBody` and the
+  # other batch payload types, which 0.8.4 introduced; against 0.8.3 the
+  # package does not compile.
+  zonai_schema: ">=0.8.4 <0.9.0"
 
 dev_dependencies:
   analyzer: ">=8.0.0 <13.0.0"
