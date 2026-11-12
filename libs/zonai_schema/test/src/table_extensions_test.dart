@@ -68,7 +68,113 @@ final class _GeneratedRowTable extends Table<_GeneratedRow> {
   final ColumnType<String> apiKey;
 }
 
+class _Recording {
+  const _Recording({
+    required this.id,
+    required this.apiKey,
+    required this.size,
+    this.note,
+  });
+
+  final String id;
+  final String apiKey;
+  final int size;
+  final String? note;
+}
+
+final class _RecordingTable extends Table<_Recording> {
+  _RecordingTable(super.$)
+    : id = $.text('id', (s) => s.id),
+      apiKey = $.text('api_key', (s) => s.apiKey),
+      size = $.integer('size', (s) => s.size),
+      note = $.text('note', (s) => s.note);
+
+  @override
+  _Recording fromRow(RowReader read) => _Recording(
+    id: read(id),
+    apiKey: read(apiKey),
+    size: read(size),
+    note: read(note),
+  );
+
+  final TextColumn id;
+  final TextColumn apiKey;
+  final ColumnType<int> size;
+  final ColumnType<String?> note;
+}
+
 void main() {
+  group('a value from the caller its column cannot hold', () {
+    late rd.TableMeta<_RecordingTable, _Recording> rows;
+
+    setUp(() {
+      final schema = table('recordings', _RecordingTable.new);
+      rows = schema.$ as TableMeta<_RecordingTable, _Recording>;
+    });
+
+    Matcher refusedWith(String message) => throwsA(
+      isA<InvalidBodyException>().having((e) => e.message, 'message', message),
+    );
+
+    test('a required column left out is refused, naming it', () {
+      expect(
+        () => rows.safeCreate({'id': 'r1', 'size': 1}),
+        refusedWith('Column "api_key" on "recordings" is required'),
+      );
+    });
+
+    test('a required column sent as null is refused, naming it', () {
+      expect(
+        () => rows.safeCreate({'id': 'r1', 'api_key': null, 'size': 1}),
+        refusedWith('Column "api_key" on "recordings" cannot be null'),
+      );
+    });
+
+    test('a value of the wrong type is refused by its type, not its '
+        'value', () {
+      expect(
+        () => rows.safeCreate({'id': 'r1', 'api_key': 'k', 'size': 'big'}),
+        refusedWith('Column "size" on "recordings" cannot hold a String'),
+      );
+    });
+
+    test('a correct row, with or without its nullable column, builds', () {
+      final row = rows.safeCreate({'id': 'r1', 'api_key': 'k', 'size': 2});
+      expect(row.apiKey, 'k');
+      expect(row.size, 2);
+      expect(row.note, isNull);
+
+      expect(
+        rows.safeCreate({
+          'id': 'r1',
+          'api_key': 'k',
+          'size': 2,
+          'note': 'hi',
+        }).note,
+        'hi',
+      );
+    });
+
+    test('a stored row that cannot be built stays a server fault', () {
+      expect(
+        () => rows.safeCreate({'id': 'r1', 'size': 1}, stored: true),
+        throwsA(isA<TypeError>()),
+      );
+    });
+
+    test('a stored row with the caller\'s changes applied is the '
+        'caller\'s', () {
+      expect(
+        () => rows.safeCreate(
+          {'id': 'r1', 'api_key': null, 'size': 1},
+          stored: true,
+          fromCaller: true,
+        ),
+        refusedWith('Column "api_key" on "recordings" cannot be null'),
+      );
+    });
+  });
+
   group('secret columns', () {
     late _SecretRowTable schema;
     late rd.TableMeta<_SecretRowTable, _SecretRow> rows;

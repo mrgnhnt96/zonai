@@ -166,6 +166,61 @@ void main() {
       expect((await create('fine')).statusCode, 200);
     });
 
+    test('a create missing a required column, or sending it as null, is a '
+        '400 naming it, not a 500', () async {
+      if (!_runningOnDartVm) return;
+
+      Future<http.Response> createObject(Map<String, Object?> object) =>
+          client.post(
+            server.uri('/db'),
+            headers: _json,
+            body: jsonEncode({'table': 'posts', 'object': object}),
+          );
+
+      for (final (object, message) in [
+        (<String, Object?>{}, 'Column "title" on "posts" is required'),
+        ({'title': null}, 'Column "title" on "posts" cannot be null'),
+        ({'title': 7}, 'Column "title" on "posts" cannot hold a int'),
+      ]) {
+        final refused = await createObject(object);
+
+        expect(refused.statusCode, 400, reason: refused.body);
+        expect(jsonDecode(refused.body), {
+          'error': {'code': 'invalid_body', 'message': message},
+        });
+      }
+
+      expect((await createObject({'title': 'whole'})).statusCode, 200);
+    });
+
+    test('an update setting a required column to null is a 400, and nothing '
+        'changes', () async {
+      if (!_runningOnDartVm) return;
+
+      final id = await createId('kept');
+
+      final refused = await client.patch(
+        server.uri('/db'),
+        headers: _json,
+        body: jsonEncode(
+          UpdateOneBody(
+            table: 'posts',
+            where: Eq('id', id),
+            updates: [
+              Update.object({'title': null}),
+            ],
+          ).toJson(),
+        ),
+      );
+
+      expect(refused.statusCode, 400, reason: refused.body);
+      expect(
+        (jsonDecode(refused.body) as Map)['error'],
+        containsPair('message', 'Column "title" on "posts" cannot be null'),
+      );
+      expect(await titlesOf(id), ['kept']);
+    });
+
     test('beforeCreate: a crash and a 5xx HttpError are still 500', () async {
       if (!_runningOnDartVm) return;
 

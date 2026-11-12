@@ -1,5 +1,6 @@
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 
 import 'api_token_exception.dart';
@@ -79,6 +80,12 @@ Object mapWorkerError(
   MessageHandlerFailedException error, {
   required String? table,
 }) {
+  // A refusal the worker sent as data, e.g. a create body missing a required
+  // column (`Table.safeCreate`), is already the exception the caller is owed.
+  if (decodeWorkerRefusal(error.refusal) case final refusal?) {
+    return refusal;
+  }
+
   final cause = error.cause ?? error.message;
   return mapDatabaseError(cause, table: table ?? 'unknown');
 }

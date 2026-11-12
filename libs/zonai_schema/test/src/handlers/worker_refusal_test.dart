@@ -86,6 +86,18 @@ void main() {
     expect((refusal! as SignUpDeclinedException).reason, 'Invite only');
   });
 
+  test('a body the worker could not build a row from keeps its message', () {
+    final refusal = overTheWire(
+      InvalidBodyException('Column "api_key" on "recordings" is required'),
+    );
+
+    expect(refusal, isA<InvalidBodyException>());
+    expect(
+      (refusal! as InvalidBodyException).message,
+      'Column "api_key" on "recordings" is required',
+    );
+  });
+
   group('everything else stays an ordinary failure', () {
     test('a crash carries no refusal', () {
       expect(encodeWorkerRefusal(StateError('crashed')), isNull);

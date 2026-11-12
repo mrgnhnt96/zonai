@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:revali_core/revali_core.dart' show HttpError;
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
+import 'package:zonai_schema/src/payloads/parse_body.dart';
 
 /// The app's deliberate refusals, carried from a worker to the host as data.
 ///
@@ -11,7 +12,7 @@ import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
 /// data can end up in that text (a crash message that quotes a field), so a
 /// parse could be fooled into reading a crash as a refusal. Instead the worker
 /// puts [encodeWorkerRefusal]'s map on `MessageErrorResponse.refusal`, and
-/// only for the two types below, so a refusal is never read out of free text.
+/// only for the types below, so a refusal is never read out of free text.
 ///
 /// [encodeWorkerRefusal] and [decodeWorkerRefusal] are one protocol, kept in
 /// one file, and `worker_refusal_test.dart` round-trips them.
@@ -32,6 +33,12 @@ Map<String, Object?>? encodeWorkerRefusal(Object error) {
     SignUpDeclinedException(:final reason) => {
       'type': _signUpDeclined,
       'reason': reason,
+    },
+    // A caller's body the worker could not build a row from, e.g. a required
+    // column left out (`Table.safeCreate`). Its message names only the column.
+    InvalidBodyException(:final message) => {
+      'type': _invalidBody,
+      'message': '$message',
     },
     _ => null,
   };
@@ -61,6 +68,8 @@ Exception? decodeWorkerRefusal(Map<String, Object?>? refusal) {
           : null;
     case {'type': _signUpDeclined, 'reason': final String reason}:
       return SignUpDeclinedException(reason);
+    case {'type': _invalidBody, 'message': final String message}:
+      return InvalidBodyException(message);
   }
   return null;
 }
@@ -73,3 +82,4 @@ Map<String, Object?> _jsonSafe(Map<String, Object?> details) =>
 
 const _hookRefused = 'hookRefused';
 const _signUpDeclined = 'signUpDeclined';
+const _invalidBody = 'invalidBody';

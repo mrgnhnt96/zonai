@@ -1477,6 +1477,11 @@ class ZonaiDb {
       // 4xx, falls to the catch-all and is a 500, in-process and in a worker
       // alike.
       rethrow;
+    } on InvalidBodyException {
+      // A body the row could not be built from: a required column left out
+      // or null, or a value its column cannot hold. The caller's 400
+      // (`onInvalidBody`), raised before any rule or hook ran.
+      rethrow;
     } catch (e, stack) {
       final mapped = mapDatabaseError(
         e,

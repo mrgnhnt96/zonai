@@ -19,7 +19,17 @@ extension UtilsX on ZonaiDb {
         'In-process rules returned ${response.runtimeType}, expected $T',
       );
     }
-    return _rules.send<T>(request);
+    try {
+      return await _rules.send<T>(request);
+    } on MessageHandlerFailedException catch (e, stack) {
+      // A body the rules worker could not build a row from (a required column
+      // left out, a value of the wrong type) is the caller's 400, not a crash.
+      // In-process it is already the real exception and never lands here.
+      if (decodeWorkerRefusal(e.refusal) case final refusal?) {
+        Error.throwWithStackTrace(refusal, stack);
+      }
+      rethrow;
+    }
   }
 
   Future<T> _dispatchOperation<T extends OperationResponse>(
