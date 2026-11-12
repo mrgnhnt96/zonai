@@ -5,6 +5,7 @@ import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/zonai_schema.dart' show RateLimitOperation;
 
+import '../components/batch_body_rate_limit.dart';
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 import '../components/custom_body_rate_limit.dart';
@@ -61,6 +62,16 @@ class DbController {
     @Body() required CreateManyBody body,
   }) async {
     return await dbHandler.createMany(authorization, body);
+  }
+
+  /// Writes across tables that all land or none do. See [BatchBody].
+  @BatchBodyRateLimit()
+  @Post('batch')
+  Future<List<Map<String, Object?>>> batch({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Body() required BatchBody body,
+  }) async {
+    return await dbHandler.batch(authorization, body);
   }
 
   @BodyRateLimit<UpdateOneBody>(RateLimitOperation.update)

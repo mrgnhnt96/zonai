@@ -57,6 +57,21 @@ class DbHandler {
     );
   }
 
+  /// Every step lands or none does -- see [BatchBody]. One result per step,
+  /// in the order sent.
+  Future<List<Map<String, Object?>>> batch(
+    String? authorization,
+    BatchBody body,
+  ) async {
+    final results = await zonaiDB.batch(
+      .new(
+        operations: body.operations,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
+    return [for (final result in results) result.toJson()];
+  }
+
   Future<Map<String, Object?>> update(
     String? authorization,
     UpdateOneBody body,
