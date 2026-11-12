@@ -178,3 +178,26 @@ await client.db.delete(
   body: DeleteOneBody(table: 'posts', where: Eq('id', 'abc_ps')),
 );
 ```
+
+### Write across tables at once
+
+`client.db.batch` sends several creates, updates and deletes, across any tables, in one request, and either every write lands or none do. See [Batch Writes](/operations/batch-writes).
+
+```dart in:client
+await client.db.batch(
+  body: BatchBody(
+    operations: [
+      BatchOperation.update(
+        UpdateOneBody(
+          table: 'posts',
+          where: Eq('id', 'abc_ps'),
+          updates: [Update.column('author_id', UpdateValue.literal('xyz_au'))],
+        ),
+      ),
+      BatchOperation.deleteMany(
+        DeleteBody(table: 'drafts', where: Eq('post_id', 'abc_ps')),
+      ),
+    ],
+  ),
+);
+```

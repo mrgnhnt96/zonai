@@ -1399,6 +1399,40 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/db/batch": {
+      "post": {
+        "operationId": "db_batch",
+        "tags": [
+          "db"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/db/count": {
       "get": {
         "operationId": "db_count",
@@ -2193,6 +2227,108 @@ const kSwaggerJson = r'''{
           {
             "$ref": "#/components/schemas/SignUpAuthBody"
           }
+        ]
+      },
+      "BatchBody": {
+        "type": "object",
+        "properties": {
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchOperation"
+            }
+          }
+        },
+        "required": [
+          "operations"
+        ]
+      },
+      "BatchCreate": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/CreateBody"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "BatchCreateMany": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/CreateManyBody"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "BatchDelete": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/DeleteOneBody"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "BatchDeleteMany": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/DeleteBody"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "BatchOperation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BatchCreate"
+          },
+          {
+            "$ref": "#/components/schemas/BatchCreateMany"
+          },
+          {
+            "$ref": "#/components/schemas/BatchUpdate"
+          },
+          {
+            "$ref": "#/components/schemas/BatchUpdateMany"
+          },
+          {
+            "$ref": "#/components/schemas/BatchDelete"
+          },
+          {
+            "$ref": "#/components/schemas/BatchDeleteMany"
+          }
+        ]
+      },
+      "BatchUpdate": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/UpdateOneBody"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "BatchUpdateMany": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/UpdateBody"
+          }
+        },
+        "required": [
+          "body"
         ]
       },
       "ColumnUpdate": {
@@ -4792,6 +4928,27 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  '/db/batch':
+    post:
+      operationId: db_batch
+      tags:
+        - db
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
   '/db/count':
     get:
       operationId: db_count
@@ -5290,6 +5447,65 @@ components:
         - $ref: '#/components/schemas/SendMagicLinkAuthBody'
         - $ref: '#/components/schemas/SignInAuthBody'
         - $ref: '#/components/schemas/SignUpAuthBody'
+    BatchBody:
+      type: object
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchOperation'
+      required:
+        - operations
+    BatchCreate:
+      type: object
+      properties:
+        body:
+          $ref: '#/components/schemas/CreateBody'
+      required:
+        - body
+    BatchCreateMany:
+      type: object
+      properties:
+        body:
+          $ref: '#/components/schemas/CreateManyBody'
+      required:
+        - body
+    BatchDelete:
+      type: object
+      properties:
+        body:
+          $ref: '#/components/schemas/DeleteOneBody'
+      required:
+        - body
+    BatchDeleteMany:
+      type: object
+      properties:
+        body:
+          $ref: '#/components/schemas/DeleteBody'
+      required:
+        - body
+    BatchOperation:
+      oneOf:
+        - $ref: '#/components/schemas/BatchCreate'
+        - $ref: '#/components/schemas/BatchCreateMany'
+        - $ref: '#/components/schemas/BatchUpdate'
+        - $ref: '#/components/schemas/BatchUpdateMany'
+        - $ref: '#/components/schemas/BatchDelete'
+        - $ref: '#/components/schemas/BatchDeleteMany'
+    BatchUpdate:
+      type: object
+      properties:
+        body:
+          $ref: '#/components/schemas/UpdateOneBody'
+      required:
+        - body
+    BatchUpdateMany:
+      type: object
+      properties:
+        body:
+          $ref: '#/components/schemas/UpdateBody'
+      required:
+        - body
     ColumnUpdate:
       type: object
       properties:

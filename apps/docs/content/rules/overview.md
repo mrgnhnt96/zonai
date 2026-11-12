@@ -31,6 +31,8 @@ Rules are the authorization layer in Zonai. Every request passes through rules b
 
 The table check runs first. If it denies, row rules never run.
 
+Each step of a [batch](/operations/batch-writes) (`POST /db/batch`) is checked by the same rules as the route it mirrors, before any step is written.
+
 ## Return Value Semantics
 
 Rule methods return `Future<bool>`:

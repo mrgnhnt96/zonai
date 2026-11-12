@@ -89,4 +89,26 @@ class Db {
   }) async {
     await _db.deleteMany(body: body, authorization: authorization);
   }
+
+  /// Writes across any tables so that every step lands or none do.
+  ///
+  /// Each step is checked against the database as it stood before the batch,
+  /// so a later step does not see what an earlier one wrote. The first step
+  /// that fails rolls the whole batch back and is thrown as that step's own
+  /// error -- a [PreconditionFailedException] for a failed `expect`, a
+  /// `ServerException` otherwise.
+  ///
+  /// Returns one [BatchResult] per step, in order.
+  Future<List<BatchResult>> batch({
+    required BatchBody body,
+    String? authorization,
+  }) async {
+    final data = await translatePreconditionRefusal(
+      () => _db.batch(body: body, authorization: authorization),
+    );
+    return [
+      for (final result in data)
+        BatchResult.fromJson(Map<String, dynamic>.from(result)),
+    ];
+  }
 }

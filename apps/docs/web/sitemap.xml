@@ -58,6 +58,9 @@
     <loc>https://docs.zonai.dev/operations/views/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/operations/batch-writes/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/operations/streaming/</loc>
   </url>
   <url>

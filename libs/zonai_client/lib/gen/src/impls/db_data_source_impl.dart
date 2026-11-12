@@ -207,6 +207,33 @@ class DbDataSourceImpl implements DbDataSource {
   }
 
   @override
+  Future<List<Map<String, Object?>>> batch({
+    required BatchBody body,
+    String? authorization,
+  }) async {
+    final response = await _client.request(
+      method: 'POST',
+      path: '/db/batch',
+      headers: {'authorization': authorization},
+      body: body,
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final List data}) {
+      return data
+          .map(
+            (e) => (e as Map).map(
+              (key, value) => MapEntry((key as String), value),
+            ),
+          )
+          .toList();
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
   Future<Map<String, Object?>> update({
     required UpdateOneBody body,
     String? authorization,

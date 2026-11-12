@@ -5,6 +5,7 @@ import 'package:zonai_schema/src/payloads/admin_invite_body.dart';
 import 'package:zonai_schema/src/payloads/anonymous_auth_body.dart';
 import 'package:zonai_schema/src/payloads/api_token_body.dart';
 import 'package:zonai_schema/src/payloads/auth_password_body.dart';
+import 'package:zonai_schema/src/payloads/batch_body.dart';
 import 'package:zonai_schema/src/payloads/count_body.dart';
 import 'package:zonai_schema/src/payloads/create_body.dart';
 import 'package:zonai_schema/src/payloads/create_many_body.dart';

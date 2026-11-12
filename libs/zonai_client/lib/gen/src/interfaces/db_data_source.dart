@@ -32,6 +32,10 @@ abstract interface class DbDataSource {
     required CreateManyBody body,
     String? authorization,
   });
+  Future<List<Map<String, Object?>>> batch({
+    required BatchBody body,
+    String? authorization,
+  });
   Future<Map<String, Object?>> update({
     required UpdateOneBody body,
     String? authorization,

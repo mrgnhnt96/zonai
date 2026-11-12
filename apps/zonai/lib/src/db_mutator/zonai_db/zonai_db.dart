@@ -119,6 +119,7 @@ part 'parts/auth/password.dart';
 part 'parts/auth/password_reset_requirement.dart';
 part 'parts/auth/reset_password.dart';
 part 'parts/auth/verify_email.dart';
+part 'parts/batch.dart';
 part 'parts/cleanup_photos.dart';
 part 'parts/clear_logs.dart';
 part 'parts/count.dart';
@@ -1346,6 +1347,29 @@ class ZonaiDb {
   /// tracing component, which wants an id to label a log line with.
   Future<Jwt?> parseJwtClaimsOnly(String? jwt) async {
     return await _run(() => _extractJwtClaimsOnly(jwt));
+  }
+
+  /// Runs every write in [payload] or none of them -- see [BatchBody] for
+  /// what each step checks and when its hooks run.
+  ///
+  /// Throws [InvalidBodyException] for a batch over [BatchBody.maxOperations]
+  /// steps, or one that deletes from `_photos`. Otherwise fails with the
+  /// failing step's own exception, exactly as its single write would.
+  Future<List<BatchResult>> batch(BatchPayload payload) async {
+    _requireBatchShape(payload.operations);
+    if (payload.operations.isEmpty) return const [];
+
+    // See [create]: the slot comes first and outlives the hashes.
+    final slot = await _admitWrite();
+    try {
+      return await _run(() async {
+        final jwt = await _extractJwt(payload, allowApiToken: true);
+        await _hashBatchPasswords(payload.operations, jwt);
+        return await _chainWrite(() => _batch(payload.operations, jwt));
+      });
+    } finally {
+      slot.release();
+    }
   }
 
   Future<_CrudListResult> update(String table, UpdatePayload payload) async {

@@ -159,6 +159,11 @@ const List<NavGroup> navigation = [
         summary: 'A read-only collection defined by a join, served over the same /db surface.',
       ),
       NavItem(
+        'Batch Writes',
+        '/operations/batch-writes',
+        summary: 'POST /db/batch: writes across tables that all land or none do.',
+      ),
+      NavItem(
         'Live Queries',
         '/operations/streaming',
         badge: 'live',
