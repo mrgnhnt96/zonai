@@ -14,6 +14,7 @@ export 'src/payloads/admin_invite_body.dart';
 export 'src/payloads/anonymous_auth_body.dart';
 export 'src/payloads/api_token_body.dart';
 export 'src/payloads/auth_password_body.dart';
+export 'src/payloads/batch_body.dart';
 export 'src/payloads/count_body.dart';
 export 'src/payloads/cron_job_list.dart';
 export 'src/payloads/dashboard_metrics.dart';
