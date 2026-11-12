@@ -2,6 +2,7 @@ import 'package:revali_client/revali_client.dart' show ServerException;
 import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_client/src/admin_auth.dart';
 import 'package:zonai_client/src/email_in_use_exception.dart';
+import 'package:zonai_client/src/magic_link_replaced_exception.dart';
 import 'package:zonai_client/src/password_reset_required_exception.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
@@ -171,8 +172,15 @@ class Auth {
     await _auth.sendVerifyEmail(body: body, authorization: authorization ?? '');
   }
 
+  /// Throws [MagicLinkReplacedException] when [body] is a magic link that a
+  /// newer link to the same address has replaced.
   Future<AuthSession?> confirm({required VerifyAuthBody body}) async {
-    final raw = await _auth.confirm(body: body);
+    final Map<String, Object?>? raw;
+    try {
+      raw = await _auth.confirm(body: body);
+    } on ServerException catch (e) {
+      throw MagicLinkReplacedException.tryFrom(e) ?? e;
+    }
     return _sessionFromRaw(raw);
   }
 
