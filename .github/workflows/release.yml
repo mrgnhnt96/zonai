@@ -146,8 +146,14 @@ jobs:
       # too. Neither is visible from the test suites -- every checkout here
       # resolves zonai_schema by path, and the constraints that bind consumers
       # are the ones already on pub.dev. See docs/releasing.md.
+      # Pinned like every other setup-dart in this repo. Left unpinned it takes
+      # the newest stable, and the locked build_web_compilers caps the SDK
+      # below 3.14, so the day 3.14.0 shipped `dart pub get` failed here and
+      # stopped the v0.13.2 release after Test was already green.
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.13.2"
 
       - name: Verify the zonai_schema floor is reachable by a consumer
         working-directory: apps/zonai
