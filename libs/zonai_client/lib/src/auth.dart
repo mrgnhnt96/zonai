@@ -258,6 +258,41 @@ class Auth {
     return (await _sessionFromRaw(raw))!;
   }
 
+  /// Approves another client -- a command line that cannot sign in by itself
+  /// -- by minting a one-time code for the signed-in account. The code is good
+  /// once, for five minutes, and only together with the verifier behind
+  /// [codeChallenge]. Hand it to that client for [exchangeHandoff].
+  Future<({String code, DateTime expiresAt})> createHandoff({
+    required String codeChallenge,
+    String codeChallengeMethod = 'S256',
+  }) async {
+    // An empty header is filled from storage by the X-Auth interceptor.
+    final raw = await _auth.createHandoff(
+      body: HandoffAuthBody(
+        codeChallenge: codeChallenge,
+        codeChallengeMethod: codeChallengeMethod,
+      ),
+      authorization: '',
+    );
+    return (
+      code: raw['code']! as String,
+      expiresAt: DateTime.parse(raw['expiresAt']! as String),
+    );
+  }
+
+  /// Trades a code from [createHandoff] and its PKCE [codeVerifier] for a
+  /// session of this client's own, and stores it. Signing out of the session
+  /// that approved it leaves this one signed in.
+  Future<AuthSession> exchangeHandoff({
+    required String code,
+    required String codeVerifier,
+  }) async {
+    final raw = await _auth.exchangeHandoff(
+      body: ExchangeHandoffAuthBody(code: code, codeVerifier: codeVerifier),
+    );
+    return (await _sessionFromRaw(raw))!;
+  }
+
   Future<AuthSession?> refreshToken({String? authorization}) async {
     final raw = await _auth.refreshToken(authorization: authorization ?? '');
     return _sessionFromRaw(raw);

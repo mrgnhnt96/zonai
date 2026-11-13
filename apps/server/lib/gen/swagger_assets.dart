@@ -629,6 +629,52 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/auth/handoff": {
+      "post": {
+        "operationId": "auth_createHandoff",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Body is `{\"code\": ..., \"expiresAt\": ...}`. The code is good once, for five minutes, together with the secret behind `codeChallenge`, at `POST /auth/handoff/exchange`."
+          }
+        }
+      }
+    },
+    "/auth/handoff/exchange": {
+      "post": {
+        "operationId": "auth_exchangeHandoff",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeHandoffAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unknown, already used or expired code"
+          }
+        }
+      }
+    },
     "/auth/oauth": {
       "post": {
         "operationId": "auth_oauth",
@@ -2918,6 +2964,21 @@ const kSwaggerJson = r'''{
           "value"
         ]
       },
+      "ExchangeHandoffAuthBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "codeVerifier": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier"
+        ]
+      },
       "GetBody": {
         "type": "object",
         "properties": {
@@ -2964,6 +3025,21 @@ const kSwaggerJson = r'''{
         "required": [
           "column",
           "value"
+        ]
+      },
+      "HandoffAuthBody": {
+        "type": "object",
+        "properties": {
+          "codeChallenge": {
+            "type": "string"
+          },
+          "codeChallengeMethod": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "codeChallenge",
+          "codeChallengeMethod"
         ]
       },
       "In": {
@@ -4454,6 +4530,34 @@ paths:
                 type: object
                 additionalProperties: true
                 nullable: true
+  '/auth/handoff':
+    post:
+      operationId: auth_createHandoff
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoffAuthBody'
+      responses:
+        '200':
+          description: 'Body is `{"code": ..., "expiresAt": ...}`. The code is good once, for five minutes, together with the secret behind `codeChallenge`, at `POST /auth/handoff/exchange`.'
+  '/auth/handoff/exchange':
+    post:
+      operationId: auth_exchangeHandoff
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeHandoffAuthBody'
+      responses:
+        '401':
+          description: Unknown, already used or expired code
   '/auth/oauth':
     post:
       operationId: auth_oauth
@@ -5911,6 +6015,16 @@ components:
       required:
         - column
         - value
+    ExchangeHandoffAuthBody:
+      type: object
+      properties:
+        code:
+          type: string
+        codeVerifier:
+          type: string
+      required:
+        - code
+        - codeVerifier
     GetBody:
       type: object
       properties:
@@ -5944,6 +6058,16 @@ components:
       required:
         - column
         - value
+    HandoffAuthBody:
+      type: object
+      properties:
+        codeChallenge:
+          type: string
+        codeChallengeMethod:
+          type: string
+      required:
+        - codeChallenge
+        - codeChallengeMethod
     In:
       type: object
       properties:

@@ -207,6 +207,34 @@ class AuthHandler {
     return _sessionPayload(result!.user, result.jwt);
   }
 
+  /// `POST /auth/handoff`. The code is returned this once; only its digest
+  /// is kept.
+  Future<Map<String, Object?>> createHandoff({
+    required String authorization,
+    required HandoffAuthBody body,
+  }) async {
+    final handoff = await zonaiDB.createSessionHandoff(
+      jwt: _parseBearerAuthorization(authorization),
+      codeChallenge: body.codeChallenge,
+      codeChallengeMethod: body.codeChallengeMethod,
+    );
+    return {
+      'code': handoff.code,
+      'expiresAt': handoff.expiresAt.toUtc().toIso8601String(),
+    };
+  }
+
+  /// `POST /auth/handoff/exchange`. Answers like sign-in.
+  Future<Map<String, Object?>> exchangeHandoff(
+    ExchangeHandoffAuthBody body,
+  ) async {
+    final result = await zonaiDB.exchangeSessionHandoff(
+      code: body.code,
+      codeVerifier: body.codeVerifier,
+    );
+    return _sessionPayload(result.user, result.jwt);
+  }
+
   Future<void> logout(String authorizationHeader) async {
     final token = _parseBearerAuthorization(authorizationHeader);
     await zonaiDB.logout(token);

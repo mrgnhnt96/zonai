@@ -118,6 +118,7 @@ part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
 part 'parts/auth/password_reset_requirement.dart';
 part 'parts/auth/reset_password.dart';
+part 'parts/auth/session_handoff.dart';
 part 'parts/auth/verify_email.dart';
 part 'parts/batch.dart';
 part 'parts/cleanup_photos.dart';
@@ -1253,6 +1254,34 @@ class ZonaiDb {
       );
       return response?.actions ?? const {};
     });
+  }
+
+  /// A one-time code, good for five minutes, that buys another client a
+  /// session of its own for the account behind [jwt]. [codeChallenge] is the
+  /// PKCE challenge of the secret that client holds.
+  Future<_SessionHandoff> createSessionHandoff({
+    required String? jwt,
+    required String codeChallenge,
+    required String codeChallengeMethod,
+  }) async {
+    return await _run(
+      () => _createSessionHandoff(
+        jwt: jwt,
+        codeChallenge: codeChallenge,
+        codeChallengeMethod: codeChallengeMethod,
+      ),
+    );
+  }
+
+  /// Spends a [createSessionHandoff] [code] and mints a new, separate
+  /// session for its account, running the sign-in hook.
+  Future<_AuthResult> exchangeSessionHandoff({
+    required String code,
+    required String codeVerifier,
+  }) async {
+    return await _run(
+      () => _exchangeSessionHandoff(code: code, codeVerifier: codeVerifier),
+    );
   }
 
   Future<void> logout(String jwt) async {
