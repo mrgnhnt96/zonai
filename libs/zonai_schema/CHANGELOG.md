@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.9.0
+
+**Session handoff.** A signed-in session can mint a one-time code that another
+client (a command line, say) trades for a session of its own on the same
+account, bound to a PKCE S256 challenge. `HandoffAuthBody` and
+`ExchangeHandoffAuthBody` are the wire types for `POST /auth/handoff` and
+`POST /auth/handoff/exchange` in the zonai CLI 0.14.0.
+
+**Handoff rate limits.** Both routes are limited per `(IP, table)`, like
+sign-in, at `RateLimitPolicy.sessionHandoff` (30 per 15 minutes) by default.
+`AuthTableRateLimits.handoffCreatePolicy` and `handoffExchangePolicy` override
+it per auth table.
+
+**Breaking: new enum values.** `RateLimitOperation` gains `handoffCreate` and
+`handoffExchange`. An exhaustive `switch` over it in your own code stops
+compiling until it handles them. The CLI sends the new operations to the rules worker, which
+decodes them by name, so consumers must re-run `zonai compile`: a worker
+compiled against 0.8.x throws on them.
+
 ## 0.8.4
 
 **A create body missing a required column is refused with a 400.** A body

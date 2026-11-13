@@ -8,6 +8,25 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.14.0
+
+- **A command line can get its own session from a signed-in app.** `POST
+  /auth/handoff` gives a signed-in user a one-time code, good once for five
+  minutes and bound to a PKCE S256 challenge; `POST /auth/handoff/exchange`
+  trades the code and its verifier for a separate session on the same account,
+  which runs `onSignIn` and survives the approving session signing out. A
+  wrong verifier spends the code. Signed-out callers, API tokens, tokens from
+  an outside identity provider, admin and anonymous sessions, and a session
+  for another table are refused. `zonai_client` 0.3.6 adds
+  `auth.createHandoff` and `auth.exchangeHandoff`.
+- **Handoff is rate limited** per IP and auth table, 30 per 15 minutes by
+  default, overridable per auth table with `handoffCreatePolicy` and
+  `handoffExchangePolicy`.
+- **Upgrade `zonai_schema` to `^0.9.0` with the CLI:** the new rate-limit
+  operations can't be read by a worker built against 0.8.x, so this CLI
+  refuses to run a project on an older one. Re-run `zonai compile` after
+  upgrading.
+
 ## 0.13.2
 
 - **A create missing a required column is a `400`, not a `500`.** A body that
