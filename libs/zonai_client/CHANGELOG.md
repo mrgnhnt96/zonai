@@ -1,3 +1,13 @@
+## 0.3.6
+
+- **`auth.createHandoff` and `auth.exchangeHandoff` sign in another client.**
+  A signed-in app calls `createHandoff` with the PKCE challenge of a secret
+  only the other client (a command line, say) holds, and gets a one-time code
+  good for five minutes. That client calls `exchangeHandoff` with the code and
+  its verifier and gets a session of its own, which outlives the approving
+  session's sign-out. Needs the zonai CLI 0.14.0.
+- Requires `zonai_schema` 0.9.0, which defines the handoff bodies.
+
 ## 0.3.5
 
 - **`db.batch` writes across tables in one transaction.** It sends a

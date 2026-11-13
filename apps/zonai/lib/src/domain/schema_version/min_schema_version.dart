@@ -34,7 +34,14 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.8.4`. A create body missing a required column, sent as null,
+/// Currently `0.9.0`. The host now sends `RateLimitOperation.handoffCreate`
+/// and `.handoffExchange` to the rules worker for `POST /auth/handoff` and
+/// `/auth/handoff/exchange`, and the worker decodes them with
+/// `Enum.values.byName`, which throws on a name `0.8.4` and older do not have.
+/// 0.9.0 is also the lowest schema the published `zonai_client` 0.3.6 allows,
+/// since it sends the handoff bodies 0.9.0 added.
+///
+/// **`0.8.4`.** A create body missing a required column, sent as null,
 /// or carrying a value its column cannot hold is refused by the rules worker
 /// as an `InvalidBodyException` refusal, which this CLI answers with `400
 /// invalid_body`. The worker is compiled against the *project's*
@@ -121,4 +128,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.8.4';
+const kMinSchemaVersion = '0.9.0';
