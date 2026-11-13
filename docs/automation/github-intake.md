@@ -62,13 +62,13 @@ explaining why (`gh pr comment <n> --body-file <tmpfile>`), label it
 `saggar:held`, remove `saggar:reviewing`, and raise a `--note`. Don't close it.
 The user decides.
 
-**Merge** otherwise:
+**Merge** otherwise. Pull requests run no CI (`Test` runs only on the release
+chain), so your review is the gate. Don't wait on `gh pr checks` or dispatch
+`Test` on the PR's branch.
 
-1. Wait for CI: `gh pr checks <n> --watch --fail-fast`. `Test` must be green
-   for the PR's head SHA. If it's red, comment what failed, hold it, and stop.
-2. `gh pr merge <n> --squash --delete-branch` (repo history uses squash
+1. `gh pr merge <n> --squash --delete-branch` (repo history uses squash
    merges). If it doesn't merge cleanly, hold it.
-3. Remove `saggar:reviewing`.
+2. Remove `saggar:reviewing`.
 
 ### 3. Wave check: release only at a stopping point
 
@@ -103,13 +103,13 @@ short, on this worktree's branch:
 2. Add a `## X.Y.Z` section at the **top** of `RELEASE_NOTES.md` describing the
    wave's merged PRs in plain language. Then run
    `bash tool/ci/release_notes.sh check` and `sip run version gen`.
-3. Commit `chore(release): X.Y.Z`, push this branch, open a PR, wait for its
-   checks, and `gh pr merge --squash`. Saggar only lets you push your own
-   branch, and the PR also stops two agents from releasing at once.
-4. `gh run list --workflow=test.yml --limit 3` must show `success` for the
-   **exact** merge commit before you dispatch. Then run
-   `gh workflow run compile.yml --ref main`. Compile → Test → Release
-   publishes on its own if the gate is green.
+3. Commit `chore(release): X.Y.Z`, push this branch, open a PR, and
+   `gh pr merge --squash` (it reports no checks). Saggar only lets you push
+   your own branch, and the PR also stops two agents from releasing at once.
+4. Run `gh workflow run compile.yml --ref main`. Compile → Test → Release
+   publishes on its own if the gate is green. `Test` runs for the first time
+   on this commit inside the chain, so it is the real check on the wave: if it
+   goes red, nothing ships, and that is the failure to report.
 5. If the wave touched `libs/zonai_schema` or `libs/zonai_client` in a way
    that needs a pub.dev publish (see "The coupling" in `docs/releasing.md`),
    **stop before dispatching** and ask. pub.dev publishes are irreversible
