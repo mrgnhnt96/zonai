@@ -2967,6 +2967,9 @@ const kSwaggerJson = r'''{
       "ExchangeHandoffAuthBody": {
         "type": "object",
         "properties": {
+          "table": {
+            "type": "string"
+          },
           "code": {
             "type": "string"
           },
@@ -2975,6 +2978,7 @@ const kSwaggerJson = r'''{
           }
         },
         "required": [
+          "table",
           "code",
           "codeVerifier"
         ]
@@ -3030,6 +3034,9 @@ const kSwaggerJson = r'''{
       "HandoffAuthBody": {
         "type": "object",
         "properties": {
+          "table": {
+            "type": "string"
+          },
           "codeChallenge": {
             "type": "string"
           },
@@ -3038,6 +3045,7 @@ const kSwaggerJson = r'''{
           }
         },
         "required": [
+          "table",
           "codeChallenge",
           "codeChallengeMethod"
         ]
@@ -6018,11 +6026,14 @@ components:
     ExchangeHandoffAuthBody:
       type: object
       properties:
+        table:
+          type: string
         code:
           type: string
         codeVerifier:
           type: string
       required:
+        - table
         - code
         - codeVerifier
     GetBody:
@@ -6061,11 +6072,14 @@ components:
     HandoffAuthBody:
       type: object
       properties:
+        table:
+          type: string
         codeChallenge:
           type: string
         codeChallengeMethod:
           type: string
       required:
+        - table
         - codeChallenge
         - codeChallengeMethod
     In:

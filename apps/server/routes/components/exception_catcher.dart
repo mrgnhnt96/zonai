@@ -277,6 +277,10 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 403,
         body: {'error': '$exception'},
       ),
+      SessionHandoffNotAllowedException() => .handled(
+        statusCode: 403,
+        body: {'error': '$exception'},
+      ),
       PasswordReuseException() => .handled(
         statusCode: 422,
         body: {'error': '$exception'},

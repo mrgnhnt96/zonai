@@ -171,6 +171,14 @@ class DbRateLimits {
         null => defaults.auth.oauthStartPolicy(),
         final a => a.oauthStartPolicy(),
       },
+      .handoffCreate => switch (bucket?.auth) {
+        null => defaults.auth.handoffCreatePolicy(),
+        final a => a.handoffCreatePolicy(),
+      },
+      .handoffExchange => switch (bucket?.auth) {
+        null => defaults.auth.handoffExchangePolicy(),
+        final a => a.handoffExchangePolicy(),
+      },
       // Deliberately does NOT consult `bucket`. The callback carries no
       // table, so `request.table` here is the fixed sentinel
       // `RateLimit.kOAuthCallbackBucket`, not an auth collection -- reading
@@ -298,6 +306,10 @@ final class _DefaultAuthTableRateLimits {
   Future<RateLimitPolicy?> anonymousSignUpPolicy() async => .anonymousSignUp;
 
   Future<RateLimitPolicy?> oauthStartPolicy() async => .defaultPolicy;
+
+  Future<RateLimitPolicy?> handoffCreatePolicy() async => .sessionHandoff;
+
+  Future<RateLimitPolicy?> handoffExchangePolicy() async => .sessionHandoff;
 
   /// Only here, not on [AuthTableRateLimits]: the OAuth callback has no
   /// table, so there is nothing for a developer to hang an override off.

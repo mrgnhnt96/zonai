@@ -1261,12 +1261,14 @@ class ZonaiDb {
   /// PKCE challenge of the secret that client holds.
   Future<_SessionHandoff> createSessionHandoff({
     required String? jwt,
+    required String table,
     required String codeChallenge,
     required String codeChallengeMethod,
   }) async {
     return await _run(
       () => _createSessionHandoff(
         jwt: jwt,
+        table: table,
         codeChallenge: codeChallenge,
         codeChallengeMethod: codeChallengeMethod,
       ),
@@ -1276,11 +1278,16 @@ class ZonaiDb {
   /// Spends a [createSessionHandoff] [code] and mints a new, separate
   /// session for its account, running the sign-in hook.
   Future<_AuthResult> exchangeSessionHandoff({
+    required String table,
     required String code,
     required String codeVerifier,
   }) async {
     return await _run(
-      () => _exchangeSessionHandoff(code: code, codeVerifier: codeVerifier),
+      () => _exchangeSessionHandoff(
+        table: table,
+        code: code,
+        codeVerifier: codeVerifier,
+      ),
     );
   }
 

@@ -75,6 +75,7 @@ void main() {
         'token',
         'secret',
         'code_verifier',
+        'codeVerifier',
         'client_secret',
       ]) {
         expect(

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:clock/clock.dart';
+import 'package:crypto/crypto.dart';
 import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
@@ -113,6 +114,7 @@ void main() {
     Future<String> handOff(ZonaiDb db, String approving) async {
       final handoff = await db.createSessionHandoff(
         jwt: approving,
+        table: 'users',
         codeChallenge: _codeChallenge,
         codeChallengeMethod: 'S256',
       );
@@ -120,6 +122,8 @@ void main() {
     }
 
     Matcher refused() => throwsA(isA<JwtRecordNotFoundException>());
+
+    Matcher notAllowed() => throwsA(isA<SessionHandoffNotAllowedException>());
 
     test(
       'z1: the code buys a new session and leaves the approving one alone',
@@ -130,6 +134,7 @@ void main() {
           final browser = await signIn(db, 'handoff-new@example.com');
           final handoff = await db.createSessionHandoff(
             jwt: browser.jwt,
+            table: 'users',
             codeChallenge: _codeChallenge,
             codeChallengeMethod: 'S256',
           );
@@ -139,6 +144,7 @@ void main() {
           );
 
           final cli = await db.exchangeSessionHandoff(
+            table: 'users',
             code: handoff.code,
             codeVerifier: _codeVerifier,
           );
@@ -169,12 +175,17 @@ void main() {
         final code = await handOff(db, browser.jwt);
 
         await db.exchangeSessionHandoff(
+          table: 'users',
           code: code,
           codeVerifier: _codeVerifier,
         );
 
         await expectLater(
-          db.exchangeSessionHandoff(code: code, codeVerifier: _codeVerifier),
+          db.exchangeSessionHandoff(
+            table: 'users',
+            code: code,
+            codeVerifier: _codeVerifier,
+          ),
           throwsA(isA<InvalidOrExpiredCodeException>()),
         );
       });
@@ -191,7 +202,11 @@ void main() {
         await withClock(
           Clock.fixed(later),
           () => expectLater(
-            db.exchangeSessionHandoff(code: code, codeVerifier: _codeVerifier),
+            db.exchangeSessionHandoff(
+              table: 'users',
+              code: code,
+              codeVerifier: _codeVerifier,
+            ),
             throwsA(isA<CodeExpiredException>()),
           ),
         );
@@ -204,10 +219,195 @@ void main() {
       await _withDb(settings, appConfig, (db) async {
         await expectLater(
           db.exchangeSessionHandoff(
+            table: 'users',
             code: 'never-issued',
             codeVerifier: _codeVerifier,
           ),
           throwsA(isA<InvalidOrExpiredCodeException>()),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test(
+      'z2: a wrong verifier is refused, and the code is spent by it',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        await _withDb(settings, appConfig, (db) async {
+          final browser = await signIn(db, 'handoff-wrong-secret@example.com');
+          final code = await handOff(db, browser.jwt);
+
+          await expectLater(
+            db.exchangeSessionHandoff(
+              table: 'users',
+              code: code,
+              codeVerifier: '${_codeVerifier}x',
+            ),
+            throwsA(isA<InvalidOrExpiredCodeException>()),
+          );
+
+          await expectLater(
+            db.exchangeSessionHandoff(
+              table: 'users',
+              code: code,
+              codeVerifier: _codeVerifier,
+            ),
+            throwsA(isA<InvalidOrExpiredCodeException>()),
+            reason: 'the wrong guess must have burned the code',
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test('z2: a code is not found under another table', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final browser = await signIn(db, 'handoff-other-table@example.com');
+        final code = await handOff(db, browser.jwt);
+
+        await expectLater(
+          db.exchangeSessionHandoff(
+            table: 'admins',
+            code: code,
+            codeVerifier: _codeVerifier,
+          ),
+          throwsA(isA<InvalidOrExpiredCodeException>()),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('z4: a signed-out caller gets no code', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        await expectLater(
+          db.createSessionHandoff(
+            jwt: null,
+            table: 'users',
+            codeChallenge: _codeChallenge,
+            codeChallengeMethod: 'S256',
+          ),
+          throwsA(isA<InvalidJwtException>()),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('z4: an admin session gets no code', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final admin = await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(
+            email: 'handoff-admin@example.com',
+            password: 'handoff-password-1',
+          ),
+        );
+
+        await expectLater(
+          db.createSessionHandoff(
+            jwt: admin!.jwt,
+            table: 'admins',
+            codeChallenge: _codeChallenge,
+            codeChallengeMethod: 'S256',
+          ),
+          notAllowed(),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('z4: an API token gets no code', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        await expectLater(
+          db.createSessionHandoff(
+            jwt: '${ApiTokenSecret.prefix}${'a' * 43}',
+            table: 'users',
+            codeChallenge: _codeChallenge,
+            codeChallengeMethod: 'S256',
+          ),
+          throwsA(isA<ApiTokenNotAcceptedHereException>()),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test(
+      'z4: a token from an outside identity provider gets no code',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        final trustingIdp = AppConfig(
+          appName: appConfig.appName,
+          passwordSecret: _passwordSecret,
+          jwtSecret: _jwtSecret,
+          baseUrl: appConfig.baseUrl,
+          externalIdps: const [
+            SharedSecretIdpConfig(
+              issuer: _idpIssuer,
+              audience: 'authenticated',
+              authTable: 'users',
+              secret: _idpSecret,
+            ),
+          ],
+        );
+
+        await _withDb(settings, trustingIdp, (db) async {
+          final account = await signIn(db, 'handoff-outside@example.com');
+          final outside = _outsideIdpJwt(sub: '${account.userId}');
+
+          // The token is good for this account everywhere else.
+          final claims = await db.parseJwt(outside);
+          expect(claims?.userId.value, account.userId);
+
+          await expectLater(
+            db.createSessionHandoff(
+              jwt: outside,
+              table: 'users',
+              codeChallenge: _codeChallenge,
+              codeChallengeMethod: 'S256',
+            ),
+            throwsA(isA<InvalidJwtException>()),
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test('z4: a session for another table gets no code', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final browser = await signIn(db, 'handoff-wrong-table@example.com');
+
+        await expectLater(
+          db.createSessionHandoff(
+            jwt: browser.jwt,
+            table: 'admins',
+            codeChallenge: _codeChallenge,
+            codeChallengeMethod: 'S256',
+          ),
+          notAllowed(),
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('z4: a challenge made any way but S256 is refused', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final browser = await signIn(db, 'handoff-plain@example.com');
+
+        await expectLater(
+          db.createSessionHandoff(
+            jwt: browser.jwt,
+            table: 'users',
+            codeChallenge: _codeVerifier,
+            codeChallengeMethod: 'plain',
+          ),
+          throwsA(isA<InvalidBodyException>()),
         );
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
@@ -218,6 +418,7 @@ void main() {
       await _withDb(settings, appConfig, (db) async {
         final browser = await signIn(db, 'handoff-browser-out@example.com');
         final cli = await db.exchangeSessionHandoff(
+          table: 'users',
           code: await handOff(db, browser.jwt),
           codeVerifier: _codeVerifier,
         );
@@ -236,6 +437,7 @@ void main() {
       await _withDb(settings, appConfig, (db) async {
         final browser = await signIn(db, 'handoff-everywhere@example.com');
         final cli = await db.exchangeSessionHandoff(
+          table: 'users',
           code: await handOff(db, browser.jwt),
           codeVerifier: _codeVerifier,
         );
@@ -249,12 +451,30 @@ void main() {
   });
 }
 
-/// RFC 7636 appendix B's pair. The exchange does not check it yet; the
-/// test passes a matching pair so it keeps passing once it does.
+/// A PKCE pair: [_codeChallenge] is `base64url(sha256(_codeVerifier))`
+/// without padding, worked out independently of the code under test.
 const _codeVerifier = 'dBjftJeZ4CVP-mJM6CpwYkxOgVNLZYDmfnQi6KJOcPrhPlMnBR8F';
-const _codeChallenge = 'E9cbbwIYb6fRSMcQxNjL4LzvDZ1kXTkZkZXSmrWiT9I';
+const _codeChallenge = 'hzKtMNh_70wNVHirYZvhJPn0J14a4m54zDIXmtfA-5s';
 
 typedef _AuthResult = ({String jwt, Object? userId});
+
+const _idpIssuer = 'https://abcdefgh.supabase.co/auth/v1';
+const _idpSecret = 'e2e-outside-idp-jwt-secret';
+
+/// A Supabase-shaped token for [sub], signed with the outside provider's
+/// secret rather than zonai's.
+String _outsideIdpJwt({required String sub}) {
+  String part(Map<String, Object?> json) =>
+      base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
+
+  final signingInput =
+      '${part(const {'alg': 'HS256', 'typ': 'JWT'})}.${part({'iss': _idpIssuer, 'aud': 'authenticated', 'sub': sub, 'role': 'authenticated', 'exp': clock.now().add(const Duration(hours: 1)).millisecondsSinceEpoch ~/ 1000})}';
+  final mac = Hmac(
+    sha256,
+    utf8.encode(_idpSecret),
+  ).convert(utf8.encode(signingInput));
+  return '$signingInput.${base64Url.encode(mac.bytes).replaceAll('=', '')}';
+}
 
 /// Generated per run, so no signing secret is committed. Long and varied
 /// enough for AppConfig's checks.

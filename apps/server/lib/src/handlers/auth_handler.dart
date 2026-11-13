@@ -215,6 +215,7 @@ class AuthHandler {
   }) async {
     final handoff = await zonaiDB.createSessionHandoff(
       jwt: _parseBearerAuthorization(authorization),
+      table: body.table,
       codeChallenge: body.codeChallenge,
       codeChallengeMethod: body.codeChallengeMethod,
     );
@@ -229,6 +230,7 @@ class AuthHandler {
     ExchangeHandoffAuthBody body,
   ) async {
     final result = await zonaiDB.exchangeSessionHandoff(
+      table: body.table,
       code: body.code,
       codeVerifier: body.codeVerifier,
     );

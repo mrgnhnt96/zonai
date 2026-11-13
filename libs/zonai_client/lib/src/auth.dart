@@ -262,13 +262,18 @@ class Auth {
   /// -- by minting a one-time code for the signed-in account. The code is good
   /// once, for five minutes, and only together with the verifier behind
   /// [codeChallenge]. Hand it to that client for [exchangeHandoff].
+  ///
+  /// [table] is the auth table the signed-in account lives in; the server
+  /// refuses any other. Admin and anonymous sessions cannot hand off.
   Future<({String code, DateTime expiresAt})> createHandoff({
+    required String table,
     required String codeChallenge,
     String codeChallengeMethod = 'S256',
   }) async {
     // An empty header is filled from storage by the X-Auth interceptor.
     final raw = await _auth.createHandoff(
       body: HandoffAuthBody(
+        table: table,
         codeChallenge: codeChallenge,
         codeChallengeMethod: codeChallengeMethod,
       ),
@@ -282,13 +287,21 @@ class Auth {
 
   /// Trades a code from [createHandoff] and its PKCE [codeVerifier] for a
   /// session of this client's own, and stores it. Signing out of the session
-  /// that approved it leaves this one signed in.
+  /// that approved it leaves this one signed in. [table] is the one the code
+  /// was made for.
+  ///
+  /// A wrong [codeVerifier] is refused and spends the code all the same.
   Future<AuthSession> exchangeHandoff({
+    required String table,
     required String code,
     required String codeVerifier,
   }) async {
     final raw = await _auth.exchangeHandoff(
-      body: ExchangeHandoffAuthBody(code: code, codeVerifier: codeVerifier),
+      body: ExchangeHandoffAuthBody(
+        table: table,
+        code: code,
+        codeVerifier: codeVerifier,
+      ),
     );
     return (await _sessionFromRaw(raw))!;
   }

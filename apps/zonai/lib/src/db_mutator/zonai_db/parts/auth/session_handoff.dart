@@ -16,12 +16,50 @@ typedef _SessionHandoff = ({String code, DateTime expiresAt});
 extension _SessionHandoffX on ZonaiDb {
   Future<_SessionHandoff> _createSessionHandoff({
     required String? jwt,
+    required String table,
     required String codeChallenge,
     required String codeChallengeMethod,
   }) async {
+    // Only an ordinary zonai session for a real account may hand itself off.
+    // Each refusal below runs before a row is written.
+    if (jwt == null) {
+      throw const InvalidJwtException();
+    }
+    if (ApiTokenSecret.looksLike(jwt)) {
+      throw const ApiTokenNotAcceptedHereException();
+    }
+    // Checked against zonai's own key first, so a token from an outside
+    // identity provider is refused here rather than resolved -- resolving one
+    // can provision an account on first sight, and the session the code buys
+    // would then outlive the provider's own revocation.
+    if (await _jwt.verify(jwt) == null) {
+      throw const InvalidJwtException();
+    }
     final caller = await _extractJwt(JwtPayload(jwt: jwt));
     if (caller == null) {
       throw const InvalidJwtException();
+    }
+    if (caller.admin.isAdmin) {
+      throw const SessionHandoffNotAllowedException(
+        'admin sessions cannot be handed off',
+      );
+    }
+    if (caller.isAnonymous) {
+      throw const SessionHandoffNotAllowedException(
+        'anonymous sessions cannot be handed off',
+      );
+    }
+    // The request's table keys the rate limit, so it must be the caller's
+    // own; otherwise rotating it would hand each request a fresh counter.
+    if (caller.table != table) {
+      throw const SessionHandoffNotAllowedException(
+        'the session is not signed in to that table',
+      );
+    }
+    if (codeChallengeMethod != 'S256') {
+      throw InvalidBodyException(
+        'codeChallengeMethod must be S256, not $codeChallengeMethod',
+      );
     }
 
     // 256 random bits, stored only as a plain digest so the exchange can find
@@ -45,6 +83,7 @@ extension _SessionHandoffX on ZonaiDb {
   }
 
   Future<_AuthResult> _exchangeSessionHandoff({
+    required String table,
     required String code,
     required String codeVerifier,
   }) async {
@@ -55,6 +94,7 @@ extension _SessionHandoffX on ZonaiDb {
         .where(
           authChallenges.secretHash.equals(_sha256Hex(code)) &
               authChallenges.type.equals(AuthChallengeType.sessionHandoff) &
+              authChallenges.table.equals(table) &
               authChallenges.canConsume.isTrue(),
         )
         .limit(1);
@@ -69,8 +109,16 @@ extension _SessionHandoffX on ZonaiDb {
       throw const CodeExpiredException(codeType: 'session handoff');
     }
 
-    // Spent before anything else runs, so a failure below still burns it.
+    // Spent before anything else runs, so a failure below still burns it --
+    // a wrong verifier included, so whoever holds a stolen code gets one try.
     await _consumeChallenge(challenge);
+
+    if (!_handoffVerifierMatches(
+      codeVerifier: codeVerifier,
+      codeChallenge: challenge.metadata?['codeChallenge'],
+    )) {
+      throw const InvalidOrExpiredCodeException(codeType: 'session handoff');
+    }
 
     final userId = challenge.userId;
     if (userId == null) {
@@ -92,5 +140,31 @@ extension _SessionHandoffX on ZonaiDb {
       user: user,
       extensionStep: .onSignIn,
     );
+  }
+
+  /// Whether [codeVerifier] is the secret behind [codeChallenge] under PKCE
+  /// S256: `base64url(sha256(verifier))` without padding (RFC 7636 §4.6).
+  ///
+  /// Compared in constant time, so the time a wrong guess takes says nothing
+  /// about how much of it was right.
+  bool _handoffVerifierMatches({
+    required String codeVerifier,
+    required Object? codeChallenge,
+  }) {
+    if (codeChallenge is! String) return false;
+
+    final expected = utf8.encode(codeChallenge);
+    final actual = utf8.encode(
+      base64Url
+          .encode(sha256.convert(utf8.encode(codeVerifier)).bytes)
+          .replaceAll('=', ''),
+    );
+    if (expected.length != actual.length) return false;
+
+    var diff = 0;
+    for (var i = 0; i < expected.length; i++) {
+      diff |= expected[i] ^ actual[i];
+    }
+    return diff == 0;
   }
 }

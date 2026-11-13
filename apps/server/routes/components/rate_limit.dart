@@ -141,6 +141,8 @@ class RateLimit {
       VerifyEmailAuthBody(:final table) => table,
       OAuthBody(:final table) => table,
       AnonymousAuthBody(:final table) => table,
+      HandoffAuthBody(:final table) => table,
+      ExchangeHandoffAuthBody(:final table) => table,
       _ => throw ArgumentError(
         'Unexpected query body type for rate limit: ${body.runtimeType}',
       ),

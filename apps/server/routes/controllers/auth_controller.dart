@@ -671,6 +671,7 @@ class AuthController {
         'for five minutes, together with the secret behind `codeChallenge`, '
         'at `POST /auth/handoff/exchange`.',
   )
+  @BodyRateLimit<HandoffAuthBody>(RateLimitOperation.handoffCreate)
   @Post('handoff')
   Future<Map<String, Object?>> createHandoff({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
@@ -688,6 +689,7 @@ class AuthController {
     401,
     description: 'Unknown, already used or expired code',
   )
+  @BodyRateLimit<ExchangeHandoffAuthBody>(RateLimitOperation.handoffExchange)
   @Post('handoff/exchange')
   Future<Map<String, Object?>> exchangeHandoff({
     @Body() required ExchangeHandoffAuthBody body,
