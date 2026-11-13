@@ -12,6 +12,7 @@ import 'package:zonai_schema/src/payloads/custom_body.dart';
 import 'package:zonai_schema/src/payloads/dashboard_metrics.dart';
 import 'package:zonai_schema/src/payloads/delete_body.dart';
 import 'package:zonai_schema/src/payloads/get_body.dart';
+import 'package:zonai_schema/src/payloads/handoff_auth_body.dart';
 import 'package:zonai_schema/src/payloads/list_body.dart';
 import 'package:zonai_schema/src/payloads/maintenance_actions.dart';
 import 'package:zonai_schema/src/payloads/oauth_body.dart';

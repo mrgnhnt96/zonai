@@ -590,4 +590,83 @@ void main() {
       });
     });
   });
+
+  group('session handoff limits', () {
+    const handoff = RateLimitPolicy.sessionHandoff;
+
+    for (final operation in const [
+      RateLimitOperation.handoffCreate,
+      RateLimitOperation.handoffExchange,
+    ]) {
+      Future<RateLimitCheck> hit(
+        RateLimiter limiter, {
+        DateTime? now,
+        String ipAddress = ip,
+      }) => at(
+        now ?? t0,
+        limiter,
+        table: 'users',
+        operation: operation,
+        ipAddress: ipAddress,
+      );
+
+      test('${operation.name} trips after the policy allows its last '
+          'request from one IP', () {
+        return withLimiter({'users': handoff}, (limiter, _) async {
+          for (var i = 0; i < handoff.maxRequests; i++) {
+            expect((await hit(limiter)).allowed, isTrue, reason: 'request $i');
+          }
+
+          expect((await hit(limiter)).allowed, isFalse);
+        });
+      });
+
+      test('${operation.name} counts each IP on its own', () {
+        return withLimiter({'users': handoff}, (limiter, _) async {
+          for (var i = 0; i < handoff.maxRequests; i++) {
+            await hit(limiter);
+          }
+          expect((await hit(limiter)).allowed, isFalse);
+
+          expect(
+            (await hit(limiter, ipAddress: '198.51.100.9')).allowed,
+            isTrue,
+          );
+        });
+      });
+
+      test('${operation.name} opens again once the window passes', () {
+        return withLimiter({'users': handoff}, (limiter, _) async {
+          for (var i = 0; i < handoff.maxRequests; i++) {
+            await hit(limiter);
+          }
+          expect((await hit(limiter)).allowed, isFalse);
+
+          final later = t0.add(handoff.window);
+          expect((await hit(limiter, now: later)).allowed, isTrue);
+        });
+      });
+    }
+
+    test('creating and exchanging codes count separately', () {
+      return withLimiter({'users': handoff}, (limiter, _) async {
+        for (var i = 0; i < handoff.maxRequests; i++) {
+          await at(
+            t0,
+            limiter,
+            table: 'users',
+            operation: RateLimitOperation.handoffCreate,
+          );
+        }
+
+        final exchange = await at(
+          t0,
+          limiter,
+          table: 'users',
+          operation: RateLimitOperation.handoffExchange,
+        );
+        expect(exchange.allowed, isTrue);
+      });
+    });
+  });
 }

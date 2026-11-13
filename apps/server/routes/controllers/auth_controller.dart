@@ -661,6 +661,47 @@ class AuthController {
     return result;
   }
 
+  // A signed-in session asks for a one-time code that buys another client --
+  // a command line, say -- a session of its own for the same account. The
+  // code is bound to the PKCE challenge of a secret only that client holds.
+  @swagger.ApiResponse(
+    200,
+    description:
+        'Body is `{"code": ..., "expiresAt": ...}`. The code is good once, '
+        'for five minutes, together with the secret behind `codeChallenge`, '
+        'at `POST /auth/handoff/exchange`.',
+  )
+  @BodyRateLimit<HandoffAuthBody>(RateLimitOperation.handoffCreate)
+  @Post('handoff')
+  Future<Map<String, Object?>> createHandoff({
+    @Header(HttpHeaders.authorizationHeader) required String authorization,
+    @Body() required HandoffAuthBody body,
+  }) async {
+    return await authHandler.createHandoff(
+      authorization: authorization,
+      body: body,
+    );
+  }
+
+  // Trades a `POST /auth/handoff` code and its PKCE verifier for a new
+  // session, separate from the one that asked for the code.
+  @swagger.ApiResponse(
+    401,
+    description: 'Unknown, already used or expired code',
+  )
+  @BodyRateLimit<ExchangeHandoffAuthBody>(RateLimitOperation.handoffExchange)
+  @Post('handoff/exchange')
+  Future<Map<String, Object?>> exchangeHandoff({
+    @Body() required ExchangeHandoffAuthBody body,
+    required ResponseHeaders headers,
+  }) async {
+    final result = await authHandler.exchangeHandoff(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
+  }
+
   @Delete()
   Future<void> logout({
     @Header(HttpHeaders.authorizationHeader) required String authorization,

@@ -178,6 +178,19 @@ final class NotAnonymousSessionException extends AuthException {
   String toString() => 'Only an anonymous session can be upgraded';
 }
 
+/// A session that may not hand itself off asked for a handoff code: an admin
+/// session, an anonymous one, one from an outside identity provider, or one
+/// whose table is not the one the request named. [reason] says which, in
+/// words safe to show the caller.
+final class SessionHandoffNotAllowedException extends AuthException {
+  const SessionHandoffNotAllowedException(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'This session cannot hand off a sign-in: $reason';
+}
+
 final class PasswordReuseException extends AuthException {
   const PasswordReuseException();
 

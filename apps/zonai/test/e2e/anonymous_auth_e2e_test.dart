@@ -189,6 +189,24 @@ void main() {
       timeout: _timeout,
     );
 
+    test('an anonymous session cannot hand off a sign-in', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final created = await db.signInAnonymously('users');
+
+        await expectLater(
+          db.createSessionHandoff(
+            jwt: created.jwt,
+            table: 'users',
+            codeChallenge: 'hzKtMNh_70wNVHirYZvhJPn0J14a4m54zDIXmtfA-5s',
+            codeChallengeMethod: 'S256',
+          ),
+          throwsA(isA<SessionHandoffNotAllowedException>()),
+        );
+      });
+    }, timeout: _timeout);
+
     test('an anonymous owner cannot write their own address', () async {
       if (!_runningOnDartVm) return;
 

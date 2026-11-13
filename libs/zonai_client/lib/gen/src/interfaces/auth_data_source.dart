@@ -48,6 +48,13 @@ abstract interface class AuthDataSource {
     required OAuthCallbackBody body,
   });
   Future<Map<String, Object?>> oauth({required OAuthBody body});
+  Future<Map<String, Object?>> createHandoff({
+    required HandoffAuthBody body,
+    required String authorization,
+  });
+  Future<Map<String, Object?>> exchangeHandoff({
+    required ExchangeHandoffAuthBody body,
+  });
   Future<List<Map<String, Object?>>> oauthProviders({String? table});
   Future<void> startOAuth({
     required String provider,

@@ -67,4 +67,13 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
   /// There is deliberately no matching `oauthCallbackPolicy`: the callback
   /// has no table to attach one to — see [RateLimitOperation.oauthCallback].
   Future<RateLimitPolicy?> oauthStartPolicy() async => .defaultPolicy;
+
+  /// Throttles `POST /auth/handoff` for this auth table, keyed per client IP.
+  /// Each accepted request writes a `sessionHandoff` challenge row. Override
+  /// to tighten or loosen, or return `null` to disable.
+  Future<RateLimitPolicy?> handoffCreatePolicy() async => .sessionHandoff;
+
+  /// Throttles `POST /auth/handoff/exchange` for this auth table, keyed per
+  /// client IP. Override to tighten or loosen, or return `null` to disable.
+  Future<RateLimitPolicy?> handoffExchangePolicy() async => .sessionHandoff;
 }

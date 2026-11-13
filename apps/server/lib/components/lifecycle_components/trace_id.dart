@@ -86,6 +86,7 @@ const _redactedQueryParams = {
   'token',
   'secret',
   'code_verifier',
+  'codeVerifier',
   'client_secret',
 };
 

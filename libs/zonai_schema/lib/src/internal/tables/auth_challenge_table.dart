@@ -123,6 +123,27 @@ class AuthChallenge {
        canConsume = true,
        consumedAt = null;
 
+  /// A one-time code a signed-in session hands to another client (a command
+  /// line, say) so it can get a session of its own for the same account.
+  ///
+  /// `secretHash: sha256(code)`, `userId` and `table` from the approving
+  /// session, `target`: that user's id, `metadata: {codeChallenge}` (PKCE
+  /// S256). Single use, and the caller supplies a 5-minute [expiresAt].
+  AuthChallenge.sessionHandoff({
+    required this.id,
+    required Id this.userId,
+    required this.expiresAt,
+    required this.secretHash,
+    required this.table,
+    required String codeChallenge,
+  }) : target = userId.value,
+       metadata = {'codeChallenge': codeChallenge},
+       allowedAttempts = 1,
+       type = .sessionHandoff,
+       createdAt = .now(),
+       canConsume = true,
+       consumedAt = null;
+
   final AuthChallengeId id;
   final Id? userId;
   final DateTime expiresAt;
@@ -156,6 +177,10 @@ enum AuthChallengeType {
   /// acceptance. `metadata: {invitedBy, invitedByEmail}`.
   /// `allowedAttempts: 1`, 7-day `expiresAt`.
   adminInvite,
+
+  /// A signed-in session's one-time code for a new session of the same
+  /// account (`POST /auth/handoff`). See [AuthChallenge.sessionHandoff].
+  sessionHandoff,
 }
 
 class AuthChallengeId implements Id {

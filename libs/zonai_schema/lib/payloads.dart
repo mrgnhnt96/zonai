@@ -23,6 +23,7 @@ export 'src/payloads/create_many_body.dart';
 export 'src/payloads/custom_body.dart';
 export 'src/payloads/delete_body.dart';
 export 'src/payloads/get_body.dart';
+export 'src/payloads/handoff_auth_body.dart';
 export 'src/payloads/photo_bodies.dart';
 export 'src/payloads/list_body.dart';
 export 'src/payloads/oauth_body.dart';

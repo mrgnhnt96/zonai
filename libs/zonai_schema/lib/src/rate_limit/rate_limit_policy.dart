@@ -48,6 +48,15 @@ final class RateLimitPolicy {
     window: Duration(minutes: 1),
   );
 
+  /// Default for `AuthTableRateLimits.handoffCreatePolicy` and
+  /// `handoffExchangePolicy`. An honest user hands a session to a CLI a
+  /// handful of times a day, and each create writes a challenge row, so this
+  /// sits far below [defaultPolicy].
+  static const sessionHandoff = RateLimitPolicy(
+    maxRequests: 30,
+    window: Duration(minutes: 15),
+  );
+
   factory RateLimitPolicy.fromJson(Map<String, dynamic> json) {
     return RateLimitPolicy(
       maxRequests: json['maxRequests'] as int,

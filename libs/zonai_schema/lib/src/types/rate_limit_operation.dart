@@ -73,4 +73,16 @@ enum RateLimitOperation {
   /// request a fresh counter — the identical bypass
   /// `RateLimit.checkCustomOperation` exists to close for `:operation`.
   oauthCallback,
+
+  /// `POST /auth/handoff` -- a signed-in user asking for a one-time code
+  /// another device (a CLI) can trade for its own session. Bucketed per
+  /// `(IP, table)` like `signIn`, with [RateLimitPolicy.sessionHandoff] as
+  /// the default. Override with `AuthTableRateLimits.handoffCreatePolicy`.
+  handoffCreate,
+
+  /// `POST /auth/handoff/exchange` -- trading a handoff code and its verifier
+  /// for a session. Bucketed per `(IP, table)` like `signIn`, with
+  /// [RateLimitPolicy.sessionHandoff] as the default. Override with
+  /// `AuthTableRateLimits.handoffExchangePolicy`.
+  handoffExchange,
 }
