@@ -36,7 +36,7 @@ POST /auth
 }
 ```
 
-Returns `200 OK` with an empty body. Zonai generates a single-use secret, stores only its hash, and emails a link via the `magic_link` template. The optional `metadata` object becomes the new row's extra fields if this turns out to be a sign-up — there is no separate sign-up call: if no account exists for the email and `canSignUp` allows it, following the link creates one.
+Returns `200 OK` with an empty body. Zonai generates a single-use secret, stores only its hash, and emails a link via the `magic_link` template (`magic_link_sign_up` when the address has no account and your project has that template; see [Built-in Templates](/email/built-in-templates#what-sends-each-template)). The optional `metadata` object becomes the new row's extra fields if this turns out to be a sign-up — there is no separate sign-up call: if no account exists for the email and `canSignUp` allows it, following the link creates one.
 
 One link per address per minute: a second request inside the minute answers `429`. Requesting a new link invalidates the previous one.
 

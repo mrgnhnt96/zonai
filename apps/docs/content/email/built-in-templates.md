@@ -1,6 +1,6 @@
 ---
 title: Built-in Templates
-description: The seven built-in email templates, what sends each one, the variables they receive, and their default preview text.
+description: The eight built-in email templates, what sends each one, the variables they receive, and their default preview text.
 ---
 
 {{=<% %>=}}
@@ -23,7 +23,7 @@ description: The seven built-in email templates, what sends each one, the variab
      uses a real {SITE_SOCIAL} loop. -->
 
 
-Zonai ships seven HTML email templates. The first time you run `zonai dev` in a new project, it writes them into `emailTemplatesPath` (default `lib/src/email_templates`). They are ordinary files in your project, so edit them freely. Existing files are never overwritten. Zonai reads templates from disk at send time, so edits take effect without recompiling.
+Zonai ships eight HTML email templates. The first time you run `zonai dev` in a new project, it writes them into `emailTemplatesPath` (default `lib/src/email_templates`). They are ordinary files in your project, so edit them freely. Existing files are never overwritten. Zonai reads templates from disk at send time, so edits take effect without recompiling.
 
 If a template file is missing (for example, a project created before that template existed), the send fails and the server log names the path it looked for: `Email template not found: …`. Copy the file from a fresh project, or create one with `zonai db email template create <name>`.
 
@@ -33,11 +33,14 @@ If a template file is missing (for example, a project created before that templa
 | -------- | --------- | -------------- |
 | `verify_email` | The default `onSignUp` hook on an auth table with an email column, `POST /auth/verify-email`, or `email.send.verifyEmail(...)` | 24 hours (`VerifyEmailConfig`) |
 | `otp_code` | `POST /auth` with `type: "sendOtp"`, or `email.send.otpCode(...)` | 10 minutes (fixed) |
-| `magic_link` | `POST /auth` with `type: "sendMagicLink"` | 10 minutes (`MagicLinkConfig`) |
+| `magic_link` | `POST /auth` with `type: "sendMagicLink"` for an address that has an account | 10 minutes (`MagicLinkConfig`) |
+| `magic_link_sign_up` | `POST /auth` with `type: "sendMagicLink"` for an address with no account yet (see below) | 10 minutes (`MagicLinkConfig`) |
 | `password_reset` | `POST /auth/reset-password`, or `email.send.passwordReset(...)` | 10 minutes (`ResetPasswordConfig`) |
 | `admin_invite` | Inviting an admin (`zonai db admin invite` or the dashboard) | 7 days |
 | `confirm_change_email` | Nothing yet (see below) | |
 | `login_notice` | Nothing yet (see below) | |
+
+A magic link to an address with no account is a sign-up, so it goes out as `magic_link_sign_up` with the subject `Create your <appName> account` instead of `Sign in`. That template is optional: if `magic_link_sign_up.html` is not in `emailTemplatesPath` (for example, a project created before it existed), the sign-up gets the `magic_link` email with the subject `Sign in`, as it did before. Both get the same variables, including the `metadata` from the request.
 
 The expiry settings live on your [auth operations](/operations/auth-operations). OTP, magic-link and password-reset sends are limited to one per address per minute. See [Auth Rate Limits](/rate-limiting/auth-rate-limits).
 
@@ -52,6 +55,7 @@ Every template also receives **`appName`** (from `AppConfig`) and **`preheader`*
 | `verify_email.html` | `email`, `verificationUrl`, `expiresIn`, optional `name` |
 | `otp_code.html` | `email`, `otp`, `expiresIn`, optional `name` |
 | `magic_link.html` | `email`, `magicLinkUrl`, `expiresIn`, optional `name` |
+| `magic_link_sign_up.html` | `email`, `magicLinkUrl`, `expiresIn`, optional `name` |
 | `password_reset.html` | `email`, `passwordResetUrl`, `expiresIn`, optional `name` |
 | `admin_invite.html` | `email`, `inviteUrl`, `expiresIn`, optional `invitedByEmail` |
 | `confirm_change_email.html` | `currentEmail`, `newEmail`, `confirmChangeEmailUrl`, `expiresIn`, optional `name` |
@@ -73,6 +77,7 @@ Every built-in template opens with a hidden `{{preheader}}` block. That's the li
 | ---------------- | ------------------------------------------------------ |
 | `otp_code`       | `Your sign-in code expires in 10 minutes.`             |
 | `magic_link`     | `Your sign-in link expires in 10 minutes.`             |
+| `magic_link_sign_up` | `Your link to create your account expires in 10 minutes.` |
 | `verify_email`   | `Confirm <address> to finish setting up your account.` |
 | `password_reset` | `Your reset link expires in 10 minutes.`               |
 | `admin_invite`   | `Your invite expires in 7 days.`                       |

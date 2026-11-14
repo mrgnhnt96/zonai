@@ -38,6 +38,7 @@ import 'package:zonai/src/domain/photo_storage/disk_photo_storage.dart';
 import 'package:zonai/src/domain/photo_storage/photo_storage.dart';
 import 'package:zonai/src/domain/photo_storage/s3_signer.dart';
 import 'package:zonai/src/domain/photo_view.dart';
+import 'package:zonai/src/email/magic_link_email.dart';
 import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/worker_refusal.dart';
 import 'package:zonai_schema/src/handlers/webhooks/webhook_message.dart';
