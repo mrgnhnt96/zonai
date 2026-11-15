@@ -121,8 +121,12 @@ extension _MagicLinkX on ZonaiDb {
       final path => path,
     };
 
+    // A sign-up gets its own "Create your account" email when the app has
+    // that template, and the sign-in email otherwise. See `magicLinkEmail`.
     courier.sendInBackground(
-      SendMagicLinkEmail(
+      magicLinkEmail(
+        operation: operation,
+        appName: appConfig.appName,
         to: EmailAddress(address: payload.email),
         table: table,
         isResend: lastMagicLink != null,

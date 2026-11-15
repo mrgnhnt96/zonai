@@ -8,6 +8,16 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.14.1
+
+- **Magic-link sign-ups get their own email.** A link sent to an address with
+  no account now uses the `magic_link_sign_up` template with the subject
+  "Create your <appName> account", instead of telling a new user to "Sign in".
+  It gets the same variables as `magic_link`, including the request's
+  `metadata`. The template is optional: until you add
+  `magic_link_sign_up.html` to your email templates, sign-ups get the
+  sign-in email exactly as before. New projects get a default one.
+
 ## 0.14.0
 
 - **A command line can get its own session from a signed-in app.** `POST

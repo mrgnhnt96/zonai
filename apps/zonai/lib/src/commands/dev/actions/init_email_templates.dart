@@ -3,6 +3,7 @@ const initEmailTemplates = <String, String>{
   'verify_email': _verifyEmail,
   'otp_code': _otpCode,
   'magic_link': _magicLink,
+  'magic_link_sign_up': _magicLinkSignUp,
   'password_reset': _passwordReset,
   'confirm_change_email': _confirmChangeEmail,
   'login_notice': _loginNotice,
@@ -63,6 +64,18 @@ const _magicLink =
 $_preheader
 <p>Hi{{#name}} {{name}}{{/name}},</p>
 <p>Sign in to {{appName}}:</p>
+<p><a href="{{magicLinkUrl}}">{{magicLinkUrl}}</a></p>
+<p>This link expires in {{expiresIn}}.</p>
+</body></html>
+''';
+
+const _magicLinkSignUp =
+    '''
+<!doctype html>
+<html lang="en"><body style="font-family:sans-serif;color:#0f172a">
+$_preheader
+<p>Hi{{#name}} {{name}}{{/name}},</p>
+<p>Create your {{appName}} account:</p>
 <p><a href="{{magicLinkUrl}}">{{magicLinkUrl}}</a></p>
 <p>This link expires in {{expiresIn}}.</p>
 </body></html>
