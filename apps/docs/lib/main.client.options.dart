@@ -40,9 +40,9 @@ ClientOptions get defaultClientOptions => ClientOptions(
     ),
     'jaspr_content:zoomable_image': ClientLoader(
       (p) => _zoomable_image.ZoomableImage(
-        src: p['src'] as String,
-        alt: p['alt'] as String?,
-        caption: p['caption'] as String?,
+        src: p.get<String>('src'),
+        alt: p.get<String?>('alt'),
+        caption: p.get<String?>('caption'),
       ),
       loader: _zoomable_image.loadLibrary,
     ),

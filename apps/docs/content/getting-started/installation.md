@@ -7,7 +7,7 @@ description: Prerequisites and how to install the Zonai CLI.
 
 | What | Needed for | Notes |
 | --- | --- | --- |
-| **Dart SDK** `>=3.12.0 <4.0.0` | Development and `zonai build` | The CLI runs `dart pub get` and compiles your workers with the SDK on your `PATH`. Use the Dart version the release was built with — currently **3.13.x**. See [below](#dart-sdk-version). |
+| **Dart SDK** `>=3.12.0 <4.0.0` | Development and `zonai build` | The CLI runs `dart pub get` and compiles your workers with the SDK on your `PATH`. Use the Dart version the release was built with — currently **3.14.x**. See [below](#dart-sdk-version). |
 | **The `zonai` binary** | Everything | A pre-compiled executable from GitHub Releases. It is **not** on pub.dev and is not installed with `dart pub global activate`. |
 | **macOS, Linux, or Windows** | — | Builds: macOS arm64 and x64, Linux x64 and arm64, Windows x64. |
 | Git | Recommended | Migrations in `.zonai/migrations/` are meant to be committed. |

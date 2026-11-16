@@ -7,7 +7,7 @@ This file is for working **on** zonai. To **use** zonai in your own project, rea
 
 | Tool | Version | Why |
 | --- | --- | --- |
-| Dart SDK | **3.13.2** (the version CI and releases build with; `pubspec.yaml` allows `>=3.12.0 <4.0.0`) | Everything. A different SDK builds, but the released binary's VM snapshot hash comes from the SDK, so match CI when comparing behaviour. |
+| Dart SDK | **3.14.0** (the version CI and releases build with; `pubspec.yaml` allows `>=3.12.0 <4.0.0`) | Everything. A different SDK builds, but the released binary's VM snapshot hash comes from the SDK, so match CI when comparing behaviour. |
 | Git | any recent | Two submodules. |
 | [`sip`](https://github.com/mrgnhnt96/sip) | `main` | Runs the named scripts in `scripts.yaml`. |
 | A C toolchain (Xcode CLT / build-essential / MSVC) | — | `bootstrap test` builds the native resqlite and Argon2 libraries. |

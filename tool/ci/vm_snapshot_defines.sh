@@ -18,8 +18,8 @@
 # vm_snapshot_hash.dart is the other end: it reads these back through
 # `String.fromEnvironment`.
 #
-# WHY IT IS DERIVED HERE RATHER THAN WRITTEN DOWN. CI pins `sdk: "3.13.2"` in
-# 18 workflow job definitions. A literal hash next to those would be correct
+# WHY IT IS DERIVED HERE RATHER THAN WRITTEN DOWN. CI pins `sdk: "3.14.0"` in
+# 19 workflow job definitions. A literal hash next to those would be correct
 # until the day one of them is bumped, and then silently wrong -- the binary
 # would claim a runtime it does not have, which is worse than claiming nothing,
 # because the guard would trust it. Reading the SDK that is actually on PATH
