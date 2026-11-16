@@ -31,7 +31,7 @@ import 'package:zonai_website/src/sections/nav.dart' deferred as _nav;
 ClientOptions get defaultClientOptions => ClientOptions(
   clients: {
     'install_command': ClientLoader(
-      (p) => _install_command.InstallCommand(command: p['command'] as String),
+      (p) => _install_command.InstallCommand(command: p.get<String>('command')),
       loader: _install_command.loadLibrary,
     ),
     'stream_demo': ClientLoader(

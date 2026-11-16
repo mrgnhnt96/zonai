@@ -153,7 +153,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Verify the zonai_schema floor is reachable by a consumer
         working-directory: apps/zonai

@@ -150,7 +150,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Get dependencies
         run: dart pub get
@@ -257,7 +257,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Get dependencies
         run: dart pub get
@@ -462,7 +462,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Get dependencies
         run: dart pub get
@@ -583,7 +583,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Download new binary (triggering compile run)
         if: inputs.compile_run_id != ''

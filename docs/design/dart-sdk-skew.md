@@ -33,8 +33,8 @@ coupled surface is that narrow and can be enumerated.
 
 They are chosen by two mechanisms that never consult each other.
 
-- **The host.** CI pins `sdk: "3.13.2"` in **18 workflow job definitions**, so a
-  released `zonai` embeds a 3.13.2 runtime. A project binary compiled by
+- **The host.** CI pins `sdk: "3.14.0"` in **19 workflow job definitions**, so a
+  released `zonai` embeds a 3.14.0 runtime. A project binary compiled by
   `zonai compile` / `zonai build` embeds whatever compiled *it*.
 - **The snapshots.** Compiled by whatever `DartExecutable.resolve()` finds on
   the developer's machine (`rules.dart:123`, `operations.dart:143`). On the
@@ -52,6 +52,7 @@ Measured on macos-arm64, reading the 32-hex string out of each SDK's
 | 3.12.2 | `ace654289f5abc240509fc941453ebc5`  |
 | 3.13.1 | `0451907c2eaa8467e848c0067bfe8ed4`  |
 | 3.13.2 | `0451907c2eaa8467e848c0067bfe8ed4`  |
+| 3.14.0 | `6b959e9909a17b8e29b0663a6d99e646`  |
 
 3.12.1 and 3.12.2 share a hash and spawn each other's snapshots in both
 directions. 3.12.0 does **not** share theirs and does not, despite sharing a
@@ -143,7 +144,7 @@ Two details there are measured, not assumed:
   with `-DZONAI_VM_HASH=an_env_file_lie` ahead of the real define reported the
   real hash out of the compiled binary.
 - **The hash is derived on the release path, never written down.** A literal
-  beside those 18 `sdk: "3.13.2"` pins would be correct until the next bump and
+  beside those 19 `sdk: "3.14.0"` pins would be correct until the next bump and
   silently wrong afterwards — and a binary claiming a runtime it does not have
   is worse than one claiming none, because the guard trusts it. The script reads
   the SDK actually on `PATH`, i.e. the one about to run the compile two lines

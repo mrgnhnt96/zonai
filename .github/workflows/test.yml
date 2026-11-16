@@ -207,7 +207,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Cache pub packages
         uses: actions/cache@v4
@@ -364,7 +364,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Cache pub packages
         uses: actions/cache@v4
@@ -522,7 +522,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Cache pub packages
         uses: actions/cache@v4
@@ -743,7 +743,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Cache pub packages
         uses: actions/cache@v4
@@ -970,7 +970,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Cache pub packages
         uses: actions/cache@v4
@@ -1258,7 +1258,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.13.2"
+          sdk: "3.14.0"
 
       - name: Cache pub packages
         uses: actions/cache@v4

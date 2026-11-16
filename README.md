@@ -21,7 +21,7 @@ dashboard at `/_`.
 
 ## What you need
 
-- **Dart SDK 3.13.x** on `PATH`. The SDK has to match the one the release was built with, and
+- **Dart SDK 3.14.x** on `PATH`. The SDK has to match the one the release was built with, and
   `zonai compile`/`build` refuse to run on a mismatch.
 - **The `zonai` binary** from [GitHub Releases](https://github.com/mrgnhnt96/zonai/releases). It
   is **not** a pub.dev package. Builds exist for macOS and Linux (arm64, x64) and Windows (x64).

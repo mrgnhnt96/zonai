@@ -44,7 +44,7 @@ Pipeline and Tour were cut: both repeated what Features and Quick Start say.
 | Email, push, cron, rate limiting | `apps/docs/content/extensions/side-effects-push.md`, `apps/docs/content/authentication/`, `apps/docs/content/deployment/running-the-server.md` |
 | `./zonai build` writes everything into `build/`; cross-compile for Linux; no Dart SDK on the server | `apps/docs/content/deployment/building-for-production.md`, `apps/docs/content/deployment/cross-compilation.md` |
 | macOS and Linux in one file, Windows as a zip | Release assets, `.github/workflows`; `apps/docs/content/getting-started/installation.md` |
-| Needs the Dart SDK 3.13.x | `apps/docs/content/getting-started/installation.md` |
+| Needs the Dart SDK 3.14.x | `apps/docs/content/getting-started/installation.md` |
 | Quick Start steps | Run by hand on v0.13.1 on 2026-11-06; matches `apps/docs/content/getting-started/quick-start.md` |
 | `./zonai version check`, `version update` | `apps/docs/content/cli` |
 | The CLI asks GitHub for the latest release; `--no-version-check` skips it | `apps/zonai/lib/src/domain/versions.dart` |
