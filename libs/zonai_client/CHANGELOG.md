@@ -1,3 +1,19 @@
+## 0.3.7
+
+- **`cron.run` returns what the run did.** `CronDataSource.run` now returns a
+  `CronRunResult` (name, `ok`, `ms`, and the rows written per table and
+  action) instead of `void`. Callers that only awaited it are unaffected; a
+  class that implements `CronDataSource` must change its return type. Needs
+  the zonai CLI 0.16.0, which also lets an API token scoped to crons call it.
+- **Streamed responses pass real errors on to the listener.** The generated
+  readers used to swallow every stream error; now they swallow only transport
+  errors. Bytes that can't be framed as a message (stray bytes, or a
+  connection cut mid-message) are still reported to the
+  `StreamFramingInterceptor`'s reporter and dropped, so a live stream keeps
+  the messages around them and ends quietly as before.
+- `photos.view` takes an optional `ifNoneMatch`.
+- Requires `zonai_schema` 0.10.0, which defines `CronRunResult`.
+
 ## 0.3.6
 
 - **`auth.createHandoff` and `auth.exchangeHandoff` sign in another client.**
