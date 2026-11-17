@@ -44,6 +44,16 @@ class KeyboardInput {
 
     lockInput();
 
+    // Hotkeys need someone at a keyboard, so with no terminal there is nothing
+    // to watch, and reading anyway is harmful: a non-terminal stdin (/dev/null
+    // under CI, a finished pipe) hits EOF at once, and Dart closes fd 0 when it
+    // does. From Dart 3.14 on macOS, every process spawned after that gets a
+    // broken stdin (posix_spawn's dup2 of a pipe that landed on fd 0 is a
+    // no-op that keeps close-on-exec), so workers never hear a request (EPIPE)
+    // and serve never answers /health. Stdin.hasTerminal, unlike
+    // io.stdin.hasTerminal, is false for /dev/null.
+    if (!stdin.hasTerminal) return;
+
     __subscription = stdin.stream
         .map((event) {
           var key = utf8.decode(event).toLowerCase().trim();
