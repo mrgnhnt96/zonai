@@ -363,6 +363,7 @@ extension _AuthUtilsX on ZonaiDb {
   Future<Jwt?> _extractJwt(
     JwtPayload payload, {
     bool allowApiToken = false,
+    bool allowCronToken = false,
   }) async {
     final jwt = payload.jwt;
 
@@ -379,12 +380,22 @@ extension _AuthUtilsX on ZonaiDb {
     // property: only the data paths opt in, so `/auth`, `/admin`,
     // `/maintenance`, `/cron`, `/email`, `/push` and photos all refuse one --
     // as does any path added later whose author never thought about API
-    // tokens at all.
+    // tokens at all. `/cron` lets through only a token scoped to crons.
     if (ApiTokenSecret.looksLike(jwt)) {
-      if (!allowApiToken) {
-        throw const ApiTokenNotAcceptedHereException();
+      if (allowApiToken) return await _resolveApiToken(jwt);
+
+      // `/crons` takes the one kind of token that opted in to it by naming
+      // crons in its scope. Resolved first, because a bound token's crons are
+      // clamped at resolution and the clamped scope is the one that counts.
+      if (allowCronToken) {
+        final resolved = await _resolveApiToken(jwt);
+        if (resolved case ApiTokenJwt(:final scope) when scope.crons.isEmpty) {
+          throw const ApiTokenNotAcceptedHereException();
+        }
+        return resolved;
       }
-      return await _resolveApiToken(jwt);
+
+      throw const ApiTokenNotAcceptedHereException();
     }
 
     final decoded = await _jwt.verify(jwt);

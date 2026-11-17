@@ -17,6 +17,7 @@ export 'src/payloads/auth_password_body.dart';
 export 'src/payloads/batch_body.dart';
 export 'src/payloads/count_body.dart';
 export 'src/payloads/cron_job_list.dart';
+export 'src/payloads/cron_run_result.dart';
 export 'src/payloads/dashboard_metrics.dart';
 export 'src/payloads/create_body.dart';
 export 'src/payloads/create_many_body.dart';

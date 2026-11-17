@@ -238,6 +238,68 @@ void main() {
       });
     });
 
+    group('crons', () {
+      test('a scope with no crons key runs none', () {
+        // Default closed: every token minted before crons existed decodes
+        // to exactly what it had.
+        final legacy = ApiTokenScope.fromJson({
+          'tables': ['*'],
+          'operations': ['*'],
+        });
+
+        expect(legacy.crons, isEmpty);
+        expect(legacy.allowsCron('match_esa'), isFalse);
+      });
+
+      test('a named cron is allowed, and nothing else is', () {
+        final scope = ApiTokenScope.fromJson({
+          'tables': <String>[],
+          'operations': <String>[],
+          'crons': ['match_esa'],
+        });
+
+        expect(scope.allowsCron('match_esa'), isTrue);
+        expect(scope.allowsCron('cleanup-logs'), isFalse);
+      });
+
+      test('"*" allows every cron', () {
+        const scope = ApiTokenScope(
+          tables: {},
+          operations: {},
+          crons: {ApiTokenScope.wildcard},
+        );
+
+        expect(scope.allowsCron('anything'), isTrue);
+      });
+
+      test('round-trips, sorted', () {
+        const scope = ApiTokenScope(
+          tables: {},
+          operations: {},
+          crons: {'b', 'a'},
+        );
+
+        expect(scope.toJson()['crons'], ['a', 'b']);
+        expect(ApiTokenScope.fromJson(scope.toJson()).crons, {'a', 'b'});
+      });
+
+      test('a bound token keeps its crons only on an admin table', () {
+        const scope = ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.list},
+          crons: {'match_esa'},
+        );
+
+        expect(
+          scope.clampedTo((isAdmin: false, canEdit: false)).crons,
+          isEmpty,
+        );
+        expect(scope.clampedTo((isAdmin: true, canEdit: false)).crons, {
+          'match_esa',
+        });
+      });
+    });
+
     test('custom operations honour their own wildcard', () {
       const scope = ApiTokenScope(
         tables: {'orders'},

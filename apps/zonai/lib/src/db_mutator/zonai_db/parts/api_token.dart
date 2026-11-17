@@ -246,13 +246,21 @@ extension _ApiTokenX on ZonaiDb {
   /// Refuses a scope that could not have been meant, before a row exists to
   /// carry it.
   void _validateApiTokenScope(ApiTokenScope scope) {
-    if (scope.tables.isEmpty) {
+    // A token that only runs crons -- a scheduler's -- reaches no table, so
+    // it names neither tables nor operations. Naming one without the other
+    // is still the token that can do nothing on the table it names.
+    final cronsOnly =
+        scope.crons.isNotEmpty &&
+        scope.tables.isEmpty &&
+        scope.grantsNoOperation;
+
+    if (scope.tables.isEmpty && !cronsOnly) {
       throw const InvalidApiTokenScopeException(
         'name at least one table, or "*" for every app collection',
       );
     }
 
-    if (scope.grantsNoOperation) {
+    if (scope.grantsNoOperation && !cronsOnly) {
       throw const InvalidApiTokenScopeException(
         'name at least one operation -- a token that may reach a table but '
         'perform nothing on it can do nothing at all',

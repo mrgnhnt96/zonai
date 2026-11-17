@@ -93,6 +93,11 @@ Future<int> listTokens() async {
         ..info('    expires:    ${token.expiresAt ?? 'never'}')
         ..info('    last used:  ${token.lastUsedAt ?? 'never'}');
 
+      if (scope.crons.isNotEmpty) {
+        logger.info(
+          '    crons:      ${(scope.crons.toList()..sort()).join(', ')}',
+        );
+      }
       if (token.boundTable case final boundTable?) {
         logger.info('    acts as:    $boundTable/${token.boundUserId}');
       }

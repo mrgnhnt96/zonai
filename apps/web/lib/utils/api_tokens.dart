@@ -100,6 +100,7 @@ final class ApiTokenScopeView {
     required this.customOperations,
     required this.admin,
     required this.canEdit,
+    this.crons = const [],
   });
 
   static const empty = ApiTokenScopeView(
@@ -115,6 +116,11 @@ final class ApiTokenScopeView {
   final List<String> customOperations;
   final bool admin;
   final bool canEdit;
+
+  /// Crons the token may run through `POST /crons/run`, or `["*"]` for every
+  /// one. Absent on a row minted before crons could be granted, which reads
+  /// as none.
+  final List<String> crons;
 
   bool get isWildcard => tables.contains('*');
 
@@ -174,6 +180,7 @@ ApiTokenScopeView parseApiTokenScope(Object? raw) {
     customOperations: _stringList(raw['customOperations']),
     admin: raw['admin'] == true,
     canEdit: raw['canEdit'] == true,
+    crons: _stringList(raw['crons']),
   );
 }
 
@@ -196,7 +203,17 @@ String describeScope(ApiTokenScopeView scope) {
     ...scope.customOperations,
   ];
 
-  return '$tables · ${operations.isEmpty ? 'nothing' : operations.join(', ')}';
+  final crons = switch (scope.crons) {
+    [] => null,
+    final crons when crons.contains('*') => 'runs every cron',
+    final crons => 'runs ${crons.join(', ')}',
+  };
+
+  // A token that only runs crons reaches no collection; saying "no
+  // collections · nothing" first would describe it by what it is not.
+  if (scope.tables.isEmpty && crons != null) return crons;
+
+  return ['$tables · ${operations.isEmpty ? 'nothing' : operations.join(', ')}', ?crons].join(' · ');
 }
 
 /// The six built-in operations, in the order the form offers them: the three
@@ -242,11 +259,17 @@ final class ApiTokenDraft {
     this.allOperations = false,
     this.admin = true,
     this.expiry = ApiTokenExpiry.never,
+    this.crons = '',
     this.boundTable,
     this.boundUserId,
   });
 
   final String name;
+
+  /// Comma-separated cron names, or `*`, that the token may run through
+  /// `POST /crons/run`. Empty grants none. With no [tables] either, the token
+  /// only runs crons -- what a scheduler holds.
+  final String crons;
 
   /// Comma-separated, or `*`. Free text rather than a picker because the
   /// wildcard and a not-yet-created collection both have to be expressible,
@@ -293,6 +316,7 @@ final class ApiTokenDraft {
     bool? allOperations,
     bool? admin,
     ApiTokenExpiry? expiry,
+    String? crons,
   }) {
     return ApiTokenDraft(
       name: name ?? this.name,
@@ -301,15 +325,19 @@ final class ApiTokenDraft {
       allOperations: allOperations ?? this.allOperations,
       admin: admin ?? this.admin,
       expiry: expiry ?? this.expiry,
+      crons: crons ?? this.crons,
       boundTable: boundTable,
       boundUserId: boundUserId,
     );
   }
 
-  List<String> get tableList => [
-    for (final part in tables.split(','))
-      if (part.trim().isNotEmpty) part.trim(),
-  ];
+  List<String> get tableList => _splitList(tables);
+
+  List<String> get cronList => _splitList(crons);
+
+  /// No collection, only crons: the operations boxes do not apply and are
+  /// not sent.
+  bool get isCronsOnly => tableList.isEmpty && cronList.isNotEmpty;
 
   /// Why this cannot be minted yet, in words — or `null` when it can.
   ///
@@ -322,8 +350,10 @@ final class ApiTokenDraft {
       return 'Give it a name. An unnamed credential is one nobody ever '
           'revokes, because nobody can tell what would break.';
     }
+    if (isCronsOnly) return null;
     if (tableList.isEmpty) {
-      return 'Name at least one collection, or "*" for every one.';
+      return 'Name at least one collection, or "*" for every one, or a cron '
+          'for it to run.';
     }
     if (operations.isEmpty && !allOperations) {
       return 'Choose at least one operation. A token that may reach a '
@@ -345,13 +375,16 @@ final class ApiTokenDraft {
       // `ApiTokenScope.toJson` writes back: the wildcard already subsumes
       // every member, and a body carrying both invites the reader to wonder
       // which half won.
-      'operations': allOperations
+      'operations': isCronsOnly
+          ? const <String>[]
+          : allOperations
           ? const ['*']
           : [
               for (final operation in apiTokenOperations)
                 if (operations.contains(operation)) operation,
             ],
       'admin': admin,
+      if (cronList.isNotEmpty) 'crons': cronList,
       'expiresAt': switch (expiry.duration) {
         final duration? => now.toUtc().add(duration).toIso8601String(),
         null => null,
@@ -437,3 +470,8 @@ DateTime? _parseTimestamp(Object? raw) => switch (raw) {
   final num millis => DateTime.fromMillisecondsSinceEpoch(millis.toInt()).toLocal(),
   _ => null,
 };
+
+List<String> _splitList(String raw) => [
+  for (final part in raw.split(','))
+    if (part.trim().isNotEmpty) part.trim(),
+];

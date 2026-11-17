@@ -29,12 +29,23 @@ class CronDataSourceImpl implements CronDataSource {
   }
 
   @override
-  Future<void> run({required String name, String? authorization}) async {
-    await _client.request(
+  Future<CronRunResult> run({
+    required String name,
+    String? authorization,
+  }) async {
+    final response = await _client.request(
       method: 'POST',
       path: '/crons/run',
       headers: {'authorization': authorization},
       query: {'name': name},
     );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return CronRunResult.fromJson(Map.from((data as Map)));
+    }
+
+    throw Exception('Invalid response');
   }
 }

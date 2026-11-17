@@ -17,7 +17,7 @@ The crons worker must be compiled (`zonai compile`, or press **`c`** in the TUI)
 
 ## HTTP API
 
-While the server is running, an admin can list the jobs and invoke one by name:
+While the server is running, an admin, or an [API token minted with `--crons`](/authentication/api-tokens#running-crons), can list the jobs and invoke one by name:
 
 ```sh
 # Every job name the crons worker knows, built-in `_` jobs included
@@ -27,11 +27,15 @@ curl 'http://localhost:8080/crons/list' \
 
 curl -X POST 'http://localhost:8080/crons/run?name=cleanup-old-logs' \
   -H 'Authorization: Bearer <admin-jwt>'
+# {"name": "cleanup-old-logs", "ok": true, "ms": 812,
+#  "changes": {"logs": {"delete": 120}}}
 ```
 
-Both routes require an admin JWT; any other caller is refused with an access-denied error.
+Both routes take an admin JWT, or an API token whose scope names the job (`--crons`). A token sees in `/crons/list` only the jobs it may run, and is refused (`403`) on any other. Every other caller is refused.
 
-`POST /crons/run` waits for the job to finish before it responds. It succeeds only if `run()` returned without throwing. If `run()` throws, or no job has that `name`, the request fails with an error status. The server log records which of the two happened.
+`POST /crons/run` waits for the job to finish, and for its writes to be committed, before it responds. `changes` counts the rows it wrote by table and action: one per row created, and the rows each update or delete matched, including writes that hooks on those tables made in turn. A run that wrote nothing answers `"changes": {}`.
+
+If `run()` throws, the request fails with `500`, and if no job has that `name`, with `404`. Either way the body is the same shape with `"ok": false` and an `"error"`; writes the job made before it threw are still committed and counted.
 
 ## When to Use
 

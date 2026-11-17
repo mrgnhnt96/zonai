@@ -7,9 +7,8 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/payloads.dart';
 
 import '../../../deps/config_resolver.dart';
-import '../../../messengers/cron_mailman.dart';
-import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
-import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
+import 'package:zonai_schema/src/types/cron_jwt.dart';
+import '../../../deps/zonai_db.dart';
 import '../../../utils/admin_create_shape.dart';
 import '../../../utils/email_template_render.dart';
 import '../../../utils/email_template_variables.dart';
@@ -647,17 +646,20 @@ class _DevAppState extends State<DevApp> {
     () async {
       try {
         await _actionTracker.run('Run cron job', () async {
-          final mailman = CronMailman();
-          try {
-            final response = await mailman.send<CronJobRunResponse>(
-              RunCronJobRequest(name: name),
-            );
-            if (!response.accepted) {
-              throw StateError(response.error ?? 'Cron job was not accepted');
-            }
-            _addOutput('Cron job started: $name');
-          } finally {
-            await mailman.kill(failPending: false);
+          // As the cron worker itself: the host is running its own job.
+          final result = await zonaiDB.runCronJob(jwt: CronJwt(), name: name);
+          final written = [
+            for (final MapEntry(key: table, value: actions)
+                in result.changes.entries)
+              for (final MapEntry(key: action, value: rows) in actions.entries)
+                '$table $action $rows',
+          ];
+          _addOutput(
+            'Cron job ran: $name (${result.ms}ms)'
+            '${written.isEmpty ? ', wrote nothing' : ': ${written.join(', ')}'}',
+          );
+          if (!result.ok) {
+            throw StateError(result.error ?? 'Cron job failed');
           }
         });
         if (!mounted) return;

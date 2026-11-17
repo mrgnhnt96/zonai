@@ -6,6 +6,7 @@ import 'package:zonai_schema/src/exceptions/hook_refused_exception.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
 import 'package:zonai_schema/src/payloads/parse_body.dart';
+import 'package:zonai_server/src/exceptions/cron_run_failed_exception.dart';
 import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 
 import 'package:zonai_server/src/handlers/email_handler.dart';
@@ -49,6 +50,18 @@ final class Exceptions implements LifecycleComponent {
     SchemaEndpointNotFoundException exception,
   ) {
     return .handled(statusCode: 404, body: {'error': _notFound});
+  }
+
+  /// The run's own answer, so the caller still learns what it wrote before
+  /// it failed. The error is the job's, and only an admin or a token scoped
+  /// to that cron gets this far.
+  ExceptionCatcherResult<CronRunFailedException> onCronRunFailed(
+    CronRunFailedException exception,
+  ) {
+    return .handled(
+      statusCode: exception.isUnknownJob ? 404 : 500,
+      body: exception.result.toJson(),
+    );
   }
 
   ExceptionCatcherResult<EmailForbiddenException> onEmailForbidden(

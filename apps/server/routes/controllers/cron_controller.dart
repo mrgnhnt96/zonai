@@ -17,8 +17,11 @@ class CronController {
     return cronHandler.list(authorization);
   }
 
+  /// Runs one cron now. Answers `CronRunResult`: which rows it wrote, by
+  /// table and action. A failed run answers the same shape with `ok` false
+  /// and its `error`, as a 500 (404 when there is no such cron).
   @Post('run')
-  Future<void> run({
+  Future<CronRunResult> run({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Query('name') required String name,
   }) {

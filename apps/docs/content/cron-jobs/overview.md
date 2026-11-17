@@ -95,7 +95,7 @@ Zonai compiles its own maintenance jobs into the same worker. They show up in `_
 Each job's `name` is how you trigger it without waiting for its schedule, as well as its key in `_cron_jobs`:
 
 - **Dev TUI:** `zonai dev`, then press **`j`** to run a job by name
-- **HTTP API:** `POST /crons/run?name=<name>` (admin JWT required)
+- **HTTP API:** `POST /crons/run?name=<name>` (an admin JWT, or an API token minted with `--crons`)
 
 See [Running Jobs Manually](/cron-jobs/running-manually) for details.
 

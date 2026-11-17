@@ -719,7 +719,16 @@ run finishes, not skipped. Errors from `run()` are recorded in `_cron_jobs`.
 Cron jobs access the same `get`, `mutate`, `email`, `push`, `logger` globals as
 extensions, all acting as `CronJwt` (internal admin identity with edit access;
 `get` defaults to it too). Run one on demand with `j` in `./zonai dev` or
-`POST /crons/run?name=<name>` with an admin JWT.
+`POST /crons/run?name=<name>` with an admin JWT, or with an API token whose
+scope names that cron (`./zonai db token create --name <n> --crons <a,b>`, or
+`--crons '*'`; also on the dashboard's API Tokens screen). Such a token may
+also `GET /crons/list`, which lists only the crons it may run; a token minted
+without `--crons` is refused on `/crons`. The run answers what it wrote,
+committed before it answers:
+`{"name":"<name>","ok":true,"ms":812,"changes":{"<table>":{"update":1,"create":3}}}`
+-- rows created, and rows an update or delete matched, by table. A failed run
+answers the same shape with `"ok":false` and `"error"`, as a 500 (404 for an
+unknown name).
 
 ---
 
@@ -811,6 +820,7 @@ override the compiled-in values. `jwtExpiresIn` defaults to 24 hours.
 ./zonai db migrate apply                 # apply pending migrations
 ./zonai db admin add --email <e> --password <p>  # create an admin (also list/remove/invite)
 ./zonai db token create --name <n> --tables <t1,t2> --read  # API token (zonai_pat_…)
+./zonai db token create --name <n> --crons <job1,job2>       # token that only runs those crons
 ./zonai gen client                       # generate a typed Dart client from the schema
 ./zonai rules list [--jwt <token>]       # inspect compiled authorization rules
 ./zonai ping                             # spawn + ping each compiled worker
@@ -1984,7 +1994,11 @@ from `run()` are caught and recorded as failed in `_cron_jobs`.
 Jobs can be triggered by `name` outside their schedule:
 
 - **Dev TUI:** `./zonai dev`, press `j`, select job by name
-- **HTTP API:** `POST /crons/run?name=<name>` with admin JWT (server must be running)
+- **HTTP API:** `POST /crons/run?name=<name>` with an admin JWT, or an API token minted
+  with `--crons <name>` (or `'*'`) (server must be running). Answers
+  `{"name","ok","ms","changes":{"<table>":{"create"|"update"|"delete":<rows>}}}`;
+  a failed run is `"ok":false` with `"error"`, as an error status. `GET /crons/list`
+  takes the same credentials and lists only the crons that caller may run.
 
 ## Schedule examples
 
