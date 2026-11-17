@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0
+
+**Cron-scoped API tokens.** `ApiTokenScope.crons` names the cron jobs a token
+may run through `POST /crons/run` and see in `GET /crons/list`, or `{'*'}` for
+every one; `allowsCron(name)` answers for one job. A scope with no `crons` key
+decodes to the empty set, so a token minted before this gains nothing. A token
+bound to a row keeps its crons only when that row's table is an admin table,
+the same clamp `clampedTo` already applies to `admin`. `ApiTokenCreateBody`
+reads `crons` from the create body. Used by the zonai CLI 0.16.0.
+
+**`CronRunResult`.** The wire type `POST /crons/run` answers with in the zonai
+CLI 0.16.0: the job's `name`, whether it was `ok`, how long it took in `ms`,
+the rows it wrote as `changes` (`{table: {action: count}}`, hook cascades
+included), and its `error` when it failed. Exported from `payloads.dart`.
+
+Nothing a worker parses changed, so there is no need to re-run
+`zonai compile` for this release alone.
+
 ## 0.9.0
 
 **Session handoff.** A signed-in session can mint a one-time code that another
