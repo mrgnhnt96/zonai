@@ -17,6 +17,9 @@ do, and what stopped being broken. The commit list is already one click away.
   your Dart SDK to 3.14, then re-run `zonai compile`. `--no-dart-sdk-check`
   silences the check, but workers from a mismatched SDK fall back to the
   worker process.
+- `zonai serve` with no terminal attached (CI, launchd, `< /dev/null`) no
+  longer reads stdin for hotkeys. On macOS under Dart 3.14 that read left every
+  worker the server started without a stdin, so it never answered `/health`.
 
 ## 0.14.1
 

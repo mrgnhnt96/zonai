@@ -25,7 +25,22 @@ class Stdin {
     return _controller.stream;
   }
 
-  bool get hasTerminal => io.stdin.hasTerminal;
+  /// Whether a person can type into stdin.
+  ///
+  /// `io.stdin.hasTerminal` alone is not enough: Dart reports any character
+  /// device as a terminal, `/dev/null` included, which is what CI and
+  /// detached runs hand us. Reading the echo mode needs a real TTY (it calls
+  /// tcgetattr), so it throws for `/dev/null`, pipes and a closed stdin.
+  bool get hasTerminal {
+    if (!io.stdin.hasTerminal) return false;
+
+    try {
+      io.stdin.echoMode;
+      return true;
+    } on io.StdinException {
+      return false;
+    }
+  }
 
   set echoMode(bool value) {
     try {
