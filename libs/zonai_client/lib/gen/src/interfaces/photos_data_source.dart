@@ -3,7 +3,11 @@ part of '../../interfaces.dart';
 abstract interface class PhotosDataSource {
   const PhotosDataSource();
 
-  Stream<List<int>> view({required String id, String? authorization});
+  Stream<List<int>> view({
+    required String id,
+    String? authorization,
+    String? ifNoneMatch,
+  });
   Future<Map<String, Object?>> create({
     required Stream<List<int>> image,
     required PhotoCreateMeta meta,

@@ -22,7 +22,7 @@ class RootDataSourceImpl implements RootDataSource {
 
     yield* response.handleError((_) {
       // do nothing
-    });
+    }, test: isTransportError);
   }
 
   @override
@@ -31,7 +31,7 @@ class RootDataSourceImpl implements RootDataSource {
 
     yield* response.handleError((_) {
       // do nothing
-    });
+    }, test: isTransportError);
   }
 
   @override

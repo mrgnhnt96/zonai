@@ -152,4 +152,25 @@ void main() {
       reason: 'the client keeps the one it was given instead of adding its own',
     );
   });
+
+  test('stray bytes between messages are reported, and the next message still arrives', () async {
+    final reported = <Object>[];
+    final server_ = Server(
+      baseUrl: Uri.parse('http://127.0.0.1:${server.port}'),
+      client: HttpPackageClient(
+        interceptors: [StreamFramingInterceptor(onError: (url, error, _) => reported.add(error))],
+      ),
+    );
+    final custom = ZonaiClient.server(server: server_);
+    writes['/db/stream/count'] = ['{"data":1}oops{"data":2}'];
+
+    final counts = await custom.db.listen
+        .count(
+          body: const StreamCountBody(table: 'items', where: Eq('done', false)),
+        )
+        .toList();
+
+    expect(counts, [1, 2]);
+    expect(reported, [isA<FormatException>()]);
+  });
 }

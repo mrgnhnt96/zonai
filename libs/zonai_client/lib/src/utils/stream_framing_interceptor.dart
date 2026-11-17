@@ -18,10 +18,16 @@ typedef StreamErrorReporter =
 /// This re-chunks those responses with [JsonValueFramer] before they reach
 /// that code.
 ///
-/// The generated readers also swallow every stream error, so this reports
-/// them to [onError] on their way past; the default logs them under the
+/// Every stream error is reported to [onError]; the default logs it under the
 /// `zonai_client` name. To report them somewhere else, build the client with
 /// `ZonaiClient.server` from a `Server` that already carries one of these.
+///
+/// Bytes that could not be framed (a [FormatException]: stray bytes between
+/// messages, or a connection cut mid-message) are reported and then dropped,
+/// so the listener keeps the messages around them. The generated readers only
+/// swallow transport errors and pass every other error on to the listener,
+/// so forwarding these would hand callers an error for what is, in practice,
+/// a dropped connection. Any other error goes on to the reader unchanged.
 class StreamFramingInterceptor implements HttpInterceptor {
   const StreamFramingInterceptor({this.onError = _log});
 
@@ -53,6 +59,9 @@ class StreamFramingInterceptor implements HttpInterceptor {
             StreamTransformer.fromHandlers(
               handleError: (error, stackTrace, sink) {
                 onError(url, error, stackTrace);
+                if (error is FormatException) {
+                  return;
+                }
                 sink.addError(error, stackTrace);
               },
             ),
