@@ -35,6 +35,20 @@ void main() {
       expect(body.expiresAt, DateTime.utc(2026, 11));
     });
 
+    test('reads the crons a token may run, and none when absent', () {
+      expect(ApiTokenCreateBody.fromJson(valid()).scope.crons, isEmpty);
+
+      final body = ApiTokenCreateBody.fromJson(
+        valid({
+          'tables': <String>[],
+          'operations': <String>[],
+          'crons': ['match_esa', '*'],
+        }),
+      );
+
+      expect(body.scope.crons, {'match_esa', '*'});
+    });
+
     test('a token is an admin unless the body says otherwise', () {
       // Same default the CLI has. A non-admin token is denied by the DEFAULT
       // rules, so it reads as broken rather than as narrow, and the dashboard

@@ -286,6 +286,75 @@ void main() {
     });
   });
 
+  group('crons', () {
+    const cronsOnly = ApiTokenScopeView(
+      tables: [],
+      operations: [],
+      customOperations: [],
+      admin: true,
+      canEdit: false,
+      crons: ['match_esa'],
+    );
+
+    test('describeScope names them after the collections', () {
+      const both = ApiTokenScopeView(
+        tables: ['orders'],
+        operations: ['list'],
+        customOperations: [],
+        admin: true,
+        canEdit: false,
+        crons: ['match_esa', 'cleanup'],
+      );
+
+      expect(describeScope(both), 'orders · list · runs match_esa, cleanup');
+    });
+
+    test('a crons-only scope says only that', () {
+      expect(describeScope(cronsOnly), 'runs match_esa');
+      expect(
+        describeScope(
+          const ApiTokenScopeView(
+            tables: [],
+            operations: [],
+            customOperations: [],
+            admin: true,
+            canEdit: false,
+            crons: ['*'],
+          ),
+        ),
+        'runs every cron',
+      );
+    });
+
+    test('a row without crons reads as none', () {
+      expect(
+        parseApiTokenScope({
+          'tables': ['orders'],
+          'operations': ['list'],
+        }).crons,
+        isEmpty,
+      );
+    });
+
+    test('a crons-only draft mints with no collection, sending no operations', () {
+      const draft = ApiTokenDraft(name: 'scheduler', crons: ' match_esa , ');
+
+      expect(draft.isCronsOnly, isTrue);
+      expect(draft.refusal, isNull);
+
+      final body = draft.toRequestBody(now: _now);
+      expect(body['tables'], isEmpty);
+      expect(body['operations'], isEmpty);
+      expect(body['crons'], ['match_esa']);
+    });
+
+    test('a draft without crons sends no crons key', () {
+      final body = const ApiTokenDraft(name: 'backup', tables: 'orders').toRequestBody(now: _now);
+
+      expect(body.containsKey('crons'), isFalse);
+    });
+  });
+
   group('a bound draft', () {
     const bound = ApiTokenDraft(
       name: 'users-abc123_usr',

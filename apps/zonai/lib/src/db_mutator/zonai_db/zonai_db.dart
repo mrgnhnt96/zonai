@@ -1171,7 +1171,13 @@ class ZonaiDb {
     return await _run(() => _storageMetrics(jwt: jwt));
   }
 
-  Future<void> runCronJob({required Jwt jwt, required String name}) async {
+  /// Runs the cron called [name] now and answers what it wrote. An admin may
+  /// run any cron; an API token only one its scope names
+  /// (`ApiTokenScope.crons`).
+  Future<CronRunResult> runCronJob({
+    required Jwt jwt,
+    required String name,
+  }) async {
     return await _run(() => _runCronJob(jwt: jwt, name: name));
   }
 
@@ -1366,12 +1372,25 @@ class ZonaiDb {
   /// asking for it, and refuses an API token with
   /// [ApiTokenNotAcceptedHereException]. Only the data paths (`/db`, and its
   /// streams) pass true, and they do it inside `_extract*`, not here.
+  /// `/crons` uses [parseCronJwt], which admits only a token scoped to crons.
   ///
   /// Pass true to introspect a credential deliberately -- `zonai db token`
   /// asking "what is this?" -- never to authorize one.
   Future<Jwt?> parseJwt(String? jwt, {bool allowApiToken = false}) async {
     return await _run(
       () => _extractJwt(JwtPayload(jwt: jwt), allowApiToken: allowApiToken),
+    );
+  }
+
+  /// [parseJwt] for `/crons`: also accepts an API token whose scope names at
+  /// least one cron (`ApiTokenScope.crons`), and refuses every other token
+  /// with [ApiTokenNotAcceptedHereException], as [parseJwt] does.
+  ///
+  /// Which crons a token may run is decided by [runCronJob] and
+  /// [listCronJobs], not here.
+  Future<Jwt?> parseCronJwt(String? jwt) async {
+    return await _run(
+      () => _extractJwt(JwtPayload(jwt: jwt), allowCronToken: true),
     );
   }
 

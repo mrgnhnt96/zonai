@@ -56,7 +56,7 @@
         {
           "h": "Requirements",
           "a": "requirements",
-          "b": "What Needed for Notes Dart SDK >=3.12.0 <4.0.0 Development and zonai build The CLI runs dart pub get and compiles your workers with the SDK on your PATH. Use the Dart version the release was built with — currently 3.13.x. See below. The zonai binary Everything A pre-compiled executable from GitHub Releases. It is not on pub.dev and is not installed with dart pub global activate. macOS, Linux, or Windows — Builds: macOS arm64 and x64, Linux x64 and arm64, Windows x64. Git Recommended Migrations in .zonai/migrations/ are meant to be committed. SQLite is bundled in the binary; there is nothing to install. The production server needs none of the above except the build/ folder that zonai build produces: it runs without a Dart SDK."
+          "b": "What Needed for Notes Dart SDK >=3.12.0 <4.0.0 Development and zonai build The CLI runs dart pub get and compiles your workers with the SDK on your PATH. Use the Dart version the release was built with — currently 3.14.x. See below. The zonai binary Everything A pre-compiled executable from GitHub Releases. It is not on pub.dev and is not installed with dart pub global activate. macOS, Linux, or Windows — Builds: macOS arm64 and x64, Linux x64 and arm64, Windows x64. Git Recommended Migrations in .zonai/migrations/ are meant to be committed. SQLite is bundled in the binary; there is nothing to install. The production server needs none of the above except the build/ folder that zonai build produces: it runs without a Dart SDK."
         },
         {
           "h": "Install the CLI",
@@ -2034,7 +2034,7 @@
         {
           "h": "Creating One",
           "a": "creating-one",
-          "b": "The server does not need to be running. Run this in your project directory: zonai db token create \\ --name nightly-backup \\ --tables orders,line_items \\ --read zonai_pat_qT501HohVqtce6xB_EmC9W1lCBnhlDq-PpfWURL_6Xk This is the only time it will be shown. The server keeps only its hash. id: 0549432694cd399_pat name: nightly-backup tables: orders, line_items operations: view, list, count admin: yes expires: never -- revoke with zonai db token revoke 0549432694cd399_pat The token is printed once and cannot be recovered. Only its SHA-256 is stored, so there is nothing on the server to read it back out of. Copy it before you close the terminal; if you lose it, revoke the row and mint another. Like zonai db admin add, this command talks to the database file directly — no running server, no session, no JWT signing secret. Write access to the database is the authorization, and that is what makes a token obtainable without sign-in credentials at all. Flag Short Required Description --name -n Yes What this token is for. An unnamed credential is one nobody ever revokes, because nobody can tell what would break --tables -t Yes Collections it may reach, comma-separated, or \"\" for every app colle"
+          "b": "The server does not need to be running. Run this in your project directory: zonai db token create \\ --name nightly-backup \\ --tables orders,line_items \\ --read zonai_pat_qT501HohVqtce6xB_EmC9W1lCBnhlDq-PpfWURL_6Xk This is the only time it will be shown. The server keeps only its hash. id: 0549432694cd399_pat name: nightly-backup tables: orders, line_items operations: view, list, count admin: yes expires: never -- revoke with zonai db token revoke 0549432694cd399_pat The token is printed once and cannot be recovered. Only its SHA-256 is stored, so there is nothing on the server to read it back out of. Copy it before you close the terminal; if you lose it, revoke the row and mint another. Like zonai db admin add, this command talks to the database file directly — no running server, no session, no JWT signing secret. Write access to the database is the authorization, and that is what makes a token obtainable without sign-in credentials at all. Flag Short Required Description --name -n Yes What this token is for. An unnamed credential is one nobody ever revokes, because nobody can tell what would break --tables -t Yes, unless --crons is its only grant Collections it may reach, comma-se"
         },
         {
           "h": "Using One",
@@ -2059,7 +2059,12 @@
         {
           "h": "Only the Data API",
           "a": "only-the-data-api",
-          "b": "/auth/, /admin/, /dashboard/maintenance/, /cron/, /email/, /push/ and the photo endpoints all refuse an API token with 401 and \"An API token is not accepted here. API tokens authenticate the data API; sign in for anything else.\" So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed. Those endpoints are refused rather than scoped because a scope speaks in tables and operations, a vocabulary none of them have: a token \"scoped to orders\" has no meaningful answer to may it purge an internal table."
+          "b": "/auth/, /admin/, /dashboard/maintenance/, /email/, /push/ and the photo endpoints all refuse an API token with 401 and \"An API token is not accepted here. API tokens authenticate the data API; sign in for anything else.\" So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed. /crons/ refuses it the same way unless the token was minted with --crons. Those endpoints are refused rather than scoped because a scope speaks in tables and operations, a vocabulary none of them have: a token \"scoped to orders\" has no meaningful answer to may it purge an internal table."
+        },
+        {
+          "h": "Running Crons",
+          "a": "running-crons",
+          "b": "A token minted with --crons may run the named cron jobs on demand, which is what a scheduler or deploy script outside the server needs: zonai db token create --name nightly-scheduler --crons match_esa,nightly_sync With no --tables, that token reaches no collection at all; add --tables and --operations to give it data access as well. --crons '' grants every job, including ones added later. The token may then call POST /crons/run?name= for those jobs, and GET /crons/list, which lists only the jobs it may run. A job outside its list is refused with 403, and a token minted without --crons is refused on both routes with 401, as before. Its admin flag plays no part here: only --crons grants this. A bound token keeps its crons only while its table is an AsAdmin table. The dashboard's create form has the same field, Crons it may run. Tokens cannot be edited after they are minted, so mint a new one to change the list. See Running Jobs Manually for what the run answers."
         },
         {
           "h": "Tokens Are Admins by Default",
@@ -2505,7 +2510,7 @@
         {
           "h": "Running on Demand",
           "a": "running-on-demand",
-          "b": "Each job's name is how you trigger it without waiting for its schedule, as well as its key in _cron_jobs: Dev TUI: zonai dev, then press j to run a job by name HTTP API: POST /crons/run?name= (admin JWT required) See Running Jobs Manually for details."
+          "b": "Each job's name is how you trigger it without waiting for its schedule, as well as its key in _cron_jobs: Dev TUI: zonai dev, then press j to run a job by name HTTP API: POST /crons/run?name= (an admin JWT, or an API token minted with --crons) See Running Jobs Manually for details."
         },
         {
           "h": "Related",
@@ -2648,7 +2653,7 @@
         {
           "h": "HTTP API",
           "a": "http-api",
-          "b": "While the server is running, an admin can list the jobs and invoke one by name: Every job name the crons worker knows, built-in _ jobs included curl 'http://localhost:8080/crons/list' \\ -H 'Authorization: Bearer ' {\"names\": [\"_cleanup_logs\", ..., \"cleanup-old-logs\"]} curl -X POST 'http://localhost:8080/crons/run?name=cleanup-old-logs' \\ -H 'Authorization: Bearer ' Both routes require an admin JWT; any other caller is refused with an access-denied error. POST /crons/run waits for the job to finish before it responds. It succeeds only if run() returned without throwing. If run() throws, or no job has that name, the request fails with an error status. The server log records which of the two happened."
+          "b": "While the server is running, an admin, or an API token minted with --crons, can list the jobs and invoke one by name: Every job name the crons worker knows, built-in _ jobs included curl 'http://localhost:8080/crons/list' \\ -H 'Authorization: Bearer ' {\"names\": [\"_cleanup_logs\", ..., \"cleanup-old-logs\"]} curl -X POST 'http://localhost:8080/crons/run?name=cleanup-old-logs' \\ -H 'Authorization: Bearer ' {\"name\": \"cleanup-old-logs\", \"ok\": true, \"ms\": 812, \"changes\": {\"logs\": {\"delete\": 120}}} Both routes take an admin JWT, or an API token whose scope names the job (--crons). A token sees in /crons/list only the jobs it may run, and is refused (403) on any other. Every other caller is refused. POST /crons/run waits for the job to finish, and for its writes to be committed, before it responds. changes counts the rows it wrote by table and action: one per row created, and the rows each update or delete matched, including writes that hooks on those tables made in turn. A run that wrote nothing answers \"changes\": {}. If run() throws, the request fails with 500, and if no job has that name, with 404. Either way the body is the same shape with \"ok\": false and an \"error\"; writes the job made "
         },
         {
           "h": "When to Use",

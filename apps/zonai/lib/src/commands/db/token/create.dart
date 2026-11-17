@@ -23,7 +23,8 @@ Options:
   -n, --name=<label>          What this token is for (required).
                                "nightly-backup", "vercel-preview".
   -t, --tables=<a,b>          Collections it may reach, or "*" for every app
-                               collection (required). Quote the "*" so your
+                               collection (required, unless --crons is the
+                               token's only grant). Quote the "*" so your
                                shell does not expand it.
   -o, --operations=<a,b>      Any of: view, list, count, create, update,
                                delete. Or "*" for every one, including
@@ -33,6 +34,10 @@ Options:
       --read                  Shorthand for --operations=view,list,count
       --write                 Shorthand for --operations=create,update,delete
       --custom=<a,b>          Named custom operations, or "*"
+      --crons=<a,b>           Crons it may run with POST /crons/run (and see
+                               in GET /crons/list), or "*" for every one.
+                               Alone, with no --tables, it mints a token that
+                               only runs those crons -- a scheduler's.
       --no-admin              Mint a token that is NOT an admin. Tokens are
                                admin by default, because the DEFAULT rules
                                deny everyone but an admin -- so a non-admin
@@ -70,13 +75,21 @@ Future<int> createToken() async {
     return 1;
   }
 
+  final crons = switch (_stringOption('crons')) {
+    final raw? => _splitList(raw),
+    null => <String>{},
+  };
+
   final rawTables = _stringOption('tables', abbr: 't');
-  if (rawTables == null || rawTables.trim().isEmpty) {
-    logger.error('Missing required option: --tables');
+  final tables = switch (rawTables) {
+    final raw? => _splitList(raw),
+    null => <String>{},
+  };
+  if (tables.isEmpty && crons.isEmpty) {
+    logger.error('Missing required option: --tables (or --crons)');
     logger.info(_usage);
     return 1;
   }
-  final tables = _splitList(rawTables);
 
   final operations = <TableOperation>{};
   if (args.getOrNull<bool>('read') == true) {
@@ -118,7 +131,10 @@ Future<int> createToken() async {
     null => <String>{},
   };
 
-  if (operations.isEmpty && !allOperations && customOperations.isEmpty) {
+  if (tables.isNotEmpty &&
+      operations.isEmpty &&
+      !allOperations &&
+      customOperations.isEmpty) {
     logger.error(
       'Missing required option: --operations (or --read / --write). A token '
       'that may reach a table but perform nothing on it can do nothing.',
@@ -189,6 +205,7 @@ Future<int> createToken() async {
         customOperations: customOperations,
         admin: admin,
         canEdit: canEdit,
+        crons: crons,
       ),
       createdBy: '__cli__',
       claims: claims,
@@ -221,11 +238,12 @@ Future<int> createToken() async {
       ..info('')
       ..info('  id:         ${minted.row.id.value}')
       ..info('  name:       ${minted.row.name}')
-      ..info('  tables:     ${tables.join(', ')}')
+      ..info('  tables:     ${tables.isEmpty ? 'none' : tables.join(', ')}')
       ..info(
         '  operations: '
         '${[if (allOperations) ApiTokenScope.wildcard else ...operations.map((o) => o.name), ...customOperations].join(', ')}',
       )
+      ..info('  crons:      ${crons.isEmpty ? 'none' : crons.join(', ')}')
       ..info(
         '  admin:      '
         '${minted.row.scope.admin ? 'yes' : 'no'}'

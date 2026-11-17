@@ -356,6 +356,21 @@ class ApiTokenMintForm extends StatelessComponent {
                     'collections whose rules admit it explicitly.',
         ),
       ]),
+      ZonaiTextField(
+        id: 'api-token-crons',
+        fieldLabel: 'Crons it may run',
+        value: draft.crons,
+        placeholder: 'match_esa, nightly_sync — or * for every cron',
+        autocomplete: 'off',
+        disabled: pending,
+        onInput: (value) => onChanged(draft.copyWith(crons: value)),
+      ),
+      p(classes: 'z-admins-note', [
+        .text(
+          'Lets the token call POST /crons/run for these crons, and see them in GET /crons/list. '
+          'Leave the collections empty for a token that only runs crons.',
+        ),
+      ]),
       div(classes: 'z-token-expiry', [
         label(classes: 'z-token-ops-legend', attributes: const {'for': 'api-token-expiry'}, [.text('Expires')]),
         ZonaiSelect(

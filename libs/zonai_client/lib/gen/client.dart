@@ -10,6 +10,7 @@ import 'package:zonai_schema/src/payloads/count_body.dart';
 import 'package:zonai_schema/src/payloads/create_body.dart';
 import 'package:zonai_schema/src/payloads/create_many_body.dart';
 import 'package:zonai_schema/src/payloads/cron_job_list.dart';
+import 'package:zonai_schema/src/payloads/cron_run_result.dart';
 import 'package:zonai_schema/src/payloads/custom_body.dart';
 import 'package:zonai_schema/src/payloads/dashboard_metrics.dart';
 import 'package:zonai_schema/src/payloads/delete_body.dart';

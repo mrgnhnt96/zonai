@@ -53,6 +53,10 @@ mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
   /// Worker notifications that reuse a pending RPC [Response.id] must not
   /// complete that RPC. Override when a worker pushes lifecycle events on the
   /// same id channel as request/reply pairs.
+  ///
+  /// The writes queued under that id before such a notification are not
+  /// committed with it: they stay with the RPC and reach the caller with its
+  /// reply, so the caller commits them and can tell what they were.
   bool isOutOfBandNotification(R response) => false;
 }
 
@@ -524,7 +528,13 @@ class Mailman<S extends Request, R extends Response> {
     if (_pendingResponses.containsKey(response.id)) {
       if (this case final Receivable<S, R> receivable when response is R) {
         if (receivable.isOutOfBandNotification(response)) {
-          _deliverUnexpectedWithEffects(receivable, response, mutations);
+          // Put back ahead of anything queued since, for the reply to carry.
+          if (mutations.isNotEmpty) {
+            (_pendingMutations[response.id] ??= []).insertAll(0, mutations);
+          }
+          unawaited(
+            _deliverUnexpected(receivable.onUnexpectedDelivery, response),
+          );
           return;
         }
       }

@@ -232,6 +232,56 @@ void main() {
     });
   });
 
+  group('a cron-scoped token', () {
+    const cronsOnly = ApiTokenScope(
+      tables: {},
+      operations: {},
+      crons: {'match_esa'},
+    );
+
+    dbTest('mints with no collection and no operation', (db) async {
+      final minted = await db.createApiToken(
+        name: 'scheduler',
+        scope: cronsOnly,
+        createdBy: '__cli__',
+      );
+
+      expect(minted.secret, startsWith(ApiTokenSecret.prefix));
+    });
+
+    dbTest('is let through on /cron, and nowhere else it was not before', (
+      db,
+    ) async {
+      final minted = await db.createApiToken(
+        name: 'scheduler',
+        scope: cronsOnly,
+        createdBy: '__cli__',
+      );
+
+      final identity = await db.parseCronJwt(minted.secret);
+      expect(identity, isA<ApiTokenJwt>());
+      expect((identity! as ApiTokenJwt).scope.crons, {'match_esa'});
+
+      await expectLater(
+        db.parseJwt(minted.secret),
+        throwsA(isA<ApiTokenNotAcceptedHereException>()),
+      );
+    });
+
+    dbTest('a token with no crons is still refused on /cron', (db) async {
+      final minted = await db.createApiToken(
+        name: 'reader',
+        scope: readOnly,
+        createdBy: '__cli__',
+      );
+
+      await expectLater(
+        db.parseCronJwt(minted.secret),
+        throwsA(isA<ApiTokenNotAcceptedHereException>()),
+      );
+    });
+  });
+
   group('the scope is a gate, not a suggestion', () {
     // Every refusal below is raised *before* the rules dispatch, which is why
     // these run in a project with no compiled rules worker. That ordering is

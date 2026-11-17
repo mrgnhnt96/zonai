@@ -87,6 +87,7 @@ class ApiTokenCreateBody {
         // operation, off for a read-only one. A hard `false` here would hand
         // every `--write` token a scope it cannot spend.
         canEdit: json['canEdit'] as bool?,
+        crons: _stringList(json['crons'], 'crons').toSet(),
       ),
       claims: switch (json['claims']) {
         final Map<Object?, Object?> claims => claims.map(

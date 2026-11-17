@@ -1100,7 +1100,14 @@ const kSwaggerJson = r'''{
         ],
         "responses": {
           "200": {
-            "description": "No content"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CronRunResult"
+                }
+              }
+            }
           }
         }
       }
@@ -2249,6 +2256,12 @@ const kSwaggerJson = r'''{
               }
             ],
             "nullable": true
+          },
+          "crons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -2256,7 +2269,8 @@ const kSwaggerJson = r'''{
           "operations",
           "allOperations",
           "customOperations",
-          "admin"
+          "admin",
+          "crons"
         ]
       },
       "AuthBody": {
@@ -2524,6 +2538,41 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "names"
+        ]
+      },
+      "CronRunResult": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "changes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "ok",
+          "ms",
+          "changes"
         ]
       },
       "CustomBody": {
@@ -4831,7 +4880,11 @@ paths:
             type: string
       responses:
         '200':
-          description: No content
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronRunResult'
   '/dashboard/maintenance/cleanup-photos':
     post:
       operationId: maintenance_cleanupPhotos
@@ -5547,12 +5600,17 @@ components:
           allOf:
             - $ref: '#/components/schemas/RateLimitPolicy'
           nullable: true
+        crons:
+          type: array
+          items:
+            type: string
       required:
         - tables
         - operations
         - allOperations
         - customOperations
         - admin
+        - crons
     AuthBody:
       oneOf:
         - $ref: '#/components/schemas/SendOtpAuthBody'
@@ -5717,6 +5775,31 @@ components:
             type: string
       required:
         - names
+    CronRunResult:
+      type: object
+      properties:
+        name:
+          type: string
+        ok:
+          type: boolean
+        ms:
+          type: integer
+          format: int64
+        changes:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
+        error:
+          type: string
+          nullable: true
+      required:
+        - name
+        - ok
+        - ms
+        - changes
     CustomBody:
       type: object
       properties:

@@ -1000,7 +1000,12 @@ extension UtilsX on ZonaiDb {
     return (null, OperationResult(result));
   }
 
-  Future<void> _executeEffects() async {
+  /// Commits the queued worker writes, and the writes their hooks queue in
+  /// turn. [onWritten] hears each table's rows as their transaction commits:
+  /// one per created row, and the rows an update or delete matched.
+  Future<void> _executeEffects({
+    void Function(String table, String action, int rows)? onWritten,
+  }) async {
     final db = this.db;
     if (db == null) {
       throw const DatabaseNotOpenException();
@@ -1045,6 +1050,19 @@ extension UtilsX on ZonaiDb {
           operationResults[effect] = OperationResult(result);
         }
       });
+
+      if (onWritten != null) {
+        for (final effect in effects) {
+          switch (effect) {
+            case _CreateSideEffect(:final request):
+              onWritten(request.table, 'create', 1);
+            case _UpdateSideEffect(:final request, :final before):
+              onWritten(request.table, 'update', before.length);
+            case _DeleteSideEffect(:final request, :final objects):
+              onWritten(request.table, 'delete', objects.length);
+          }
+        }
+      }
 
       for (final effect in effects) {
         switch (effect) {

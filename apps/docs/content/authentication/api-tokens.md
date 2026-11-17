@@ -46,10 +46,11 @@ Like `zonai db admin add`, this command talks to the database file directly — 
 | Flag | Short | Required | Description |
 |------|-------|----------|-------------|
 | `--name` | `-n` | Yes | What this token is for. An unnamed credential is one nobody ever revokes, because nobody can tell what would break |
-| `--tables` | `-t` | Yes | Collections it may reach, comma-separated, or `"*"` for every app collection. Quote the `*` so your shell does not expand it |
+| `--tables` | `-t` | Yes, unless `--crons` is its only grant | Collections it may reach, comma-separated, or `"*"` for every app collection. Quote the `*` so your shell does not expand it |
 | `--operations` | `-o` | Yes, or a shorthand | Any of `view`, `list`, `count`, `create`, `update`, `delete` — or `"*"` for every one. Quote the `*` so your shell does not expand it |
 | `--read` / `--write` | | | Shorthand for the read three and the write three |
 | `--custom` | | No | Named custom operations, or `"*"` |
+| `--crons` | | No | Cron jobs it may run with `POST /crons/run`, comma-separated, or `"*"` for every one — see [Running crons](#running-crons) |
 | `--no-admin` | | No | Mint a token that is *not* an admin — see [Tokens are admins by default](#tokens-are-admins-by-default) |
 | `--can-edit` / `--no-can-edit` | | No | The write half of admin. Derived when unstated: on for an admin token granted `create`/`update`/`delete`, off for a read-only one |
 | `--expires` | | No | `90d`, `12h`, `30m`, `45s`, or a bare number of days |
@@ -112,9 +113,25 @@ This is absolute rather than configurable because of what the first two hold. A 
 
 ### Only the Data API
 
-`/auth/*`, `/admin/*`, `/dashboard/maintenance/*`, `/cron/*`, `/email/*`, `/push/*` and the photo endpoints all refuse an API token with `401` and *"An API token is not accepted here. API tokens authenticate the data API; sign in for anything else."* So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed.
+`/auth/*`, `/admin/*`, `/dashboard/maintenance/*`, `/email/*`, `/push/*` and the photo endpoints all refuse an API token with `401` and *"An API token is not accepted here. API tokens authenticate the data API; sign in for anything else."* So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed. `/crons/*` refuses it the same way unless the token was minted with `--crons`.
 
 Those endpoints are refused rather than scoped because a scope speaks in tables and operations, a vocabulary none of them have: a token "scoped to orders" has no meaningful answer to *may it purge an internal table*.
+
+### Running Crons
+
+A token minted with `--crons` may run the named cron jobs on demand, which is what a scheduler or deploy script outside the server needs:
+
+```sh
+zonai db token create --name nightly-scheduler --crons match_esa,nightly_sync
+```
+
+With no `--tables`, that token reaches no collection at all; add `--tables` and `--operations` to give it data access as well. `--crons '*'` grants every job, including ones added later.
+
+The token may then call `POST /crons/run?name=<job>` for those jobs, and `GET /crons/list`, which lists only the jobs it may run. A job outside its list is refused with `403`, and a token minted without `--crons` is refused on both routes with `401`, as before. Its admin flag plays no part here: only `--crons` grants this. A [bound token](#bound-tokens) keeps its crons only while its table is an `AsAdmin` table.
+
+The dashboard's create form has the same field, **Crons it may run**. Tokens cannot be edited after they are minted, so mint a new one to change the list.
+
+See [Running Jobs Manually](/cron-jobs/running-manually) for what the run answers.
 
 ## Tokens Are Admins by Default
 

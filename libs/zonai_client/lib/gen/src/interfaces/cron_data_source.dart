@@ -4,5 +4,5 @@ abstract interface class CronDataSource {
   const CronDataSource();
 
   Future<CronJobList> list({String? authorization});
-  Future<void> run({required String name, String? authorization});
+  Future<CronRunResult> run({required String name, String? authorization});
 }

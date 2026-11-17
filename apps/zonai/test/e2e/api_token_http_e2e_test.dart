@@ -190,6 +190,7 @@ void main() {
       required Set<String> tables,
       required Set<TableOperation> operations,
       bool? admin,
+      Set<String> crons = const {},
       String? boundTable,
       String? boundUserId,
     }) async {
@@ -200,6 +201,7 @@ void main() {
             tables: tables,
             operations: operations,
             admin: admin ?? true,
+            crons: crons,
           ),
           createdBy: '__cli__',
           boundTable: boundTable,
@@ -675,6 +677,156 @@ void main() {
         headers: {'authorization': 'Bearer $adminJwt'},
       );
       expect(listed.body, isNot(contains('escalation-$unique')));
+    });
+
+    // -----------------------------------------------------------------
+    // A token scoped to crons runs those, and only those.
+    // -----------------------------------------------------------------
+
+    Future<http.Response> runCron(String credential, String name) {
+      return client.post(
+        server.uri('/crons/run', {'name': name}),
+        headers: {'authorization': 'Bearer $credential'},
+      );
+    }
+
+    Future<http.Response> listCrons(String credential) {
+      return client.get(
+        server.uri('/crons/list'),
+        headers: {'authorization': 'Bearer $credential'},
+      );
+    }
+
+    test('a token with no crons is still refused on /crons', () async {
+      if (!_runningOnDartVm) return;
+
+      // Default closed: a token minted before crons could be granted -- the
+      // widest one there is -- gets nothing new.
+      final wildcard = await mint(
+        name: 'no-crons',
+        tables: {ApiTokenScope.wildcard},
+        operations: TableOperation.values.toSet(),
+      );
+
+      for (final response in [
+        await runCron(wildcard, 'stamp_notes'),
+        await listCrons(wildcard),
+      ]) {
+        expect(response.statusCode, 401, reason: response.body);
+      }
+    });
+
+    test('a cron-scoped token lists and runs only its crons', () async {
+      if (!_runningOnDartVm) return;
+
+      final scheduler = await mint(
+        name: 'scheduler',
+        tables: const {},
+        operations: const {},
+        crons: {'stamp_notes'},
+      );
+
+      final listed = await listCrons(scheduler);
+      expect(listed.statusCode, 200, reason: listed.body);
+      expect((jsonDecode(listed.body) as Map)['data'], {
+        'names': ['stamp_notes'],
+      });
+
+      final refused = await runCron(scheduler, 'boom');
+      expect(refused.statusCode, 403, reason: refused.body);
+
+      // And it reaches no collection: crons are all it was granted.
+      final data = await list(scheduler, 'notes');
+      expect(data.statusCode, isNot(200), reason: data.body);
+    });
+
+    test('a run answers the rows it wrote, already committed', () async {
+      if (!_runningOnDartVm) return;
+
+      final target = await client.post(
+        server.uri('/db'),
+        headers: {
+          'content-type': 'application/json',
+          'authorization': 'Bearer $adminJwt',
+        },
+        body: jsonEncode({
+          'table': 'notes',
+          'object': {'title': 'unstamped', 'owner_id': 'cron-target'},
+        }),
+      );
+      expect(target.statusCode, 200, reason: target.body);
+
+      final scheduler = await mint(
+        name: 'runner',
+        tables: const {},
+        operations: const {},
+        crons: {ApiTokenScope.wildcard},
+      );
+
+      final response = await runCron(scheduler, 'stamp_notes');
+      expect(response.statusCode, 200, reason: response.body);
+      final result = CronRunResult.fromJson(
+        ((jsonDecode(response.body) as Map)['data'] as Map)
+            .cast<String, dynamic>(),
+      );
+      expect(result.name, 'stamp_notes');
+      expect(result.ok, isTrue);
+      expect(result.error, isNull);
+      expect(result.changes, {
+        'notes': {'create': 2, 'update': 1},
+      });
+
+      // Readable the moment the run answered, not eventually.
+      final reader = await mint(
+        name: 'cron-reader',
+        tables: {'notes'},
+        operations: {TableOperation.list},
+      );
+      final made = await list(reader, 'notes', owner: ApiTokenJwt.sentinel);
+      expect(made.statusCode, 200, reason: made.body);
+      expect(
+        made.body,
+        allOf(contains('cron-made-1'), contains('cron-made-2')),
+      );
+    });
+
+    test(
+      'a failed run answers ok false, its error and what it wrote',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        final runner = await mint(
+          name: 'boom-runner',
+          tables: const {},
+          operations: const {},
+          crons: {'boom', 'missing'},
+        );
+
+        final failed = await runCron(runner, 'boom');
+        expect(failed.statusCode, 500, reason: failed.body);
+        final body = jsonDecode(failed.body) as Map;
+        expect(body['name'], 'boom');
+        expect(body['ok'], isFalse);
+        expect(body['error'], contains('boom'));
+        expect(body['changes'], {
+          'notes': {'create': 1},
+        });
+
+        final missing = await runCron(runner, 'missing');
+        expect(missing.statusCode, 404, reason: missing.body);
+        expect((jsonDecode(missing.body) as Map)['ok'], isFalse);
+      },
+    );
+
+    test('an admin session still runs any cron', () async {
+      if (!_runningOnDartVm) return;
+
+      final listed = await listCrons(adminJwt);
+      expect(listed.statusCode, 200, reason: listed.body);
+      expect(listed.body, allOf(contains('stamp_notes'), contains('boom')));
+
+      final ran = await runCron(adminJwt, 'stamp_notes');
+      expect(ran.statusCode, 200, reason: ran.body);
     });
 
     // -----------------------------------------------------------------

@@ -22,6 +22,7 @@ final class ApiTokenScope {
     this.admin = true,
     bool? canEdit,
     this.rateLimit,
+    this.crons = const {},
   }) : _canEdit = canEdit;
 
   factory ApiTokenScope.fromJson(Map<String, Object?> json) {
@@ -56,6 +57,7 @@ final class ApiTokenScope {
         ),
         _ => null,
       },
+      crons: _stringSet(json['crons']),
     );
   }
 
@@ -146,6 +148,15 @@ final class ApiTokenScope {
   /// the client IP. Null means the collection's own policy applies.
   final RateLimitPolicy? rateLimit;
 
+  /// Cron jobs this token may run through `POST /crons/run` and see in
+  /// `GET /crons/list`, or `{'*'}` for every one.
+  ///
+  /// The only way an API token gets through `/crons` at all: a token whose
+  /// scope names none is refused there exactly like on every other non-data
+  /// route, whatever [admin] says. A row written before this existed has no
+  /// `crons` key and decodes to the empty set, so it gains nothing.
+  final Set<String> crons;
+
   /// The stricter of this scope's admin grant and [table]'s own, for a token
   /// **bound** to an auth row.
   ///
@@ -160,7 +171,14 @@ final class ApiTokenScope {
   ApiTokenScope clampedTo(({bool isAdmin, bool canEdit}) table) {
     final grantedAdmin = admin && table.isAdmin;
     final grantedCanEdit = grantedAdmin && canEdit && table.canEdit;
-    if (grantedAdmin == admin && grantedCanEdit == canEdit) return this;
+    // Running a cron is an admin's power, so a token acting as a row of a
+    // table that is not an admin table keeps none of it.
+    final grantedCrons = table.isAdmin ? crons : const <String>{};
+    if (grantedAdmin == admin &&
+        grantedCanEdit == canEdit &&
+        grantedCrons.length == crons.length) {
+      return this;
+    }
 
     return ApiTokenScope(
       tables: tables,
@@ -170,6 +188,7 @@ final class ApiTokenScope {
       admin: grantedAdmin,
       canEdit: grantedCanEdit,
       rateLimit: rateLimit,
+      crons: grantedCrons,
     );
   }
 
@@ -183,6 +202,9 @@ final class ApiTokenScope {
       customOperations.contains(wildcard) ||
       customOperations.contains(operation);
 
+  bool allowsCron(String name) =>
+      crons.contains(wildcard) || crons.contains(name);
+
   /// Whether this scope grants no operation at all -- the token that may
   /// reach a table and do nothing on it.
   bool get grantsNoOperation =>
@@ -195,6 +217,7 @@ final class ApiTokenScope {
     'admin': admin,
     'canEdit': canEdit,
     'rateLimit': rateLimit?.toJson(),
+    'crons': crons.toList()..sort(),
   };
 
   /// The wildcard replaces the list rather than joining it: it already
