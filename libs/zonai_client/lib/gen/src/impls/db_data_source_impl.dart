@@ -95,7 +95,7 @@ class DbDataSourceImpl implements DbDataSource {
         })
         .handleError((_) {
           // do nothing
-        });
+        }, test: isTransportError);
   }
 
   @override
@@ -128,7 +128,7 @@ class DbDataSourceImpl implements DbDataSource {
         })
         .handleError((_) {
           // do nothing
-        });
+        }, test: isTransportError);
   }
 
   @override
@@ -155,7 +155,7 @@ class DbDataSourceImpl implements DbDataSource {
         })
         .handleError((_) {
           // do nothing
-        });
+        }, test: isTransportError);
   }
 
   @override

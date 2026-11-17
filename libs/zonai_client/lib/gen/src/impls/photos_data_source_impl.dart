@@ -12,16 +12,20 @@ class PhotosDataSourceImpl implements PhotosDataSource {
   final Storage _storage;
 
   @override
-  Stream<List<int>> view({required String id, String? authorization}) async* {
+  Stream<List<int>> view({
+    required String id,
+    String? authorization,
+    String? ifNoneMatch,
+  }) async* {
     final response = await _client.request(
       method: 'GET',
       path: '/img/${id}',
-      headers: {'authorization': authorization},
+      headers: {'authorization': authorization, 'if-none-match': ifNoneMatch},
     );
 
     yield* response.handleError((_) {
       // do nothing
-    });
+    }, test: isTransportError);
   }
 
   @override
