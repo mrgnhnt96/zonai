@@ -8,6 +8,16 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.15.0
+
+- **zonai is now built with Dart 3.14.0, and your project needs Dart 3.14
+  too.** Dart 3.14 changed the VM snapshot format, so workers compiled by 3.13
+  can't be loaded by this CLI. `zonai compile` and `zonai build` exit 1 on a
+  3.13 SDK and name both versions; every other command warns once. Upgrade
+  your Dart SDK to 3.14, then re-run `zonai compile`. `--no-dart-sdk-check`
+  silences the check, but workers from a mismatched SDK fall back to the
+  worker process.
+
 ## 0.14.1
 
 - **Magic-link sign-ups get their own email.** A link sent to an address with
