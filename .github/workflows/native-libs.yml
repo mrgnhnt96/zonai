@@ -127,6 +127,36 @@ jobs:
           fi
           cd apps/zonai && dart run tool/native_build_stamp.dart write "${stamp_args[@]}"
 
+      # Dart 3.14.0 on macOS 15 x64 resolves a relative executable passed to
+      # Process.start against the PARENT's working directory, not the
+      # `workingDirectory` it was given (measured on macos-15-intel; macOS 26
+      # under Rosetta and arm64 do not do this). sodium's build hook starts
+      # `./configure` that way from its own package root, so it fails with
+      # "No such file or directory". The child still starts in the right
+      # directory, so a `configure` in the hook's cwd that re-execs
+      # ./configure from there reaches the real one. Remove once Dart fixes it.
+      - name: Work around Dart 3.14.0 relative-exec bug (macOS x64)
+        if: runner.os == 'macOS' && matrix.dart_architecture == 'x64'
+        shell: bash
+        run: |
+          builder=apps/zonai/tool/native/argon2_builder
+          (cd "$builder" && dart pub get >/dev/null)
+          root="$(python3 -c 'import json,sys,urllib.parse as u
+          c=json.load(open(sys.argv[1]))
+          print(next(u.unquote(p["rootUri"]).removeprefix("file://") for p in c["packages"] if p["name"]=="sodium"))' "$builder/.dart_tool/package_config.json")"
+          echo "sodium package root: $root"
+          cat > "$root/configure" <<'SHIM'
+          #!/bin/sh
+          here="$(cd "$(dirname "$0")" && pwd -P)"
+          if [ "$(pwd -P)" = "$here" ]; then
+            echo "configure shim: cwd is the shim's own directory; refusing to loop" >&2
+            exit 127
+          fi
+          exec ./configure "$@"
+          SHIM
+          chmod +x "$root/configure"
+          head -3 "$root/configure"
+
       - name: Build Argon2 native library
         shell: bash
         # Current-platform only for now, unlike resqlite -- see
