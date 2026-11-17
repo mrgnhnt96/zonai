@@ -8,6 +8,25 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.16.0
+
+- **An API token can run crons.** A token's scope can name the crons it may
+  run (`"crons": ["match_esa"]`, or `"*"` for all), set with
+  `zonai db token create --crons a,b`, the dashboard's token form, or
+  `POST /admin/tokens`. Such a token may call `POST /crons/run` for its own
+  crons (`403` for any other) and `GET /crons/list`, which lists only them. A
+  scheduler can hold a crons-only token with no table access at all. Every
+  existing token gets nothing new, and an admin session works as before.
+- **`POST /crons/run` answers what the run wrote.** It returns the job's name,
+  `ok`, `ms`, and the rows it changed per table and action, hook cascades
+  included, and the writes are committed before it answers, so you can read
+  them straight away. A failed run answers `500` (`404` for an unknown cron)
+  with `ok: false`, its `error`, and what it wrote before failing.
+  `zonai_client` 0.3.7's `cron.run` returns it as a `CronRunResult`.
+- **Upgrade `zonai_schema` to `^0.10.0` with the CLI.** It defines the cron
+  scope and `CronRunResult`, and `zonai_client` 0.3.7 needs it. This CLI
+  refuses to run a project on an older schema.
+
 ## 0.15.0
 
 - **zonai is now built with Dart 3.14.0, and your project needs Dart 3.14

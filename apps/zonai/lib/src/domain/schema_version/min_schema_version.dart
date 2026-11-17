@@ -34,7 +34,17 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.9.0`. The host now sends `RateLimitOperation.handoffCreate`
+/// Currently `0.10.0`, and for a different reason than every floor below it:
+/// nothing a worker parses changed. Cron-scoped tokens (`ApiTokenScope.crons`)
+/// and `CronRunResult` are read and written only by this binary, which carries
+/// its own copy of the schema. The floor moves because `zonai init` scaffolds
+/// `zonai_schema: ^$kMinSchemaVersion`, and `^0.9.0` excludes `0.10.0` -- so a
+/// project scaffolded at `0.9.0` could only resolve `zonai_client` 0.3.6,
+/// whose `cron.run` returns nothing, against a CLI that answers it with a
+/// `CronRunResult`. `0.10.0` is also the lowest schema the published
+/// `zonai_client` 0.3.7 allows.
+///
+/// **`0.9.0`.** The host now sends `RateLimitOperation.handoffCreate`
 /// and `.handoffExchange` to the rules worker for `POST /auth/handoff` and
 /// `/auth/handoff/exchange`, and the worker decodes them with
 /// `Enum.values.byName`, which throws on a name `0.8.4` and older do not have.
@@ -128,4 +138,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.9.0';
+const kMinSchemaVersion = '0.10.0';
