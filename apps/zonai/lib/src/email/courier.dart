@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/settings.dart';
@@ -120,13 +121,13 @@ class _Send {
       fromAddress: fromAddress,
     );
 
-    if (continues) {
-      message.headers['Message-ID'] = _sendMessageId(fromAddress);
-      message.headers['In-Reply-To'] = root;
-      message.headers['References'] = root;
-    } else {
-      message.headers['Message-ID'] = root;
-    }
+    // Every send gets its own Message-ID. The root is never one: a thread
+    // such as a magic link's `magic-link:<table>:<email>` repeats on every
+    // sign-in, and Gmail silently drops a message whose Message-ID it has
+    // already seen. References to the root is what keeps them grouped.
+    message.headers['Message-ID'] = _sendMessageId(fromAddress);
+    message.headers['References'] = root;
+    if (continues) message.headers['In-Reply-To'] = root;
   }
 
   /// Lets the caller's own ids win over what [_applyThreadHeaders] derived
@@ -162,10 +163,13 @@ class _Send {
     return '<thread.$tag@$domain>';
   }
 
+  static final _random = Random.secure();
+
   String _sendMessageId(String fromAddress) {
     final domain = _emailDomain(fromAddress);
-    final unique = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
-    return '<thread.send.$unique@$domain>';
+    final time = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final nonce = _random.nextInt(1 << 32).toRadixString(36);
+    return '<thread.send.$time.$nonce@$domain>';
   }
 
   String _emailDomain(String address) {
