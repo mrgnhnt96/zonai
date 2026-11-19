@@ -331,7 +331,37 @@ void main() {
       );
 
       expect(header(data, 'In-Reply-To'), startsWith('<thread.'));
+      expect(header(data, 'References'), header(data, 'In-Reply-To'));
+      expect(header(data, 'Message-ID'), isNot(header(data, 'In-Reply-To')));
       expect(header(data, 'Reply-To'), isNull);
+    });
+
+    // Gmail silently drops a message whose Message-ID it already has. A magic
+    // link's thread repeats on every sign-in to the same address, so the root
+    // id can never be a Message-ID, or every sign-in after the first vanishes.
+    test('two sends on one thread get their own Message-IDs', () async {
+      const email = Email(
+        to: EmailAddress(address: 'user@example.com'),
+        subject: 'Sign in',
+        template: 'reset_password',
+        thread: 'magic-link:users:user@example.com',
+      );
+
+      final first = await sent(email);
+      final second = await sent(email);
+
+      final firstId = header(first, 'Message-ID');
+      final secondId = header(second, 'Message-ID');
+      final root = header(first, 'References');
+      expect(firstId, isNotNull);
+      expect(secondId, isNotNull);
+      expect(firstId, isNot(secondId));
+      expect(root, startsWith('<thread.'));
+      expect(header(second, 'References'), root);
+      expect(firstId, isNot(root));
+      expect(secondId, isNot(root));
+      // Only a continuation answers the root.
+      expect(header(first, 'In-Reply-To'), isNull);
     });
 
     test('a text part makes the message multipart/alternative', () async {
