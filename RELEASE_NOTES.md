@@ -8,6 +8,14 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.16.1
+
+- **Every sign-in email reaches the inbox.** Each email in a thread used to
+  reuse the thread's root as its `Message-ID`, so every magic link sent to one
+  address carried the same ID, and Gmail silently dropped each one after the
+  first. Every email now gets its own `Message-ID` and names the thread in
+  `References` (plus `In-Reply-To` for replies), so mail apps still group it.
+
 ## 0.16.0
 
 - **An API token can run crons.** A token's scope can name the crons it may
