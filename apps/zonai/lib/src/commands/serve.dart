@@ -8,6 +8,7 @@ import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/stale_workers.dart';
+import 'package:zonai/src/utils/log_persistence.dart';
 import 'package:zonai/src/utils/serve_guard.dart';
 
 import 'dev/actions/project_init.dart';
@@ -144,6 +145,10 @@ Future<int> _startServing() async {
   if (!await revali.start()) {
     return 1;
   }
+
+  // Not before: the first line written opens the database, and that has to
+  // wait until the server has opened (and migrated) it.
+  persistUnscopedLogLines(logger);
 
   final extensionMailman = ExtensionsMailman();
   final rulesMailman = RulesMailman();
