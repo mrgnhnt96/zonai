@@ -221,7 +221,8 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
     setState(() => _dragOver = false);
     if (component.disabled) return;
 
-    if (event is! web.DragEvent) return;
+    if (!event.isA<web.DragEvent>()) return;
+    event as web.DragEvent;
     final files = event.dataTransfer?.files;
     if (files == null || files.length == 0) return;
     await _addFiles(files);
@@ -266,7 +267,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
       if (showDropZone)
         div(classes: zoneClass, events: dropTargetEvents, [
           p(classes: 'table-edit-photo-field__hint', [
-            text(_allowMultiple ? 'Drag images here or browse' : 'Drag an image here or browse'),
+            .text(_allowMultiple ? 'Drag images here or browse' : 'Drag an image here or browse'),
           ]),
           ZonaiButton(
             variant: ZonaiButtonVariant.ghost,
@@ -278,7 +279,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
                 _onBrowseClick();
               },
             },
-            child: text('Browse…'),
+            child: .text('Browse…'),
           ),
           input(
             id: inputId,
@@ -291,7 +292,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
             },
           ),
         ]),
-      if (_error != null) p(classes: 'table-edit-photo-field__error', [text(_error!)]),
+      if (_error != null) p(classes: 'table-edit-photo-field__error', [.text(_error!)]),
     ]);
   }
 }
@@ -309,7 +310,7 @@ class _PhotoThumb extends StatelessComponent {
       if (src != null)
         img(src: src!, attributes: {'alt': label, 'loading': 'lazy'})
       else
-        div(classes: 'table-edit-photo-field__thumb-placeholder', [text(label)]),
+        div(classes: 'table-edit-photo-field__thumb-placeholder', [.text(label)]),
       if (onRemove != null)
         button(
           type: .button,
@@ -322,7 +323,7 @@ class _PhotoThumb extends StatelessComponent {
               onRemove!();
             },
           },
-          [text('×')],
+          [.text('×')],
         ),
     ]);
   }

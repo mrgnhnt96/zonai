@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
-import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_playground/gen/zonai/zonai_client.g.dart';
 
 /// The §5.4 column tokens, exercised down to the wire form.

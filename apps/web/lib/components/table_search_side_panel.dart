@@ -82,7 +82,8 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
   }
 
   void _onDocumentKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (!mounted || !_open) return;
 
     if (event.key == 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -309,12 +310,14 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
   void _bindResizeDom() {
     if (!mounted || !_open) return;
     final panel = web.document.querySelector('.table-search-side-panel.table-search--open');
-    if (panel is! web.HTMLElement) return;
+    if (!panel.isA<web.HTMLElement>()) return;
+    panel as web.HTMLElement;
     _resizeBoundPanel = panel;
     _applyPanelWidthPx(_panelWidthPx);
     final handle = panel.querySelector('.table-search-resize-handle');
     final down = _handleResizeDownListener;
-    if (handle is web.HTMLElement && down != null) {
+    if (handle.isA<web.HTMLElement>() && down != null) {
+      handle as web.HTMLElement;
       handle.addEventListener('mousedown', down);
       handle.addEventListener('pointerdown', down);
     }
@@ -357,7 +360,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     final panelStyle = isMobile
         ? 'width: ${vw.round()}px; min-width: 100%; max-width: 100%;'
         : 'width: ${_panelWidthPx.round()}px; min-width: ${_panelMinWidthPx.round()}px; max-width: ${_panelMaxWidthPx.round()}px;';
-    final close = () => context.read(tableFilterProvider.notifier).closePanel();
+    void close() => context.read(tableFilterProvider.notifier).closePanel();
 
     return Component.fragment([
       div(

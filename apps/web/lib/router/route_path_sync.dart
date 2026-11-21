@@ -5,7 +5,6 @@ import 'package:jaspr_router/jaspr_router.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../auth/auth_route_provider.dart';
-import 'app_navigation.dart';
 
 /// Keeps [authRouteProvider] aligned with [RouteState] for auth guards and titles.
 class RoutePathSync extends StatefulComponent {

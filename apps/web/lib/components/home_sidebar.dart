@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 
 import '../auth/auth_route_provider.dart';
@@ -618,7 +619,8 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
         'scroll': (web.Event event) {
           if (!context.binding.isClient) return;
           final el = event.currentTarget;
-          if (el is! web.Element) return;
+          if (!el.isA<web.Element>()) return;
+          el as web.Element;
           context.read(homeUiProvider.notifier).saveSidebarScrollTop(body: _isBody, scrollTop: el.scrollTop.toDouble());
         },
       },

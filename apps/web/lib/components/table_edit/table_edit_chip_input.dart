@@ -122,7 +122,8 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
     _ghostOffsetX = pointerX - rect.left;
     _ghostOffsetY = pointerY - rect.top;
 
-    if (metric is! web.HTMLElement) return;
+    if (!metric.isA<web.HTMLElement>()) return;
+    metric as web.HTMLElement;
     final body = web.document.body;
     if (body == null) return;
 
@@ -180,7 +181,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
   void _focusAddInput() {
     if (!mounted) return;
     final el = web.document.getElementById('${component.id}-add');
-    if (el is web.HTMLInputElement) el.focus();
+    if (el.isA<web.HTMLInputElement>()) (el as web.HTMLInputElement).focus();
   }
 
   void _removeChip(String chip) {
@@ -228,7 +229,8 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
       event.preventDefault();
       return;
     }
-    if (event is! web.DragEvent) return;
+    if (!event.isA<web.DragEvent>()) return;
+    event as web.DragEvent;
     if (_dragStartedOnRemoveButton(event)) {
       event.preventDefault();
       return;
@@ -249,11 +251,13 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   void _onChipDragOver(web.Event event, int index) {
     if (_dragFromIndex == null) return;
-    if (event is! web.DragEvent) return;
+    if (!event.isA<web.DragEvent>()) return;
+    event as web.DragEvent;
     _preventDragDefault(event);
 
     final current = event.currentTarget;
-    if (current is! web.Element) return;
+    if (!current.isA<web.Element>()) return;
+    current as web.Element;
     final rect = current.getBoundingClientRect();
     final midX = rect.left + rect.width / 2;
     final side = event.clientX < midX ? _ChipDropSide.left : _ChipDropSide.right;
@@ -263,11 +267,13 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   void _onChipsContainerDragOver(web.Event event) {
     if (_dragFromIndex == null) return;
-    if (event is! web.DragEvent) return;
+    if (!event.isA<web.DragEvent>()) return;
+    event as web.DragEvent;
     _preventDragDefault(event);
 
     final container = event.currentTarget;
-    if (container is! web.Element) return;
+    if (!container.isA<web.Element>()) return;
+    container as web.Element;
     final x = eventClientX(event);
     final y = eventClientY(event);
     if (x == null || y == null) return;
@@ -312,10 +318,11 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
     if (!_canReorderChips || !context.binding.isClient) return;
     if (_dragStartedOnRemoveButton(event)) return;
     if (eventPointerType(event) == 'mouse') return;
-    if (event is web.PointerEvent && event.button != 0) return;
+    if (event.isA<web.PointerEvent>() && (event as web.PointerEvent).button != 0) return;
 
     final current = event.currentTarget;
-    if (current is! web.Element) return;
+    if (!current.isA<web.Element>()) return;
+    current as web.Element;
     final container = current.closest('.table-edit-chip-input__chips');
     if (container is! web.Element) return;
 
@@ -325,7 +332,8 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
     event.preventDefault();
     event.stopPropagation();
-    if (event is web.PointerEvent) {
+    if (event.isA<web.PointerEvent>()) {
+      event as web.PointerEvent;
       current.setPointerCapture(event.pointerId);
       _pointerCaptureElement = current;
       _activePointerId = event.pointerId;
@@ -475,7 +483,8 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   void _onChipDrop(web.Event event) {
     if (_dragFromIndex == null) return;
-    if (event is web.DragEvent) {
+    if (event.isA<web.DragEvent>()) {
+      event as web.DragEvent;
       event.preventDefault();
       event.stopPropagation();
     }
@@ -491,7 +500,8 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   bool _dragStartedOnRemoveButton(web.Event event) {
     final target = event.target;
-    if (target is! web.Element) return false;
+    if (!target.isA<web.Element>()) return false;
+    target as web.Element;
     return target.closest('.z-tag__remove') != null;
   }
 
@@ -543,7 +553,8 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
           onInput: (v) => setState(() => _draft = v),
           events: {
             'keydown': (event) {
-              if (event is! web.KeyboardEvent) return;
+              if (!event.isA<web.KeyboardEvent>()) return;
+              event as web.KeyboardEvent;
               if (event.key == 'Enter') {
                 event.preventDefault();
                 _addChip(_draft);

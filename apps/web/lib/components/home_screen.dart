@@ -713,7 +713,8 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     if (data == null || !data.truncated || data.isLoadingMore) return;
 
     final el = scrollTarget ?? web.document.querySelector('.table-rows-wrap');
-    if (el is! web.Element) return;
+    if (!el.isA<web.Element>()) return;
+    el as web.Element;
 
     if (el.scrollTop + el.clientHeight < el.scrollHeight - _loadMoreThresholdPx) {
       return;
@@ -773,7 +774,8 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
 
   void _positionSortTooltip(web.Event event, String text) {
     final el = event.currentTarget;
-    if (el is! web.HTMLElement) return;
+    if (!el.isA<web.HTMLElement>()) return;
+    el as web.HTMLElement;
     final icon = el.querySelector('.rows-header-sort-icon');
     final anchor = icon ?? el;
     showAppTooltipForElement(context.read(appTooltipProvider.notifier), anchor: anchor, text: text);
@@ -1130,16 +1132,18 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
 
   void _startDeleteHold(web.Event event) {
     if (_busy || _deleteHoldPhase != _DeleteHoldPhase.idle) return;
-    if (event is web.MouseEvent && event.button != 0) return;
-    if (event is web.PointerEvent && event.button != 0) return;
+    if (event.isA<web.MouseEvent>() && (event as web.MouseEvent).button != 0) return;
+    if (event.isA<web.PointerEvent>() && (event as web.PointerEvent).button != 0) return;
     event.preventDefault();
 
     _hideTooltip();
     _stopHoldProgressAnimation();
     _holdStartedAt = DateTime.now();
     final target = event.currentTarget;
-    final progressEl = target is web.HTMLElement ? target.querySelector('.rows-selection-delete__progress') : null;
-    _holdProgressEl = progressEl is web.HTMLElement ? progressEl : null;
+    final progressEl = target.isA<web.HTMLElement>()
+        ? (target as web.HTMLElement).querySelector('.rows-selection-delete__progress')
+        : null;
+    _holdProgressEl = progressEl.isA<web.HTMLElement>() ? progressEl as web.HTMLElement : null;
     _applyHoldProgressVisual(0);
     setState(() {
       _holdCommitted = false;
@@ -1554,7 +1558,7 @@ bool _isBodyRowSelectCheckbox(web.HTMLElement element) {
 
 void _blurBodyRowSelectCheckboxIfFocused() {
   final active = web.document.activeElement;
-  if (active is web.HTMLElement && _isBodyRowSelectCheckbox(active)) {
+  if (active.isA<web.HTMLElement>() && _isBodyRowSelectCheckbox(active as web.HTMLElement)) {
     active.blur();
   }
 }
@@ -1563,13 +1567,17 @@ bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
   if (event.metaKey || event.ctrlKey || event.altKey) return true;
   if (shouldDeferKeyboardToDatetimePicker(event)) return true;
   final target = event.target;
-  if (target is! web.HTMLElement) return false;
+  if (!target.isA<web.HTMLElement>()) return false;
+  target as web.HTMLElement;
   final tag = target.tagName.toLowerCase();
   if (tag == 'input' || tag == 'textarea' || tag == 'select') {
     if (tag == 'input' && _isBodyRowSelectCheckbox(target)) {
       if (event.key == 'ArrowDown' || event.key == 'ArrowUp') return false;
     }
-    if (tag == 'input' && event.key == 'Escape' && target is web.HTMLInputElement && target.type == 'checkbox') {
+    if (tag == 'input' &&
+        event.key == 'Escape' &&
+        target.isA<web.HTMLInputElement>() &&
+        (target as web.HTMLInputElement).type == 'checkbox') {
       return false;
     }
     return true;
@@ -1580,7 +1588,7 @@ bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
 bool _isFocusedDomElement(web.Element? element) {
   if (element == null) return false;
   if (element == web.document.body || element == web.document.documentElement) return false;
-  return element is web.HTMLElement;
+  return element.isA<web.HTMLElement>();
 }
 
 bool _hasHomeFocus(BuildContext context) {
@@ -1606,8 +1614,8 @@ void _clearHomeFocus(BuildContext context) {
   }
 
   final active = web.document.activeElement;
-  if (active is web.HTMLElement && _isFocusedDomElement(active)) {
-    active.blur();
+  if (active.isA<web.HTMLElement>() && _isFocusedDomElement(active)) {
+    (active as web.HTMLElement).blur();
   }
 
   final keyboardFocus = context.read(tableRowKeyboardFocusProvider);
@@ -1736,7 +1744,8 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
   }
 
   void _onKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (!mounted) return;
     if (_shouldIgnoreHomeKeyboard(event)) return;
 
