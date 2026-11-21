@@ -210,10 +210,12 @@ server:
       - bash tool/ci/revali_generate.sh
       - ${{ server.sync-to-cli }}
   gen:
-    - |
-      cd apps/server || exit 1
-      dart run revali dev --flavor dev --profile --recompile --generate-only
-    - ${{ server.sync-to-cli }}
+    (bail):
+    (command):
+      # The same wrapper copy-to-cli and CI run, so a local regen embeds the
+      # release server `zonai compile` ships rather than a profile build.
+      - bash tool/ci/revali_generate.sh
+      - ${{ server.sync-to-cli }}
   start: |
     cd apps/server || exit 1
     dart pub get || exit 1
