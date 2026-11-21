@@ -37,7 +37,12 @@ sealed class UpdateValue {
       Remove._type => Remove.fromJson(json),
       AddAll._type => AddAll.fromJson(json),
       RemoveAll._type => RemoveAll.fromJson(json),
-      final type => throw StateError('Invalid update value type: $type'),
+      // An ArgumentError, not a StateError: parseBody turns it into a 400.
+      final type => throw ArgumentError.value(
+        type,
+        'type',
+        'Invalid update value type',
+      ),
     };
   }
 

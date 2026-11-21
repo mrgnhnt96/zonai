@@ -20,6 +20,28 @@ void main() {
       'a missing required field': () => CreateBody.fromJson({'table': 'x'}),
       'a nested value of the wrong type': () =>
           CountBody.fromJson({'table': 'notes', 'where': 'x'}),
+      'an update with no type': () => UpdateBody.fromJson({
+        'table': 'notes',
+        'where': {
+          'id': {'eq': 'a'},
+        },
+        'updates': [
+          {'column': 'title', 'value': 'x'},
+        ],
+      }),
+      'an update value with an unknown type': () => UpdateBody.fromJson({
+        'table': 'notes',
+        'where': {
+          'id': {'eq': 'a'},
+        },
+        'updates': [
+          {
+            'type': 'column',
+            'column': 'title',
+            'value': {'type': 'nope'},
+          },
+        ],
+      }),
     };
     for (final MapEntry(key: label, value: parse) in malformed.entries) {
       test('turns $label into an InvalidBodyException', () {
