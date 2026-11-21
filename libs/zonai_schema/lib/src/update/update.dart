@@ -15,7 +15,13 @@ sealed class Update {
     return switch (json['type']) {
       ColumnUpdate._type => ColumnUpdate.fromJson(json),
       ObjectUpdate._type => ObjectUpdate.fromJson(json),
-      final type => throw StateError('Invalid update type: $type'),
+      // An ArgumentError, not a StateError: a bad type is the caller's
+      // mistake, and parseBody turns an ArgumentError into a 400.
+      final type => throw ArgumentError.value(
+        type,
+        'type',
+        'Invalid update type, expected "column" or "object"',
+      ),
     };
   }
 

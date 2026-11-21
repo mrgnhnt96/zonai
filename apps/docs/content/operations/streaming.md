@@ -50,7 +50,7 @@ Future<void> main() async {
       .list(
         body: StreamListBody(
           table: 'tasks',
-          where: Eq('isComplete', false),
+          where: Eq('is_complete', false),
           limit: 50,
         ),
         fromJson: (row) => row,
@@ -59,7 +59,7 @@ Future<void> main() async {
 
   // Count
   client.db.listen
-      .count(body: StreamCountBody(table: 'tasks', where: Eq('isComplete', false)))
+      .count(body: StreamCountBody(table: 'tasks', where: Eq('is_complete', false)))
       .listen((total) { /* ... */ });
 
   await sub.cancel();
@@ -74,7 +74,7 @@ Same `?body=` pattern as `GET /db` / `/db/list` / `/db/count`:
 
 ```
 GET /db/stream?body={"table":"tasks","where":{"id":{"eq":"tk_abc123"}},"expand":[]}
-GET /db/stream/list?body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}
+GET /db/stream/list?body={"table":"tasks","where":{"is_complete":{"eq":false}},"limit":20}
 GET /db/stream/count?body={"table":"tasks"}
 ```
 

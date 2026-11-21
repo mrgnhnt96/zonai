@@ -240,7 +240,7 @@ If the admin already knows their password and just wants to change it, use the s
 PATCH /db
 Authorization: Bearer <admin-token>
 
-{ "table": "users", "where": { "id": { "eq": "<adminId>" } }, "updates": [{ "column": "password", "value": "newSecurePassword" }] }
+{ "table": "users", "where": { "id": { "eq": "<adminId>" } }, "updates": [{ "type": "object", "object": { "password": "newSecurePassword" } }] }
 ```
 
 The new value is automatically hashed — never store plaintext passwords.

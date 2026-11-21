@@ -5,7 +5,7 @@ description: How Zonai's two-layer authorization model works.
 
 Rules are the authorization layer in Zonai. Every request passes through rules before SQL is built. A denial returns `403 Forbidden` immediately — no SQL runs, no extension fires.
 
-**What you need to do:** for every table your API exposes, add two files under `rulesPath` (default `lib/src/rules`) — a table rules file and a row rules file. A table without them is closed to everyone but admins.
+**What you need to do:** for every table your API exposes, add two files under `rulesPath` (default `lib/src/rules`) — a table rules file and a row rules file. A table without them is closed to everyone, admins included — see [Default Deny](#default-deny).
 
 <Info>
 
