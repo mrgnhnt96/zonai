@@ -107,6 +107,11 @@ const List<NavGroup> navigation = [
         '/configuration/environment-variables',
         summary: 'Compile-time .env secrets and ZONAI_* runtime tuning.',
       ),
+      NavItem(
+        'CORS and Allowed Origins',
+        '/configuration/cors',
+        summary: 'Which browser origins get a credentialed grant; ZONAI_ALLOWED_ORIGINS.',
+      ),
     ],
   ),
   NavGroup(

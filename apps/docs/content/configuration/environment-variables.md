@@ -64,6 +64,7 @@ These are read from the process environment at serve time. They are **not** load
 | `ZONAI_WORKER_TRANSPORT` | `auto`, `process`, `isolate` | `auto` | How Mailman talks to ops/rules workers when workers are used (`auto` prefers isolate/SendPort when a snapshot exists, else process MessagePack) |
 | `ZONAI_WORKER_POOL_SIZE` | positive int | `1` | Number of OS processes per Mailman pool (ops/rules/extensions). Higher may help concurrent writes; often hurts pure list |
 | `ZONAI_HTTP_WORKERS` | positive int | `1` | HTTP accept isolates. **`>1` currently regresses list throughput** against one SQLite file — keep `1` unless you know you need otherwise |
+| `ZONAI_ALLOWED_ORIGINS` | comma-separated origins | unset | Browser origins, besides loopback, that get a credentialed CORS grant. See [CORS and Allowed Origins](/configuration/cors) |
 | `ZONAI_INSECURE_TEST_MODE` | any value except `0`/`false`/`no`/`off` | unset | Makes emailed auth challenges predictable for automated tests: the OTP is always `123456` and each link carries a fixed secret. `zonai serve` **refuses to start** while this is set, and every challenge issued under it logs an error. Anyone who knows a user's email address can sign in as them, so it is only for a harness that drives `ZonaiDb` directly |
 
 Example:
