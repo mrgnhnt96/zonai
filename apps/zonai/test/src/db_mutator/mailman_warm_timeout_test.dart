@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' as io;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:file/local.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
@@ -14,7 +15,9 @@ import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/process.dart';
+import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
+import 'package:zonai/src/messengers/webhook_mailman.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
@@ -108,6 +111,119 @@ void main() {
         mailman.warmRequestTimeout,
         greaterThan(Mailman.defaultWarmRequestTimeout),
       );
+    });
+
+    test('the cron worker waits past the 1s default', () async {
+      // Crons are app code that does I/O; stopping the schedule waits on the
+      // tasks it cancels.
+      final mailman = runScoped(CronMailman.new, values: _scope());
+      addTearDown(mailman.dispose);
+
+      expect(mailman.warmRequestTimeout, CronMailman.requestTimeout);
+      expect(
+        mailman.warmRequestTimeout,
+        greaterThan(Mailman.defaultWarmRequestTimeout),
+      );
+    });
+
+    test('the webhook worker waits past the 1s default', () async {
+      // A handler that verifies a delivery or fetches what it names calls
+      // out; at 1s an ordinary delivery failed and its writes were dropped.
+      final mailman = runScoped(WebhookMailman.new, values: _scope());
+      addTearDown(mailman.dispose);
+
+      expect(mailman.warmRequestTimeout, WebhookMailman.requestTimeout);
+      expect(
+        mailman.warmRequestTimeout,
+        greaterThan(Mailman.defaultWarmRequestTimeout),
+      );
+    });
+
+    test('a manual cron run gets the long run timeout', () async {
+      final mailman = runScoped(CronMailman.manualRun, values: _scope());
+      addTearDown(mailman.dispose);
+
+      expect(mailman.warmRequestTimeout, CronMailman.manualRunTimeout);
+    });
+  });
+
+  group('Mailman: cold request timeout', () {
+    late io.Directory tempDir;
+    late String executablePath;
+
+    setUp(() {
+      tempDir = io.Directory.systemTemp.createTempSync('mailman_cold_timeout');
+      executablePath = '${tempDir.path}${io.Platform.pathSeparator}worker.exe';
+      io.File(executablePath).writeAsStringSync('not a real worker');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    /// Sends the first request a freshly made Mailman ever sends -- as
+    /// `POST /crons/run` and every webhook delivery do -- with the worker
+    /// taking [replyDelay] to answer, on a fake clock.
+    Object? firstPing({
+      required Duration replyDelay,
+      required Duration warmRequestTimeout,
+    }) {
+      return fakeAsync((async) {
+        Object? outcome;
+        runScoped(() {
+          final launcher = _FakeLauncher();
+          launcher.process.replyDelay = replyDelay;
+          final mailman = Mailman<Request, Response>(
+            debugName: 'cold-timeout',
+            executablePath: executablePath,
+            fromJson: (_) => throw UnimplementedError('ping never re-decodes'),
+            warmRequestTimeout: warmRequestTimeout,
+          );
+          mailman.ping().then<void>(
+            (value) => outcome = value,
+            onError: (Object e) => outcome = e,
+          );
+          async.elapse(replyDelay + const Duration(seconds: 1));
+          mailman.dispose();
+          async.flushTimers();
+        }, values: _scope());
+        return outcome;
+      });
+    }
+
+    test('a fresh mailman cuts a slow first reply off at 10s', () {
+      // `/crons/run` answered a timeout at 10s while the job ran on,
+      // and the run's result never showed what it wrote.
+      final outcome = firstPing(
+        replyDelay: const Duration(seconds: 12),
+        warmRequestTimeout: CronMailman.requestTimeout,
+      );
+
+      expect(
+        outcome,
+        isA<WorkerProcessFailedException>(),
+        reason: 'pins the cold-start cap, so the test below proves the fix',
+      );
+    });
+
+    test('a manual cron run waits out a job longer than 10s', () {
+      final outcome = firstPing(
+        replyDelay: const Duration(minutes: 2),
+        warmRequestTimeout: CronMailman.manualRunTimeout,
+      );
+
+      expect(outcome, isTrue);
+    });
+
+    test('a webhook delivery waits out a handler longer than 10s', () {
+      final outcome = firstPing(
+        replyDelay: const Duration(seconds: 20),
+        warmRequestTimeout: WebhookMailman.requestTimeout,
+      );
+
+      expect(outcome, isTrue);
     });
   });
 }
