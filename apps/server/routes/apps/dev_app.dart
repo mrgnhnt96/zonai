@@ -1,4 +1,4 @@
-import 'dart:io' show HttpHeaders, HttpServer, Platform;
+import 'dart:io' show HttpHeaders, HttpResponse, HttpServer, Platform;
 
 import 'package:revali_router/revali_router.dart';
 import 'package:scoped_deps/scoped_deps.dart';
@@ -132,38 +132,83 @@ class Cors implements LifecycleComponent {
   Future<Response> wrap(Context context, NextResponse next) async {
     final result = await next();
 
-    final grant = policy.grant(context.request.headers.get('origin'));
-
-    result.headers.set(
-      HttpHeaders.accessControlAllowOriginHeader,
-      grant.allowOrigin,
+    applyCorsGrant(
+      result.headers,
+      policy.grant(context.request.headers.get('origin')),
     );
-
-    if (grant.allowCredentials) {
-      result.headers.set(
-        HttpHeaders.accessControlAllowCredentialsHeader,
-        'true',
-      );
-    } else {
-      result.headers.remove(HttpHeaders.accessControlAllowCredentialsHeader);
-    }
-
-    // The allowed origin is reflected from the request, so the response and
-    // its `Access-Control-Allow-Origin` both vary by `Origin`. Without this a
-    // shared cache can hand one origin's response -- carrying that origin's
-    // Allow-Origin -- to a different one.
-    final vary = result.headers.get(HttpHeaders.varyHeader) ?? '';
-    final varies = vary
-        .split(',')
-        .any((value) => value.trim().toLowerCase() == 'origin');
-    if (!varies) result.headers.add(HttpHeaders.varyHeader, 'Origin');
 
     return result;
   }
 }
 
+/// Writes [grant] onto [headers], replacing any grant already there.
+void applyCorsGrant(Headers headers, CorsGrant grant) {
+  headers.set(HttpHeaders.accessControlAllowOriginHeader, grant.allowOrigin);
+
+  if (grant.allowCredentials) {
+    headers.set(HttpHeaders.accessControlAllowCredentialsHeader, 'true');
+  } else {
+    headers.remove(HttpHeaders.accessControlAllowCredentialsHeader);
+  }
+
+  // The allowed origin is reflected from the request, so the response and
+  // its `Access-Control-Allow-Origin` both vary by `Origin`. Without this a
+  // shared cache can hand one origin's response -- carrying that origin's
+  // Allow-Origin -- to a different one.
+  final vary = headers.get(HttpHeaders.varyHeader) ?? '';
+  final varies = vary
+      .split(',')
+      .any((value) => value.trim().toLowerCase() == 'origin');
+  if (!varies) headers.add(HttpHeaders.varyHeader, 'Origin');
+}
+
+/// Gives a response no route ever saw the same CORS grant as one that did.
+///
+/// revali_router answers a request that matches no route -- `GET /nope`, or
+/// a preflight for it -- with its canned `404` before [ZonaiCorsPolicy] or
+/// [Cors] runs, so that `404` went out with no `Access-Control-Allow-Origin`
+/// and a browser showed the page a CORS error instead of the `404`. The same
+/// is true of the `500` it sends when a request fails before a route is
+/// chosen. Every response is written by a response handler, so this is the
+/// one place that reaches them.
+///
+/// A response that already carries a grant is left alone: [Cors] made that
+/// decision with the route in hand.
+///
+/// Used as the app's global handler, it replaces the router's default one for
+/// every route that does not bring its own (`@SSE` routes do). That default is
+/// a [DefaultResponseHandler] built from `AppConfig.compression`; this one is
+/// built from [compression], which matches it while [DevApp] keeps the
+/// default `compression`.
+class CorsResponseHandler implements ResponseHandler {
+  const CorsResponseHandler({
+    this.policy = const ZonaiCorsPolicy(),
+    this.compression = const CompressionSettings(),
+  });
+
+  final CorsPolicy policy;
+  final CompressionSettings compression;
+
+  @override
+  Future<void> handle(
+    Response response,
+    RequestContext context,
+    HttpResponse httpResponse,
+  ) {
+    final headers = response.headers;
+    if (headers.get(HttpHeaders.accessControlAllowOriginHeader) == null) {
+      applyCorsGrant(headers, policy.grant(context.headers.get('origin')));
+    }
+
+    return DefaultResponseHandler(
+      compression: compression,
+    ).handle(response, context, httpResponse);
+  }
+}
+
 @Exceptions()
 @Cors()
+@CorsResponseHandler()
 @Trace()
 @ExternalIdpProvisioning()
 @App(flavor: 'dev')

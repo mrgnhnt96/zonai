@@ -28,7 +28,8 @@ final class _CorsWrapper implements RequestWrapper {
 /// Left in place, a page on any domain could make credentialed calls here and
 /// read the replies. `over a real connection` runs a preflight and a real
 /// request through a router wired like the generated one, because a preflight
-/// never reaches [Cors].
+/// never reaches [Cors], and a request for a route that does not exist reaches
+/// neither: only [CorsResponseHandler].
 void main() {
   group('Cors component wiring', () {
     test('is typed as a LifecycleComponent, so it is actually generated', () {
@@ -41,6 +42,16 @@ void main() {
         reason:
             'without this the annotation is inert and every response '
             'keeps the reflected origin and credentials header',
+      );
+    });
+
+    test('CorsResponseHandler is a ResponseHandler, so it is generated', () {
+      expect(
+        const CorsResponseHandler(),
+        isA<ResponseHandler>(),
+        reason:
+            'without this the annotation is inert and a 404 for an unknown '
+            'route goes out with no Access-Control-Allow-Origin',
       );
     });
   });
@@ -58,6 +69,7 @@ void main() {
         cors: policy,
         globalComponents: LifecycleComponentsImpl(
           requestWrappers: [_CorsWrapper(policy)],
+          responseHandler: CorsResponseHandler(policy: policy),
         ),
         routes: [
           Route(
@@ -78,10 +90,14 @@ void main() {
       await server.close(force: true);
     });
 
-    Future<HttpClientResponse> send(String method, {String? origin}) async {
+    Future<HttpClientResponse> send(
+      String method, {
+      String? origin,
+      String path = 'db',
+    }) async {
       final request = await client.openUrl(
         method,
-        Uri.parse('http://127.0.0.1:${server.port}/db'),
+        Uri.parse('http://127.0.0.1:${server.port}/$path'),
       );
       if (origin != null) request.headers.set('origin', origin);
       if (method == 'OPTIONS') {
@@ -98,8 +114,9 @@ void main() {
       HttpClientResponse response, {
       required String allowOrigin,
       required String? allowCredentials,
+      int status = HttpStatus.ok,
     }) {
-      expect(response.statusCode, HttpStatus.ok);
+      expect(response.statusCode, status);
       expect(
         response.headers.value('access-control-allow-origin'),
         allowOrigin,
@@ -138,6 +155,40 @@ void main() {
         });
       });
     }
+
+    group('a route that does not exist', () {
+      // revali_router answers these before any CORS code runs, so without
+      // CorsResponseHandler the 404 carries no Allow-Origin and the browser
+      // shows the page a CORS error instead of the 404.
+      for (final method in ['GET', 'OPTIONS']) {
+        test('$method gives an unlisted origin * with its 404', () async {
+          expectGrant(
+            await send(method, origin: _unlisted, path: 'nope'),
+            allowOrigin: '*',
+            allowCredentials: null,
+            status: HttpStatus.notFound,
+          );
+        });
+
+        test('$method reflects a listed origin with its 404', () async {
+          expectGrant(
+            await send(method, origin: _listed, path: 'nope'),
+            allowOrigin: _listed,
+            allowCredentials: 'true',
+            status: HttpStatus.notFound,
+          );
+        });
+      }
+
+      test('varies on Origin when the request sent none', () async {
+        expectGrant(
+          await send('GET', path: 'nope'),
+          allowOrigin: '*',
+          allowCredentials: null,
+          status: HttpStatus.notFound,
+        );
+      });
+    });
 
     test('varies on Origin for a request that sent none', () async {
       // A cache would otherwise replay this `*` to a listed origin, whose
