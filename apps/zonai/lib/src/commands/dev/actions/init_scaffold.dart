@@ -169,3 +169,30 @@ final class AdminTableRules extends AuthTableRules<AdminTable, Admin> {
   AdminTableRules() : super(admins);
 }
 ''';
+
+/// A table with table rules but no row rules refuses every row-level check,
+/// so without this file the admin sign-in (`POST /auth`) fails with a 500 and
+/// the dashboard cannot be used.
+const initAdminRowRulesDart = '''
+import '../schemas/admins.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
+AdminRowRules main() => AdminRowRules();
+
+final class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
+  AdminRowRules() : super(admins);
+}
+''';
+
+/// The starter Dart files `zonai init` writes, by path, when they are not
+/// already there.
+///
+/// Builds the config each call, so every project gets its own secrets.
+Map<String, String> initScaffoldDartFiles() => {
+  'lib/src/ids.dart': initIdsDart,
+  'lib/src/schemas/admins.dart': initAdminsSchemaDart,
+  'lib/src/config/db_config.dart': initDbConfigDart(),
+  'lib/src/operations/admin_operations.dart': initAdminOperationsDart,
+  'lib/src/rules/admin_table_rules.dart': initAdminRulesDart,
+  'lib/src/rules/admin_row_rules.dart': initAdminRowRulesDart,
+};

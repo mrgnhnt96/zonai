@@ -106,14 +106,10 @@ void _updateGitignore() {
 }
 
 void _createScaffold() {
-  _writeIfAbsent('lib/src/ids.dart', initIdsDart);
-  _writeIfAbsent('lib/src/schemas/admins.dart', initAdminsSchemaDart);
-  _writeIfAbsent('lib/src/config/db_config.dart', initDbConfigDart());
-  _writeIfAbsent(
-    'lib/src/operations/admin_operations.dart',
-    initAdminOperationsDart,
-  );
-  _writeIfAbsent('lib/src/rules/admin_table_rules.dart', initAdminRulesDart);
+  for (final MapEntry(key: path, value: contents)
+      in initScaffoldDartFiles().entries) {
+    _writeIfAbsent(path, contents);
+  }
 
   for (final entry in initEmailTemplates.entries) {
     _writeIfAbsent(
