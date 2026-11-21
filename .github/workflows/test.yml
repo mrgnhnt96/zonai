@@ -907,10 +907,12 @@ jobs:
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     # `actions: read` is for downloading the triggering Compile run's
-    # artifacts -- see "Reuse the Compile run's binary" below.
+    # artifacts -- see "Reuse the Compile run's binary" below. `checks: write`
+    # is for the windows leg's live copy of its log -- see "E2E tests" below.
     permissions:
       contents: read
       actions: read
+      checks: write
     # 18 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048 with FOUR served
     # fixtures, and its dominant step is an AOT compile whose duration is
     # variable -- 10 would be a coin flip and a timeout here would read as a
@@ -1161,24 +1163,52 @@ jobs:
         # Below the job's ceiling on purpose: a step timeout fails the step
         # and keeps its log, where the job timeout cancels and loses it.
         timeout-minutes: 20
-        # THE STEP TIMEOUT ABOVE HAS NOT BEEN ENOUGH ON WINDOWS. This step
-        # stalled on 3 of the 10 windows runs before 2026-10-01 (36776555674,
-        # 36806136842, 36885995810) where it normally takes ~5.5m, and in each
-        # the 20-minute step timeout never fired: the job sat past its own
-        # ceiling until cancelled, and the runner uploaded no log at all
-        # (BlobNotFound). Which fixture stalled is still unknown.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIVE_LOG_NAME: e2e live log (${{ matrix.os }})
+          LIVE_LOG_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        # NEITHER TIMEOUT CAN REPORT A WINDOWS STALL, because the stall is the
+        # runner's. The windows leg of this job, which normally takes ~6m,
+        # stalled 10 times from 2026-08-15 to 2026-11-12 (last 43325800047),
+        # 3 of them after the in-script bound below was added for exactly
+        # this on 2026-10-01. Every one has zero recorded steps, no log at all
+        # (BlobNotFound), and ends exactly 5m00s past the job's ceiling --
+        # the server force-completing a job whose runner never answered the
+        # cancel. A healthy windows runner that
+        # times out (cli, 36789396290) keeps its steps and log. The step
+        # timeout is enforced by that same unresponsive runner, and anything
+        # the script prints reaches GitHub only through it. Which fixture was
+        # running, or whether the tests were the cause, is still unknown.
         #
-        # So the run bounds itself, below the step timeout, and keeps its own
-        # copy of the output for the upload below. `tail` streams that copy
-        # into the job log while it runs. On Windows the processes still alive
-        # afterwards are listed too: Git Bash's `kill` does not reach a native
-        # process's children, so a stopped `zonai serve` may leave its worker
-        # executables behind, and that is the first suspect.
+        # So on windows the log also leaves the machine by another path:
+        # tool/ci/e2e_live_log.sh keeps a check run named "e2e live log
+        # (windows-latest)" on the commit, pushes the log's tail to it every
+        # minute, marks it failed once the run is past its bound, and closes
+        # it with the run's result. After a stall, that check run holds the
+        # last lines and the time the machine last answered.
+        #
+        # The bound itself stays: a run that is merely slow still stops at
+        # 17 minutes with a readable log. On windows the processes still
+        # alive afterwards are listed too: Git Bash's `kill` does not reach a
+        # native process's children, so a stopped `zonai serve` may leave its
+        # worker executables behind.
         run: |
           mkdir -p test-logs
           : > test-logs/e2e.log
           tail -F test-logs/e2e.log &
           tail_pid=$!
+          live_log_id=""
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            live_log_id="$(bash tool/ci/e2e_live_log.sh start 2> test-logs/live-log.txt)" || live_log_id=""
+            if [ -n "${live_log_id}" ]; then
+              # 17m bound + 60s kill-after + a minute's grace.
+              bash tool/ci/e2e_live_log.sh watch "${live_log_id}" test-logs/e2e.log 1140 \
+                >> test-logs/live-log.txt 2>&1 &
+              watch_pid=$!
+            else
+              echo "::warning::could not open the e2e live log check run; see test-logs/live-log.txt"
+            fi
+          fi
           # GNU timeout: on PATH in Git Bash and ubuntu; Homebrew's coreutils
           # names it gtimeout on macOS. Without either the run is unbounded,
           # as it was before.
@@ -1198,6 +1228,14 @@ jobs:
             tasklist //v > test-logs/tasklist.txt 2>&1 || true
             echo "processes still running that may be ours:"
             grep -iE 'zonai|db_|dart' test-logs/tasklist.txt || echo "  (none)"
+          fi
+          if [ -n "${live_log_id}" ]; then
+            # The watcher exits on this file rather than on a kill, so an
+            # update it has in flight cannot land after the final one.
+            : > test-logs/e2e.log.done
+            wait "${watch_pid}" 2>/dev/null || true
+            bash tool/ci/e2e_live_log.sh finish "${live_log_id}" test-logs/e2e.log "${status}" \
+              >> test-logs/live-log.txt 2>&1 || echo "::warning::could not close the e2e live log check run; see test-logs/live-log.txt"
           fi
           if [ "${status}" -eq 124 ] || [ "${status}" -eq 137 ]; then
             echo "::error::test e2e ran past 17 minutes and was stopped. The last fixture step in the log is where it stalled; the e2e-test-log artifact has the full output."
