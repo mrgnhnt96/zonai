@@ -71,8 +71,16 @@ extension TableExtensions<S extends rd.Schema<R>, R> on rd.TableMeta<S, R> {
           if (!mutable.containsKey(column.name)) {
             mutable[column.name] = column.isNullable ? null : '';
           }
+        // A column left out of an insert is stored with its default, so the
+        // row rules see -- and the row inserted -- carries that default
+        // rather than being refused as missing. A SQL expression default
+        // (`CURRENT_TIMESTAMP`) has no value until the database runs it.
         default:
-          break;
+          if (stored || mutable.containsKey(column.name)) break;
+          if (column.defaultValue case final value?
+              when value is! rd.Expression) {
+            mutable[column.name] = column.encode(value);
+          }
       }
     }
 

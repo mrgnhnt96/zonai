@@ -103,7 +103,70 @@ final class _RecordingTable extends Table<_Recording> {
   final ColumnType<String?> note;
 }
 
+class _Account {
+  const _Account({required this.id, required this.plan, required this.credits});
+
+  final String id;
+  final String plan;
+  final int credits;
+}
+
+final class _AccountTable extends Table<_Account> {
+  _AccountTable(super.$)
+    : id = $.text('id', (s) => s.id),
+      plan = $.text('plan', (s) => s.plan, defaultValue: 'free'),
+      credits = $.integer('credits', (s) => s.credits, defaultValue: 0);
+
+  @override
+  _Account fromRow(RowReader read) =>
+      _Account(id: read(id), plan: read(plan), credits: read(credits));
+
+  final TextColumn id;
+  final TextColumn plan;
+  final ColumnType<int> credits;
+}
+
 void main() {
+  group('a required column with a default', () {
+    late rd.TableMeta<_AccountTable, _Account> rows;
+
+    setUp(() {
+      final schema = table('accounts', _AccountTable.new);
+      rows = schema.$ as TableMeta<_AccountTable, _Account>;
+    });
+
+    test('left out of an insert, takes its default', () {
+      final row = rows.safeCreate({'id': 'a1'});
+
+      expect(row.plan, 'free');
+      expect(row.credits, 0);
+    });
+
+    test('sent by the caller, keeps the caller\'s value', () {
+      final row = rows.safeCreate({'id': 'a1', 'plan': 'pro', 'credits': 5});
+
+      expect(row.plan, 'pro');
+      expect(row.credits, 5);
+    });
+
+    test('sent as null, is still refused', () {
+      expect(
+        () => rows.safeCreate({'id': 'a1', 'plan': null}),
+        throwsA(
+          isA<InvalidBodyException>().having(
+            (e) => e.message,
+            'message',
+            'Column "plan" on "accounts" cannot be null',
+          ),
+        ),
+      );
+    });
+
+    test('left out, is inserted with its default', () {
+      expect(rows.values(rows.safeCreate({'id': 'a1'})), ['a1', 'free', 0]);
+    });
+  });
+
   group('a value from the caller its column cannot hold', () {
     late rd.TableMeta<_RecordingTable, _Recording> rows;
 
