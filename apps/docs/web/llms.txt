@@ -55,6 +55,7 @@ Full walkthrough: https://docs.zonai.dev/getting-started/quick-start
 - [zonai.yaml Reference](https://docs.zonai.dev/configuration/zonai-yaml): Paths, version, server settings, and the `client:` block for `zonai gen client`.
 - [App Config](https://docs.zonai.dev/configuration/app-config): `AppConfig` — `baseUrl`, JWT secret, SMTP, photos, workers.
 - [Environment Variables](https://docs.zonai.dev/configuration/environment-variables): Compile-time `.env` secrets, `--dart-define` overrides (there is no `--dart-define-from-file`), and optional `ZONAI_*` runtime tuning.
+- [CORS and Allowed Origins](https://docs.zonai.dev/configuration/cors): Loopback origins and `ZONAI_ALLOWED_ORIGINS` entries get a credentialed CORS grant; every other origin gets `*` without credentials. Entries are exact origins, read at runtime, not loaded from `.env`.
 
 ## Schemas
 
