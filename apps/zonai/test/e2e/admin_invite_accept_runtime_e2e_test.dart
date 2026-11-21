@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file/local.dart';
@@ -12,8 +11,8 @@ import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../support/e2e_fixture.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// `ZonaiDb.acceptAdminInvite` -- direct acceptance
 /// (`docs/design/admin-invite-design.md` §3.3).
@@ -65,8 +64,12 @@ void main() {
 
       projectRoot = createCanonicalTempSync('zonai_admin_invite_accept_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
+        projectRoot: projectRoot,
+        repoRoot: repoRoot,
+        packageName: 'zonai_oauth_e2e',
+      );
       _rewriteStubBaseUrl(
         projectRoot: projectRoot,
         baseUrl: 'http://127.0.0.1:1',
@@ -90,12 +93,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'generate',
@@ -104,7 +107,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'apply',
@@ -390,8 +393,6 @@ void main() {
 bool get _runningOnDartVm =>
     p.basename(Platform.resolvedExecutable).toLowerCase().startsWith('dart');
 
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
 Set<ScopedRef<dynamic>> _e2eScopeOverrides(
   Settings settings, {
   AppConfig? appConfig,
@@ -413,37 +414,6 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
   };
 }
 
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  // Matches the `e2e/oauth` fixture's own package name -- its
-  // `lib/src/schemas/users.dart` imports `package:zonai_oauth_e2e/src/ids.dart`
-  // by that literal name, so this copy must keep it too.
-  pubspec.writeAsStringSync('''
-name: zonai_oauth_e2e
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
 void _rewriteStubBaseUrl({
   required Directory projectRoot,
   required String baseUrl,
@@ -461,20 +431,4 @@ void _rewriteStubBaseUrl({
     reason: 'stub base URL placeholder was not found in users.dart',
   );
   usersSchema.writeAsStringSync(rewritten);
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }

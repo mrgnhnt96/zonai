@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file/local.dart';
@@ -12,8 +11,8 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
+import '../support/e2e_fixture.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// `expect` on an update: a precondition the target rows must meet, answered
 /// with 412 and the current rows instead of a write when they do not.
@@ -55,8 +54,12 @@ void main() {
 
       projectRoot = createCanonicalTempSync('zonai_data_plane_access_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
+        projectRoot: projectRoot,
+        repoRoot: repoRoot,
+        packageName: 'zonai_data_plane_access_repro',
+      );
 
       final pubGet = await Process.run(Platform.resolvedExecutable, const [
         'pub',
@@ -76,12 +79,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'generate',
@@ -90,7 +93,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'apply',
@@ -407,52 +410,4 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
         () => ConfigResolver.fixed(appConfig),
       ),
   };
-}
-
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-/// See the note in `admin_password_update_e2e_test.dart`: the fixture depends
-/// only on `zonai_schema`, so it cannot JIT-link a project-linked entry.
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: zonai_data_plane_access_repro
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }
