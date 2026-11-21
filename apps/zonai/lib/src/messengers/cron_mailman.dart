@@ -9,14 +9,32 @@ import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 
 class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
-  CronMailman()
+  CronMailman({super.warmRequestTimeout = requestTimeout})
     : super(
         debugName: debug,
         executablePath: settings.compiledCronsPath,
         fromJson: CronResponse.fromJson,
       );
 
+  /// A mailman for one manual run of a cron (`POST /crons/run`), whose
+  /// reply only comes once the job has finished.
+  CronMailman.manualRun() : this(warmRequestTimeout: manualRunTimeout);
+
   static const debug = 'CRON';
+
+  /// Crons are app code that does I/O, and stopping the schedule waits on
+  /// the tasks it cancels, so the 1s default would read ordinary work as a
+  /// stuck worker.
+  static const requestTimeout = Duration(seconds: 10);
+
+  /// How long a manual run may take before its caller is told it failed.
+  ///
+  /// A [RunCronJobRequest] is answered only when the job returns, and a job
+  /// is free to take minutes. Cut off any earlier, the caller is told the run
+  /// failed while the job carries on, and what it wrote never reaches the
+  /// run's result. Still finite, so a job that hangs does not hold its
+  /// worker forever.
+  static const manualRunTimeout = Duration(minutes: 15);
 
   @override
   bool isOutOfBandNotification(CronResponse response) {

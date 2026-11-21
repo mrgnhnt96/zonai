@@ -32,7 +32,7 @@ extension _RunCronJobX on ZonaiDb {
     }
 
     final stopwatch = Stopwatch()..start();
-    final mailman = CronMailman();
+    final mailman = CronMailman.manualRun();
     final CronJobRunResponse response;
     try {
       response = await mailman.send<CronJobRunResponse>(
