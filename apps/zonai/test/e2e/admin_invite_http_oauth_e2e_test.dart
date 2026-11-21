@@ -9,13 +9,12 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/domain/settings.dart';
-import 'package:zonai/src/utils/args.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
-import '../../lib/gen/server/.revali/server/server.dart' as gen_server;
+import '../support/e2e_fixture.dart';
+import '../support/live_server.dart';
 import '../support/oauth_stub_server.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// HTTP-layer proof for `docs/design/admin-invite-design.md` §3/§4, over a REAL
 /// socket against the actual generated server (`apps/zonai/lib/gen/server`,
@@ -89,7 +88,7 @@ void main() {
   group('admin invite HTTP e2e (e2e/oauth)', () {
     late Directory projectRoot;
     late OAuthStubServer stub;
-    late _LiveServer server;
+    late LiveServer server;
     late http.Client client;
     final unique = DateTime.now().microsecondsSinceEpoch;
 
@@ -98,13 +97,13 @@ void main() {
 
       stub = await OAuthStubServer.start();
 
-      final fixtureRoot = _resolveFixture('oauth');
+      final fixtureRoot = resolveFixture('oauth');
       projectRoot = createCanonicalTempSync(
         'zonai_admin_invite_http_oauth_e2e_',
       );
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
         projectRoot: projectRoot,
         repoRoot: repoRoot,
         packageName: 'zonai_oauth_e2e',
@@ -123,12 +122,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'generate',
@@ -137,7 +136,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'apply',
@@ -146,7 +145,7 @@ void main() {
         ]);
       }, override: _e2eScopeOverrides(settings));
 
-      server = await _LiveServer.start(settings);
+      server = await LiveServer.start(settings, captureLogs: true);
       client = http.Client();
     });
 
@@ -756,7 +755,7 @@ void main() {
 
 Future<String> _signUp(
   http.Client client,
-  _LiveServer server, {
+  LiveServer server, {
   required String table,
   required String email,
   required String password,
@@ -779,7 +778,7 @@ Future<String> _signUp(
 
 Future<Map<String, dynamic>> _getMembers(
   http.Client client,
-  _LiveServer server,
+  LiveServer server,
   String adminJwt,
 ) async {
   final response = await client.get(
@@ -805,7 +804,7 @@ final _oauthSecretsOnTheWire = <String>[];
 /// callers read `.statusCode` and, on success, the `x-auth` header.
 Future<http.Response> _acceptInvite(
   http.Client client,
-  _LiveServer server, {
+  LiveServer server, {
   required String provider,
   required String inviteToken,
   required String code,
@@ -854,128 +853,12 @@ Map<String, dynamic> _asMap(http.Response response) {
 }
 
 // ===========================================================================
-// A real, live server, bound in-process (see the file doc comment for why).
-// ===========================================================================
-
-class _LiveServer {
-  _LiveServer._(this._httpServer, this._logBuffer);
-
-  final HttpServer _httpServer;
-  final StringBuffer _logBuffer;
-
-  Uri uri(String path, [Map<String, String>? query]) =>
-      Uri.http('127.0.0.1:${_httpServer.port}', path, query);
-
-  String get capturedLogOutput => _logBuffer.toString();
-
-  static Future<_LiveServer> start(Settings settings) async {
-    final logBuffer = StringBuffer();
-    final logController = StreamController<List<int>>();
-    logController.stream.transform(utf8.decoder).listen(logBuffer.write);
-    final captureSink = IOSink(logController.sink);
-
-    // Overriding `loggerProvider` below is NOT enough to see request logging,
-    // and for a long time this class quietly proved nothing because of it.
-    //
-    // `TraceId`'s lifecycle component re-overrides `loggerProvider` for the
-    // duration of every request with `Logger.print(...)`
-    // (`components/lifecycle_components/trace_id.dart`), which writes through
-    // `PrintSink` -> Dart's `print`. The injected `captureSink` is discarded
-    // at that point, so `capturedLogOutput` only ever held the handful of
-    // startup lines emitted before the first request -- 178 bytes of config-
-    // executable chatter, against which any `isNot(contains(...))` passes for
-    // free.
-    //
-    // `print` is zone-scoped, so capturing the zone is what actually works.
-    // The server's request loop is started inside `createServer` and inherits
-    // this zone, so every later request logs through here. The line is still
-    // forwarded to the parent zone: swallowing it would make a failing run
-    // harder to read, and the buffer is for asserting on, not for hiding
-    // output.
-    final httpServer = await runZoned(
-      () => runMergedScopedFuture(
-        () => gen_server.createServer(null, const []),
-        override: {
-          // The four this file actually needs to control.
-          argsProvider.overrideWith(
-            () => Args.parse(const ['--host=127.0.0.1', '--port=0']),
-          ),
-          fsProvider.overrideWith(LocalFileSystem.new),
-          loggerProvider.overrideWith(
-            () => Logger(
-              level: .verbose,
-              stdout: captureSink,
-              stderr: captureSink,
-            ),
-          ),
-          settingsProvider.overrideWith(() => settings),
-          // Everything else, at its production default -- mirrors
-          // `apps/zonai/lib/src/bootstrap.dart`'s `runZonai` registration set,
-          // since that is the only place this exact list is proven correct.
-          envProvider,
-          courierProvider,
-          processProvider,
-          cleanUpProvider,
-          mutationsProvider,
-          keyboardInputProvider,
-          messageContractHashProvider,
-          migrateProvider,
-          extensionsProvider,
-          executableStopProvider,
-          rulesProvider,
-          rateLimitsProvider,
-          cronsProvider,
-          rateLimiterProvider,
-          configProvider,
-          configResolverProvider,
-          killProvider,
-          stdinProvider,
-          operationsProvider,
-          revaliProvider,
-          zonaiDbProvider,
-          versionsProvider,
-          schemaVersionCheckProvider,
-          dartSdkCheckProvider,
-        },
-      ),
-      zoneSpecification: ZoneSpecification(
-        print: (self, parent, zone, line) {
-          logBuffer.writeln(line);
-          parent.print(zone, line);
-        },
-      ),
-    );
-
-    return _LiveServer._(httpServer, logBuffer);
-  }
-
-  Future<void> close() => _httpServer.close(force: true);
-}
-
-// ===========================================================================
 // Fixture plumbing -- matches the pattern every other file in this
 // directory already uses (see e.g. admin_invite_runtime_e2e_test.dart).
 // ===========================================================================
 
 bool get _runningOnDartVm =>
     p.basename(Platform.resolvedExecutable).toLowerCase().startsWith('dart');
-
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
-Directory _resolveFixture(String name) {
-  var fixtureRoot = Directory(
-    p.normalize(p.join(Directory.current.path, '..', '..', 'e2e', name)),
-  );
-  if (!fixtureRoot.existsSync()) {
-    fixtureRoot = Directory(p.normalize('e2e/$name'));
-  }
-  expect(
-    fixtureRoot.existsSync(),
-    isTrue,
-    reason: 'fixture missing at ${fixtureRoot.path}',
-  );
-  return fixtureRoot;
-}
 
 Set<ScopedRef<dynamic>> _e2eScopeOverrides(Settings settings) {
   return {
@@ -989,35 +872,6 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(Settings settings) {
     executableStopProvider,
     courierProvider,
   };
-}
-
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-  required String packageName,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: $packageName
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
 }
 
 void _rewriteStubBaseUrl({
@@ -1037,20 +891,4 @@ void _rewriteStubBaseUrl({
     reason: 'stub base URL placeholder was not found in users.dart',
   );
   usersSchema.writeAsStringSync(rewritten);
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }

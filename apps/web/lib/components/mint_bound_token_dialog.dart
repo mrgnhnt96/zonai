@@ -68,7 +68,9 @@ class _MintBoundTokenDialogState extends State<MintBoundTokenDialog> {
     // open (closing the panel would take the dialog and any unread secret
     // with it), so it is the wrong place to decide this dialog's fate.
     final listener = (web.Event event) {
-      if (event is! web.KeyboardEvent || event.key != 'Escape') return;
+      if (!event.isA<web.KeyboardEvent>()) return;
+      event as web.KeyboardEvent;
+      if (event.key != 'Escape') return;
       if (!mounted) return;
       event.preventDefault();
       event.stopPropagation();

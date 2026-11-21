@@ -64,7 +64,9 @@ class _PushSendDialogState extends State<PushSendDialog> {
   }
 
   void _onDocumentKey(web.Event event) {
-    if (event is! web.KeyboardEvent || event.key != 'Escape') return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
+    if (event.key != 'Escape') return;
     if (!context.read(pushSendProvider).isOpen) return;
     event.preventDefault();
     context.read(pushSendProvider.notifier).close();

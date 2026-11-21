@@ -10,12 +10,11 @@ import 'package:test/test.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
-import 'package:zonai/src/utils/args.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
-import '../../lib/gen/server/.revali/server/server.dart' as gen_server;
+import '../support/e2e_fixture.dart';
+import '../support/live_server.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// Anonymous accounts over a REAL socket, against the actual generated server
 /// (`apps/zonai/lib/gen/server`, the code `zonai serve` embeds).
@@ -32,18 +31,18 @@ void main() {
   group('anonymous auth HTTP e2e (e2e/anonymous_auth)', () {
     late Directory projectRoot;
     late Settings settings;
-    late _LiveServer server;
+    late LiveServer server;
     late http.Client client;
     final unique = DateTime.now().microsecondsSinceEpoch;
 
     setUpAll(() async {
       if (!_runningOnDartVm) return;
 
-      final fixtureRoot = _resolveFixture('anonymous_auth');
+      final fixtureRoot = resolveFixture('anonymous_auth');
       projectRoot = createCanonicalTempSync('zonai_anonymous_auth_http_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
         projectRoot: projectRoot,
         repoRoot: repoRoot,
         packageName: 'zonai_anonymous_auth_fixture',
@@ -61,12 +60,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'generate',
@@ -75,7 +74,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'apply',
@@ -87,7 +86,7 @@ void main() {
       // The upgrade code is the fixed insecure-test-mode one. In-process, so
       // this reaches the server's own mutator.
       debugInsecureTestMode = true;
-      server = await _LiveServer.start(settings);
+      server = await LiveServer.start(settings);
       client = http.Client();
     });
 
@@ -278,91 +277,12 @@ Map<String, dynamic> _asMap(http.Response response) {
 }
 
 // ===========================================================================
-// A real, live server, bound in-process.
-// ===========================================================================
-
-class _LiveServer {
-  _LiveServer._(this._httpServer);
-
-  final HttpServer _httpServer;
-
-  Uri uri(String path, [Map<String, String>? query]) =>
-      Uri.http('127.0.0.1:${_httpServer.port}', path, query);
-
-  static Future<_LiveServer> start(Settings settings) async {
-    final httpServer = await runMergedScopedFuture(
-      () => gen_server.createServer(null, const []),
-      override: _serverScopeOverrides(settings),
-    );
-
-    return _LiveServer._(httpServer);
-  }
-
-  Future<void> close() => _httpServer.close(force: true);
-}
-
-/// `apps/zonai/lib/src/bootstrap.dart`'s `runZonai` registration set, which is
-/// also what lets a test-side `zonaiDB` resolve to the server's own instance:
-/// `zonaiDbProvider` caches a module-level singleton, so registering it
-/// unoverridden here hands back the same database the routes are answering
-/// from.
-Set<ScopedRef<dynamic>> _serverScopeOverrides(Settings settings) => {
-  argsProvider.overrideWith(
-    () => Args.parse(const ['--host=127.0.0.1', '--port=0']),
-  ),
-  fsProvider.overrideWith(LocalFileSystem.new),
-  loggerProvider.overrideWith(() => Logger(level: .error)),
-  settingsProvider.overrideWith(() => settings),
-  envProvider,
-  courierProvider,
-  processProvider,
-  cleanUpProvider,
-  mutationsProvider,
-  keyboardInputProvider,
-  messageContractHashProvider,
-  migrateProvider,
-  extensionsProvider,
-  executableStopProvider,
-  rulesProvider,
-  rateLimitsProvider,
-  cronsProvider,
-  rateLimiterProvider,
-  configProvider,
-  configResolverProvider,
-  killProvider,
-  stdinProvider,
-  operationsProvider,
-  revaliProvider,
-  zonaiDbProvider,
-  versionsProvider,
-  schemaVersionCheckProvider,
-  dartSdkCheckProvider,
-};
-
-// ===========================================================================
 // Fixture plumbing -- matches the pattern every other file in this
 // directory already uses.
 // ===========================================================================
 
 bool get _runningOnDartVm =>
     p.basename(Platform.resolvedExecutable).toLowerCase().startsWith('dart');
-
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
-Directory _resolveFixture(String name) {
-  var fixtureRoot = Directory(
-    p.normalize(p.join(Directory.current.path, '..', '..', 'e2e', name)),
-  );
-  if (!fixtureRoot.existsSync()) {
-    fixtureRoot = Directory(p.normalize('e2e/$name'));
-  }
-  expect(
-    fixtureRoot.existsSync(),
-    isTrue,
-    reason: 'fixture missing at ${fixtureRoot.path}',
-  );
-  return fixtureRoot;
-}
 
 Set<ScopedRef<dynamic>> _e2eScopeOverrides(Settings settings) {
   return {
@@ -376,49 +296,4 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(Settings settings) {
     executableStopProvider,
     courierProvider,
   };
-}
-
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-  required String packageName,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: $packageName
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }

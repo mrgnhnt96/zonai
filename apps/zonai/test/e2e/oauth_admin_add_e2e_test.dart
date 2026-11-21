@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
@@ -13,9 +12,9 @@ import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../support/e2e_fixture.dart';
 import '../support/oauth_stub_server.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// End-to-end proof for oauth-admin-add's premise: `zonai db admin add`
 /// (`ZonaiDb.createAdmin`) can create a row on an `AsAdmin` table that mixes
@@ -63,8 +62,12 @@ void main() {
 
       projectRoot = createCanonicalTempSync('zonai_oauth_admin_add_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
+        projectRoot: projectRoot,
+        repoRoot: repoRoot,
+        packageName: 'zonai_oauth_admin_add_e2e',
+      );
       _rewriteStubBaseUrl(projectRoot: projectRoot, baseUrl: stub.baseUrl);
 
       final pubGet = await Process.run(Platform.resolvedExecutable, const [
@@ -85,12 +88,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'generate',
@@ -99,7 +102,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'apply',
@@ -297,41 +300,6 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
   };
 }
 
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-/// The fixture project only depends on `zonai_schema`, not `zonai` itself,
-/// so it can't JIT-link a project-linked entry (`package:zonai/...` isn't
-/// resolvable from it). Forcing Mailman/IPC workers skips that project-linked
-/// re-exec (see `maybeReexecProjectRuntime`) and drives `db migrate
-/// generate`/`apply` through the already-compiled worker executables instead.
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: zonai_oauth_admin_add_e2e
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
 /// The stub server's port is only known once it has bound (after this
 /// project is copied into a temp dir), so the schema's placeholder base URL
 /// is filled in here rather than baked into the checked-in fixture.
@@ -352,20 +320,4 @@ void _rewriteStubBaseUrl({
     reason: 'stub base URL placeholder was not found in admins.dart',
   );
   adminsSchema.writeAsStringSync(rewritten);
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }

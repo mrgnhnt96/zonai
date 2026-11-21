@@ -217,7 +217,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   void _onDocumentKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (!mounted || !_open) return;
 
     if (event.key == 'Escape') {
@@ -384,7 +385,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   void _focusPanel() {
     if (!context.binding.isClient || !mounted) return;
     final el = web.document.querySelector('.table-row-detail-panel');
-    if (el is web.HTMLElement) {
+    if (el.isA<web.HTMLElement>()) {
+      el as web.HTMLElement;
       el.focus();
     }
   }
@@ -407,14 +409,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (!context.binding.isClient) return false;
     _unbindResizeHandleDom();
     final panel = web.document.querySelector('.table-row-detail-panel.table-row-detail--open');
-    if (panel is! web.HTMLElement) return false;
+    if (!panel.isA<web.HTMLElement>()) return false;
+    panel as web.HTMLElement;
     _resizeBoundPanel = panel;
     _syncPanelWidthToViewport();
     _applyPanelWidthPx(_panelWidthPx);
 
     final handle = panel.querySelector('.table-row-detail-resize-handle');
     final down = _handleResizeDownListener;
-    if (handle is web.HTMLElement && down != null) {
+    if (handle.isA<web.HTMLElement>() && down != null) {
+      handle as web.HTMLElement;
       handle.addEventListener('mousedown', down);
       handle.addEventListener('pointerdown', down);
     }
@@ -425,7 +429,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final panel = _resizeBoundPanel;
     final down = _handleResizeDownListener;
     final handle = panel?.querySelector('.table-row-detail-resize-handle');
-    if (handle is web.HTMLElement && down != null) {
+    if (handle.isA<web.HTMLElement>() && down != null) {
+      handle as web.HTMLElement;
       handle.removeEventListener('mousedown', down);
       handle.removeEventListener('pointerdown', down);
     }
@@ -1858,7 +1863,7 @@ class _DiscardChangesDialogState extends State<_DiscardChangesDialog> {
   void _focusKeepButton() {
     if (!mounted || !context.binding.isClient) return;
     final el = web.document.querySelector('.table-row-detail-discard-btn--keep');
-    if (el is web.HTMLElement) el.focus();
+    if (el.isA<web.HTMLElement>()) (el as web.HTMLElement).focus();
   }
 
   @override
@@ -2073,7 +2078,8 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
   void _showTooltip(web.Event event) {
     if (!context.binding.isClient) return;
     final el = event.currentTarget;
-    if (el is! web.HTMLElement) return;
+    if (!el.isA<web.HTMLElement>()) return;
+    el as web.HTMLElement;
     final rect = el.getBoundingClientRect();
     _tooltipTop = rect.bottom + 6;
     _tooltipLeft = rect.left + rect.width / 2;
@@ -2088,7 +2094,8 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
   }
 
   void _onKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (event.key != 'Enter' && event.key != ' ') return;
     event.preventDefault();
     _onCopy();

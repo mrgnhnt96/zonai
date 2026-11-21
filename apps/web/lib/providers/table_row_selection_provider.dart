@@ -1,4 +1,5 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 
 import 'table_focus_provider.dart';
@@ -34,7 +35,7 @@ class TableRowSelectionNotifier extends Notifier<TableRowSelectionState> {
 
   /// Call from the row checkbox `click` handler before `onChange` runs.
   void noteCheckboxClick(web.Event event) {
-    _shiftClick = event is web.MouseEvent && event.shiftKey;
+    _shiftClick = event.isA<web.MouseEvent>() && (event as web.MouseEvent).shiftKey;
   }
 
   void handleRowCheckboxChange({

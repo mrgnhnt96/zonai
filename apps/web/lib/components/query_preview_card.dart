@@ -73,7 +73,8 @@ class _CopyPreviewTextButtonState extends State<CopyPreviewTextButton> {
   void _showTooltip(web.Event event) {
     if (!context.binding.isClient) return;
     final el = event.currentTarget;
-    if (el is! web.HTMLElement) return;
+    if (!el.isA<web.HTMLElement>()) return;
+    el as web.HTMLElement;
     final rect = el.getBoundingClientRect();
     _tooltipTop = rect.bottom + 6;
     _tooltipLeft = rect.left + rect.width / 2;
@@ -88,7 +89,8 @@ class _CopyPreviewTextButtonState extends State<CopyPreviewTextButton> {
   }
 
   void _onKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (event.key != 'Enter' && event.key != ' ') return;
     event.preventDefault();
     _onCopy();

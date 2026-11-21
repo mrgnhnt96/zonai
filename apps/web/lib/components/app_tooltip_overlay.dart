@@ -1,6 +1,7 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 
 import '../constants/theme.dart';
@@ -65,7 +66,8 @@ void showAppTooltipFromEvent(
   String? anchorSelector,
 }) {
   final el = event.currentTarget;
-  if (el is! web.HTMLElement) return;
+  if (!el.isA<web.HTMLElement>()) return;
+  el as web.HTMLElement;
   var anchor = el as web.Element;
   if (anchorSelector != null) {
     final found = el.querySelector(anchorSelector);

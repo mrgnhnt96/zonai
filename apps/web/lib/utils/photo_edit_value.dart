@@ -36,6 +36,7 @@ final class PhotoEditExistingItem extends PhotoEditItem {
   const PhotoEditExistingItem({required this.id, this.previewUrl});
 
   final String id;
+  @override
   final String? previewUrl;
 }
 

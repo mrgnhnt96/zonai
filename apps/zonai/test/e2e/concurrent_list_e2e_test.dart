@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file/local.dart';
@@ -10,8 +9,8 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import '../support/e2e_fixture.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// Reproduces the "parallel /db/list requests intermittently 500" report:
 /// firing several list requests at once against a live server reliably
@@ -50,8 +49,12 @@ void main() {
 
       projectRoot = createCanonicalTempSync('zonai_concurrency_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
+        projectRoot: projectRoot,
+        repoRoot: repoRoot,
+        packageName: 'zonai_concurrency_repro',
+      );
 
       final pubGet = await Process.run(Platform.resolvedExecutable, const [
         'pub',
@@ -65,12 +68,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'generate',
@@ -79,7 +82,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, [
+        await runZonaiInFixture(projectRoot, [
           'db',
           'migrate',
           'apply',
@@ -153,55 +156,4 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(Settings settings) {
     cleanUpProvider,
     executableStopProvider,
   };
-}
-
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-/// The fixture project only depends on `zonai_schema`, not `zonai` itself,
-/// so it can't JIT-link a project-linked entry (`package:zonai/...` isn't
-/// resolvable from it). Forcing Mailman/IPC workers skips that project-linked
-/// re-exec (see `maybeReexecProjectRuntime`) and drives `db migrate
-/// generate`/`apply` through the already-compiled worker executables instead.
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: zonai_concurrency_repro
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }

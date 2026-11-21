@@ -42,17 +42,18 @@ bool _eventTargetsDatetimePicker(web.KeyboardEvent event) {
   final triggers = web.document.querySelectorAll('.table-edit-datetime__trigger--open');
   for (var i = 0; i < triggers.length; i++) {
     final trigger = triggers.item(i);
-    if (trigger is! web.Element) continue;
+    if (!trigger.isA<web.Element>()) continue;
+    trigger as web.Element;
     final root = trigger.closest('.table-edit-datetime');
     if (root == null) continue;
     final target = event.target;
-    if (target is web.Node && root.contains(target)) return true;
+    if (target.isA<web.Node>() && root.contains(target as web.Node)) return true;
     final active = web.document.activeElement;
     if (active is web.Node && root.contains(active)) return true;
   }
 
   for (final node in [event.target, web.document.activeElement]) {
-    if (node is web.Element && node.closest('.table-edit-datetime') != null) {
+    if (node.isA<web.Element>() && (node as web.Element).closest('.table-edit-datetime') != null) {
       return true;
     }
   }
@@ -215,7 +216,8 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   }
 
   void _onTriggerKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (event.key != ' ' && event.key != 'Enter') return;
     event.preventDefault();
     event.stopPropagation();
@@ -239,7 +241,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     if (!_open || !mounted) return;
     final root = web.document.getElementById(component.id);
     final target = event.target;
-    if (root != null && target is web.Node && root.contains(target)) return;
+    if (root != null && target.isA<web.Node>() && root.contains(target as web.Node)) return;
     _setOpen(false);
   }
 
@@ -247,14 +249,15 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     final root = web.document.getElementById(component.id);
     if (root == null) return false;
     final target = event.target;
-    if (target is web.Node && root.contains(target)) return true;
+    if (target.isA<web.Node>() && root.contains(target as web.Node)) return true;
     final active = web.document.activeElement;
     return active is web.Node && root.contains(active);
   }
 
   void _onDocumentKeyDown(web.Event event) {
     if (!_open || !mounted) return;
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     final key = event.key;
 
     if (key == 'Escape') {
@@ -265,7 +268,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     }
 
     final inside = _eventInsideRoot(event);
-    final target = event.target is web.HTMLElement ? event.target as web.HTMLElement : null;
+    final target = event.target.isA<web.HTMLElement>() ? event.target as web.HTMLElement : null;
 
     if (_isArrowKey(key)) {
       if (!inside) return;
@@ -427,7 +430,8 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     final dayButtons = root.querySelectorAll('.table-edit-datetime__day:not(.table-edit-datetime__day--empty)');
     for (var i = 0; i < dayButtons.length; i++) {
       final node = dayButtons.item(i);
-      if (node is! web.Element) continue;
+      if (!node.isA<web.Element>()) continue;
+      node as web.Element;
       if (node.textContent?.trim() == dayLabel) {
         (node as web.HTMLElement).focus();
         return;
@@ -607,7 +611,9 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                             _selectDay(day);
                           },
                           'keydown': (event) {
-                            if (event is! web.KeyboardEvent || event.key != ' ') return;
+                            if (!event.isA<web.KeyboardEvent>()) return;
+                            event as web.KeyboardEvent;
+                            if (event.key != ' ') return;
                             event.stopPropagation();
                             event.preventDefault();
                             setState(
@@ -745,7 +751,8 @@ Component _timeNumberInput({
 void _selectTimeInputContents(web.Event event) {
   event.stopPropagation();
   final target = event.target;
-  if (target is web.HTMLInputElement) {
+  if (target.isA<web.HTMLInputElement>()) {
+    target as web.HTMLInputElement;
     target.select();
   }
 }

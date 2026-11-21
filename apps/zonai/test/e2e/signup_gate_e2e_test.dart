@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file/local.dart';
@@ -14,8 +13,8 @@ import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart'
     show authChallenges;
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../support/e2e_fixture.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// `beforeSignUp` refusing a registration, against a real compiled project.
 ///
@@ -78,8 +77,12 @@ void main() {
 
       projectRoot = createCanonicalTempSync('zonai_signup_gate_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
+        projectRoot: projectRoot,
+        repoRoot: repoRoot,
+        packageName: 'zonai_signup_gate_repro',
+      );
 
       final pubGet = await Process.run(Platform.resolvedExecutable, const [
         'pub',
@@ -99,12 +102,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, const [
+        await runZonaiInFixture(projectRoot, const [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, const [
+        await runZonaiInFixture(projectRoot, const [
           'db',
           'migrate',
           'generate',
@@ -113,7 +116,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, const [
+        await runZonaiInFixture(projectRoot, const [
           'db',
           'migrate',
           'apply',
@@ -376,53 +379,4 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
         () => ConfigResolver.fixed(appConfig),
       ),
   };
-}
-
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: _forceWorkersEnv,
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-/// The fixture depends on `zonai_schema`, not `zonai`, so it cannot JIT-link a
-/// project-linked entry. Forcing workers skips that re-exec and drives migrate
-/// through the compiled worker executables instead.
-const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: zonai_signup_gate_repro
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }

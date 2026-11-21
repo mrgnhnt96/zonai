@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:test/test.dart';
 import 'package:zonai_client/gen/interfaces.dart';
-import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_playground/gen/zonai/zonai_client.g.dart';
 
 /// The typed `listen` mirror, exercised against a fake data source.

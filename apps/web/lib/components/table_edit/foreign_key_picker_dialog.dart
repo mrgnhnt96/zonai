@@ -111,7 +111,8 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
   }
 
   void _onDocumentKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent) return;
+    if (!event.isA<web.KeyboardEvent>()) return;
+    event as web.KeyboardEvent;
     if (!mounted) return;
     if (event.key != 'Escape') return;
 

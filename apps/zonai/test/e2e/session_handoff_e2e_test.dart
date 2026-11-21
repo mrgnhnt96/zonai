@@ -15,8 +15,8 @@ import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../support/e2e_fixture.dart';
 import '../support/temp_directory.dart';
-import '../support/zonai_cli.dart';
 
 /// A signed-in session hands a command line a one-time code, and the command
 /// line trades it for a session of its own: a separate session row, so
@@ -53,8 +53,12 @@ void main() {
 
       projectRoot = createCanonicalTempSync('zonai_session_handoff_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
-      _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
+      copyFixtureTree(fixtureRoot, projectRoot);
+      rewriteFixturePubspec(
+        projectRoot: projectRoot,
+        repoRoot: repoRoot,
+        packageName: 'zonai_admin_password_update_repro',
+      );
 
       final pubGet = await Process.run(Platform.resolvedExecutable, const [
         'pub',
@@ -74,12 +78,12 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, const [
+        await runZonaiInFixture(projectRoot, const [
           'compile',
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, const [
+        await runZonaiInFixture(projectRoot, const [
           'db',
           'migrate',
           'generate',
@@ -88,7 +92,7 @@ void main() {
           '--no-version-check',
           '--no-schema-version-check',
         ]);
-        await _runZonai(projectRoot, const [
+        await runZonaiInFixture(projectRoot, const [
           'db',
           'migrate',
           'apply',
@@ -533,48 +537,4 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
         () => ConfigResolver.fixed(appConfig),
       ),
   };
-}
-
-Future<void> _runZonai(Directory projectRoot, List<String> args) async {
-  final result = await runZonaiCli(
-    args,
-    workingDirectory: projectRoot.path,
-    environment: const {'ZONAI_FORCE_WORKERS': '1'},
-  );
-  expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
-}
-
-void _rewritePubspecPaths({
-  required Directory projectRoot,
-  required Directory repoRoot,
-}) {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
-  pubspec.writeAsStringSync('''
-name: zonai_admin_password_update_repro
-publish_to: none
-
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-
-dependencies:
-  zonai_schema:
-    path: ${jsonEncode(zonaiSchemaRoot)}
-''');
-}
-
-void _copyTree(Directory source, Directory destination) {
-  for (final entity in source.listSync(recursive: true)) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (relative.startsWith('.zonai') || relative == '.dart_tool') {
-      continue;
-    }
-    final targetPath = p.join(destination.path, relative);
-    if (entity is Directory) {
-      Directory(targetPath).createSync(recursive: true);
-    } else if (entity is File) {
-      Directory(p.dirname(targetPath)).createSync(recursive: true);
-      entity.copySync(targetPath);
-    }
-  }
 }
