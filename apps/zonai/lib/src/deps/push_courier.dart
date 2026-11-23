@@ -3,6 +3,7 @@ import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/push/apns_push_courier.dart';
 import 'package:zonai/src/push/fcm_push_courier.dart';
 import 'package:zonai/src/push/push_courier.dart';
+import 'package:zonai/src/push/web_push_courier.dart';
 
 /// The FCM transport. Overridden with a fake in tests — which is the entire
 /// reason [PushCourier] is an interface; see its doc comment.
@@ -24,6 +25,15 @@ final apnsCourierProvider = create<PushCourier>(
   () => ApnsPushCourier(fileSystem: fs),
 );
 
+/// The Web Push transport, used for `DevicePlatform.web` recipients when
+/// `AppConfig.push.webPush` is set. A provider of its own for the same reason
+/// as [apnsCourierProvider].
+final webPushCourierProvider = create<PushCourier>(
+  () => WebPushCourier(fileSystem: fs),
+);
+
 PushCourier get pushCourier => read(pushCourierProvider);
 
 PushCourier get apnsCourier => read(apnsCourierProvider);
+
+PushCourier get webPushCourier => read(webPushCourierProvider);

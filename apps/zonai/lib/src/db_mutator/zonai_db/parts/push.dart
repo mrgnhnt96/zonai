@@ -203,7 +203,11 @@ extension _PushX on ZonaiDb {
     // cannot. `read` memoizes per scope (`late final _value`), so the provider
     // hands back the same instance every time — the same assumption the
     // fan-out already rests on when it uses a courier as a `Map` key.
-    final transport = identical(route.courier, apnsCourier) ? 'apns' : 'fcm';
+    final transport = switch (route.courier) {
+      final courier when identical(courier, apnsCourier) => 'apns',
+      final courier when identical(courier, webPushCourier) => 'webpush',
+      _ => 'fcm',
+    };
 
     final List<PushOutcome> outcomes;
     try {
@@ -768,6 +772,10 @@ extension _PushX on ZonaiDb {
       DevicePlatform.iosSandbox =>
         config.hasApns ? (courier: apnsCourier, sandbox: true) : null,
       DevicePlatform.android => fcm,
+      // Never FCM or APNs: the token is a browser subscription, which only
+      // its own push service can reach.
+      DevicePlatform.web =>
+        config.hasWebPush ? (courier: webPushCourier, sandbox: false) : null,
       // No platform column, or a value nothing recognised. FCM is the only
       // safe default: it is where every recipient went before platforms
       // existed, and an APNs send to an FCM token fails per-device.
@@ -787,6 +795,9 @@ extension _PushX on ZonaiDb {
         'this recipient is a development-signed iOS build (ios-sandbox), '
             'which only APNs can reach, and AppConfig.push has no apns '
             'configuration',
+      DevicePlatform.web =>
+        'this recipient is a browser (web), which only Web Push can reach, '
+            'and AppConfig.push has no webPush configuration',
       null =>
         'this recipient has no recognised platform and AppConfig.push has no '
             'FCM configuration to fall back on',
