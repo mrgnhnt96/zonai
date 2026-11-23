@@ -35,7 +35,7 @@ final class DeviceTokenTable extends Table<DeviceToken> {
 final deviceTokens = table('device_tokens', DeviceTokenTable.new);
 ```
 
-This is the recommended shape: **one row per device**, with a nullable `deviceToken` column and a plain text `platform` column storing `ios`, `ios-sandbox` or `android`. Someone with a phone and a tablet has two rows. Reinstalling the app usually means a new token and a new row. The dashboard's test-send action recognizes a text column named `platform` (or `device_platform`, `os_platform`, `os`) as the platform column. See [Testing Push Locally](/push/testing-locally#from-the-dashboard).
+This is the recommended shape: **one row per device**, with a nullable `deviceToken` column and a plain text `platform` column storing `ios`, `ios-sandbox`, `android` or `web`. Someone with a phone and a tablet has two rows. Reinstalling the app usually means a new token and a new row. The dashboard's test-send action recognizes a text column named `platform` (or `device_platform`, `os_platform`, `os`) as the platform column. See [Testing Push Locally](/push/testing-locally#from-the-dashboard).
 
 ## Two properties are load-bearing
 
@@ -60,9 +60,10 @@ platformColumn: 'platform',
 | `android` | FCM. There is no alternative; on Android, FCM *is* the transport. |
 | `ios` | APNs directly when `PushConfig.apns` is set, otherwise FCM. The APNs host is production unless `ApnsConfig.useSandbox` says otherwise. |
 | `ios-sandbox` | APNs **sandbox** (`api.sandbox.push.apple.com`), whatever `useSandbox` says, with the same key. Requires `PushConfig.apns`; never sent through FCM. |
+| `web` | Web Push, to the push service the subscription names. Requires `PushConfig.webPush`; never sent through FCM. The token is the browser's `PushSubscription.toJSON()` as a JSON string — see [Reaching browsers with Web Push](/push/configuration#reaching-browsers-with-web-push). |
 | anything unrecognised, or `NULL` | FCM — **and only FCM**, so a setup without it cannot carry the row at all. |
 
-Values are read case-insensitively, `apple`, `iphone` and `ipad` are accepted as `ios`, and `ios_sandbox` and `iosSandbox` are accepted as `ios-sandbox` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back rather than failing everyone else's notification.
+Values are read case-insensitively, `apple`, `iphone` and `ipad` are accepted as `ios`, `ios_sandbox` and `iosSandbox` are accepted as `ios-sandbox`, and `webpush`, `web-push`, `web_push` and `browser` are accepted as `web` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back rather than failing everyone else's notification.
 
 ### Development builds and TestFlight on one server
 
@@ -80,7 +81,7 @@ Those recipients are counted as **transient failures** with a detail naming the 
 
 Transient rather than permanent on purpose: the tokens are valid and the *configuration* is wrong, and pruning there would clear every registration you have over a deployment mistake.
 
-The same holds one platform at a time. An Android recipient with no FCM configured, or an iOS one with neither route configured, fails transiently for the same reason and with a detail naming what is missing.
+The same holds one platform at a time. An Android recipient with no FCM configured, an iOS one with neither route configured, or a web one with no `webPush` configured fails transiently for the same reason and with a detail naming what is missing.
 
 ## Put it on its own table
 
@@ -101,6 +102,7 @@ Which SDK does the registering depends on the route:
 |---|---|
 | FCM (Android, or iOS via FCM) | The Firebase Messaging SDK. The token is an FCM registration token. |
 | APNs direct (iOS) | The OS, natively — `registerForRemoteNotifications`. **No Firebase SDK on the device at all.** The token is the raw APNs device token. |
+| Web Push (browsers, PWAs) | The browser — `pushManager.subscribe` in a page with a service worker. The token is the whole subscription, `JSON.stringify(subscription)`. |
 
 The two are different strings for the same phone, which is the other reason the platform column is not optional guesswork: a token registered through one route is unknown to the other.
 

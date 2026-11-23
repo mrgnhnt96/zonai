@@ -78,7 +78,7 @@ The APNs equivalent is the sandbox above: send to a made-up token and read the `
 
 The admin dashboard can send to real rows of any table with a `deviceToken` column. Open a row and choose **Send test notification**, or select up to 50 rows and send to all of them. The row's transport comes from its platform column, if the table has one. The dashboard recognizes an enum whose values are all platforms, or a text column named `platform`, `device_platform`, `os_platform` or `os`.
 
-A test send is **not** a fan-out. It sends one notification per token through the same transport and classification, and shows the result for each row. It writes nothing: no job row, no pruning, and no `onPushRejected` call. It retries nothing either, so you see the first answer the transport gave. Without `AppConfig.push`, it reports that there is no transport to send through. That makes it the quickest way to see what FCM or APNs says about one specific device.
+A test send is **not** a fan-out. It sends one notification per token through the same transport and classification, and shows the result for each row. It writes nothing: no job row, no pruning, and no `onPushRejected` call. It retries nothing either, so you see the first answer the transport gave. Without `AppConfig.push`, it reports that there is no transport to send through. That makes it the quickest way to see what FCM, APNs or a browser's push service says about one specific device. The transport picker can also force a route for the whole selection, including **Web browser (Web Push)**.
 
 ## A real send
 
@@ -113,4 +113,6 @@ Both are about *observing* the notification rather than sending it, and both loo
 | Job failed with `FCM rejected the credentials (403)` | The service account lacks the Firebase Cloud Messaging API Admin role, or the key belongs to a different project. The job fails, and **no tokens are pruned**. |
 | Android arrives, iOS does not (via FCM) | FCM has no usable APNs credential for that app: the key is missing or expired, or the bundle id is not a push-enabled App ID. Those recipients count as transient failures and are never pruned. See [Dead Tokens](/push/dead-tokens). |
 | `transiently_failed` equals the recipient count, and the job never fails | APNs-only setup with no `platformColumn`. See [Device Tokens](/push/device-tokens#an-apns-only-app-must-name-the-column). |
+| Every web recipient fails with `403 … VAPID was refused` | `WebPushConfig.publicKey` is not the key the browsers subscribed with, usually after a rotation. The app must subscribe again with the current key. Nothing is pruned. See [Dead Tokens](/push/dead-tokens#what-web-push-returns). |
+| A web row fails with `not a Web Push subscription` | The token column holds something other than `JSON.stringify(subscription)`, such as an FCM token written by the wrong code path. |
 | `permanently_rejected` keeps climbing | Normal. It is your uninstall rate. |

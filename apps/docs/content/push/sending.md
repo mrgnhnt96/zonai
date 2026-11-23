@@ -56,7 +56,7 @@ A `before` hook runs prior to the write. A notification announcing something tha
 | Field | |
 |---|---|
 | `title`, `body` | What the person sees. |
-| `collapseKey` | Replaces an earlier undelivered notification carrying the same key instead of stacking beside it — `collapseKey` on FCM, `apns-collapse-id` on APNs. **Set this on anything sent from a fan-out** — see [Delivery Guarantees](/push/delivery-guarantees). |
+| `collapseKey` | Replaces an earlier undelivered notification carrying the same key instead of stacking beside it — `collapseKey` on FCM, `apns-collapse-id` on APNs, `Topic` and the payload's `tag` on Web Push. **Set this on anything sent from a fan-out** — see [Delivery Guarantees](/push/delivery-guarantees). |
 | `data` | `Map<String, String>`. FCM's data values are strings; typing it wider invites a silent `toString()` at the transport, and a number that arrives as `"1"` on the device is a bug nobody can see from the server. |
 
 `data` is where a deep link goes — the ids the app needs to open the right screen when someone taps the notification.

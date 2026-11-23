@@ -27,7 +27,7 @@ A timeout, a `503`, or a quota rejection is a **transient failure**. It is count
 
 A token that timed out is not a token that is dead. Keeping those two apart is most of the reason this feature lives in the framework instead of in your hook — the distinction is invisible unless you go looking for it, and getting it wrong deletes live registrations.
 
-What counts as permanent is per-transport, and both tables are below: on FCM it is `UNREGISTERED`, `NOT_FOUND` or `INVALID_ARGUMENT` and nothing else; on APNs it is a `reason` string rather than a status. Either way, an unrecognised answer is treated as transient on purpose: guessing transient costs a retry, and guessing permanent costs a device that never hears from your app again.
+What counts as permanent is per-transport, and both tables are below: on FCM it is `UNREGISTERED`, `NOT_FOUND` or `INVALID_ARGUMENT` and nothing else; on APNs it is a `reason` string rather than a status; on Web Push it is `404` or `410`. Either way, an unrecognised answer is treated as transient on purpose: guessing transient costs a retry, and guessing permanent costs a device that never hears from your app again.
 
 ### What FCM actually returns
 
@@ -62,6 +62,23 @@ When iOS goes direct, Apple answers with a `reason` string rather than a status,
 `DeviceTokenNotForTopic` is the one to understand. Measured against live APNs: a topic your team does not own answers `TopicDisallowed`, while a topic it *does* own paired with a token from a different app answers this. So it means your **`bundleId` disagrees with the app** — a config fault, and a uniform one. Every iOS recipient returns it at once, so reading it as "these devices are dead" would empty your table over a typo. Zonai counts it transient and names the field.
 
 The rest of this table is transcribed from Apple's documentation and has *not* all been observed. The FCM table above was written the same way and was wrong three times, so anything unrecognised is treated as transient on purpose: an unknown reason costs a retry, and guessing permanent costs a device that never hears from your app again.
+
+### What Web Push returns
+
+A browser's push service answers with a status and nothing more reliable than that, so the status is what Zonai reads.
+
+| Status | Result |
+|---|---|
+| `201` (any `2xx`) | delivered |
+| `404`, `410` | pruned — the subscription is gone: permission revoked, the site's data cleared, or the browser profile removed |
+| `401`, `403` | transient, **never pruned**. VAPID was refused. |
+| `400`, `413` | transient, logged with the push service's answer |
+| `429`, `5xx` | transient, retried |
+| anything else | transient |
+
+`403` is the one to understand. A push service answers it to a subscription that was made under a *different* VAPID public key, which is exactly what every existing subscription is after a key rotation. That makes it a per-row condition that a client re-subscribe fixes, so it is neither a prune nor a job failure: one stale subscription must not stall everyone behind it. A wholly wrong key shows up as every web recipient failing transiently with a detail that says VAPID. A private key that does not match the configured public key never reaches a push service, because it fails the job before anything is sent.
+
+A token that is not a subscription at all (not JSON, missing keys, or an endpoint that is not `https`) is counted as transient with a detail saying so. Only the push service can say a subscription is dead.
 
 ## Credentials are never a token's fault
 
