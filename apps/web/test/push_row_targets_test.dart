@@ -356,9 +356,26 @@ void main() {
         DevicePlatform.iosSandbox,
       );
     });
+
+    test('the web choice sends through Web Push whatever the row says', () {
+      expect(
+        resolvePushPlatform(choice: PushPlatformChoice.web, rowPlatform: DevicePlatform.android),
+        DevicePlatform.web,
+      );
+      expect(
+        resolvePushPlatform(choice: PushPlatformChoice.fromColumn, rowPlatform: DevicePlatform.web),
+        DevicePlatform.web,
+      );
+    });
   });
 
   group('outcome wording', () {
+    test('names Web Push in words rather than shouting its label', () {
+      final text = describePushSendResult(
+        const PushTestSendResult(status: PushTestSendStatus.accepted, token: 'abc', transport: 'webpush'),
+      );
+      expect(text, startsWith('The Web Push service accepted'));
+    });
     test('acceptance does not claim delivery', () {
       final text = describePushSendResult(
         const PushTestSendResult(status: PushTestSendStatus.accepted, token: 'abc', transport: 'fcm'),

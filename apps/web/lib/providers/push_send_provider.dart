@@ -16,7 +16,7 @@ final pushSendProvider = NotifierProvider<PushSendNotifier, PushSendState>(PushS
 /// the default when it does — a per-row answer beats one the operator has to
 /// give for a mixed selection. The rest mirror the fan-out's own behaviour:
 /// no platform means FCM.
-enum PushPlatformChoice { fromColumn, defaultFcm, ios, iosSandbox, android }
+enum PushPlatformChoice { fromColumn, defaultFcm, ios, iosSandbox, android, web }
 
 /// What one recipient's send ended as.
 ///
@@ -287,5 +287,6 @@ DevicePlatform? resolvePushPlatform({required PushPlatformChoice choice, require
     PushPlatformChoice.ios => DevicePlatform.ios,
     PushPlatformChoice.iosSandbox => DevicePlatform.iosSandbox,
     PushPlatformChoice.android => DevicePlatform.android,
+    PushPlatformChoice.web => DevicePlatform.web,
   };
 }

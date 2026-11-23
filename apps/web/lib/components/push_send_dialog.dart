@@ -212,6 +212,7 @@ class _PushSendDialogState extends State<PushSendDialog> {
                       label: 'iOS development build (APNs sandbox)',
                     ),
                     ZonaiSelectOption(value: PushPlatformChoice.android.name, label: 'Android (FCM)'),
+                    ZonaiSelectOption(value: PushPlatformChoice.web.name, label: 'Web browser (Web Push)'),
                   ],
                   disabled: state.isSending,
                   onChange: (value) => notifier.setPlatform(

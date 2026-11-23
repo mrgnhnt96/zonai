@@ -313,12 +313,15 @@ String pushRowLabel({
 /// and would be a lie in exactly the case an operator is debugging: a token
 /// that is accepted and silently dropped.
 String describePushSendResult(PushTestSendResult result) {
-  final transport = result.transport.toUpperCase();
+  final transport = switch (result.transport) {
+    'webpush' => 'The Web Push service',
+    final other => other.toUpperCase(),
+  };
 
   return switch (result.status) {
     PushTestSendStatus.accepted =>
       '$transport accepted the notification for this token. That is not a '
-          'delivery receipt — neither transport offers one — so check the '
+          'delivery receipt — no transport offers one — so check the '
           'device.',
 
     // The provider's own words come first and verbatim. `BadDeviceToken` is
