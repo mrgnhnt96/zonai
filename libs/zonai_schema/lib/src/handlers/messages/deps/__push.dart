@@ -30,10 +30,12 @@ final _pushProvider = create<_Push>(_Push._);
 /// ```
 ///
 /// [platformColumn] names a column holding each row's `DevicePlatform`
-/// (`ios`, `ios-sandbox` or `android`). Give it and iOS recipients go to
-/// APNs directly when `AppConfig.push.apns` is set — `ios-sandbox` ones to
-/// the sandbox host, for development-signed builds — and omit it and every
-/// recipient goes through FCM, which is what happens today and stays correct.
+/// (`ios`, `ios-sandbox`, `android` or `web`). Give it and iOS recipients go
+/// to APNs directly when `AppConfig.push.apns` is set — `ios-sandbox` ones to
+/// the sandbox host, for development-signed builds — and `web` ones (a
+/// browser's `PushSubscription` JSON in the token column) go through Web Push
+/// when `AppConfig.push.webPush` is set. Omit it and every recipient goes
+/// through FCM, which is what happens today and stays correct.
 ///
 /// It is optional rather than required because a token column alone is a
 /// complete, working setup for an FCM-only app — and because the recipient

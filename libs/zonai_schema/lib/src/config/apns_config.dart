@@ -39,7 +39,19 @@ enum DevicePlatform {
 
   /// Delivered through FCM. There is no direct equivalent — the Android
   /// transport *is* FCM.
-  android('android');
+  android('android'),
+
+  /// A browser or installed PWA, reached through standard Web Push
+  /// (RFC 8030) with VAPID — no Firebase in the path.
+  ///
+  /// The token is not an opaque string here but the browser's
+  /// `PushSubscription.toJSON()`, stored as a JSON string: the push service
+  /// endpoint plus the two keys the payload is encrypted to. A value that
+  /// does not parse as one is that row's problem and nobody else's.
+  ///
+  /// Web Push only. With no `PushConfig.webPush` a row saying this is
+  /// unroutable — an FCM or APNs send of a subscription cannot mean anything.
+  web('web');
 
   const DevicePlatform(this.wireName);
 
@@ -65,6 +77,7 @@ enum DevicePlatform {
     return switch (normalized) {
       'apple' || 'iphone' || 'ipad' => DevicePlatform.ios,
       'ios_sandbox' || 'iossandbox' => DevicePlatform.iosSandbox,
+      'webpush' || 'web-push' || 'web_push' || 'browser' => DevicePlatform.web,
       _ => null,
     };
   }

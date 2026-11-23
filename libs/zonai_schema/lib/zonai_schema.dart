@@ -65,6 +65,7 @@ export 'src/config/external_idp_config.dart';
 export 'src/config/photos_config.dart';
 export 'src/config/apns_config.dart';
 export 'src/config/push_config.dart';
+export 'src/config/web_push_config.dart';
 export 'src/config/supabase_external_idp.dart';
 export 'src/config/trusted_proxy_config.dart';
 export 'src/types/cron_job.dart';
