@@ -34,7 +34,14 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.10.0`, and for a different reason than every floor below it:
+/// Currently `0.11.0`. No IPC message changed: an older worker still talks to
+/// this binary. The floor moves because `zonai init` scaffolds
+/// `zonai_schema: ^$kMinSchemaVersion`, and `^0.10.0` excludes `0.11.0` -- so
+/// a project scaffolded at `0.10.0` could not send `PushConfig.webPush` in its
+/// config, and could not reach Web Push, the headline of this CLI. `0.11.0` is
+/// allowed by the published `zonai_client` 0.3.8.
+///
+/// **`0.10.0`**, for a different reason than every floor below it:
 /// nothing a worker parses changed. Cron-scoped tokens (`ApiTokenScope.crons`)
 /// and `CronRunResult` are read and written only by this binary, which carries
 /// its own copy of the schema. The floor moves because `zonai init` scaffolds
@@ -138,4 +145,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.10.0';
+const kMinSchemaVersion = '0.11.0';

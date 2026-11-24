@@ -8,6 +8,34 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.17.0
+
+- **Push reaches browsers and installed PWAs, with no Firebase.** A device row
+  with platform `web` holds the browser's `PushSubscription` JSON, and
+  `push.webPush` (a `WebPushConfig`: VAPID public key, private key, subject)
+  sends to it over standard Web Push. A subscription the push service says is
+  gone (`404`/`410`) is pruned; anything else is retried for that row only.
+  The dashboard's test push can send to a web row. See the Push docs,
+  "Reaching browsers with Web Push".
+- **A create that leaves out a column with a default stores the default**
+  instead of answering `400 "Column … is required"`, so creates keep working
+  after a migration adds a `NOT NULL` column with a default.
+- **An update sent without its `type` answers `400 invalid_body`**, not `500`.
+- **A new project can sign in.** `zonai init` now scaffolds the `admins` row
+  rules too; without them the dashboard said "Sign in failed".
+- **`POST /crons/run` waits for a long job** (up to 15 minutes) instead of
+  cutting the reply off at 10s, and cron and webhook workers are no longer
+  taken for stuck after 1s.
+- **A request to a route that doesn't exist gets CORS headers,** so the
+  browser shows the `404` rather than a CORS error. `ZONAI_ALLOWED_ORIGINS`
+  is now documented.
+- **Cron and worker log lines reach `_log`**, not only lines logged inside a
+  request.
+- **Upgrade `zonai_schema` to `^0.11.0` with the CLI** (and `zonai_client` to
+  0.3.8, which allows it), then re-run `zonai compile`: the two fixes to
+  creates and updates run in your worker. This CLI refuses a project on an
+  older schema.
+
 ## 0.16.1
 
 - **Every sign-in email reaches the inbox.** Each email in a thread used to

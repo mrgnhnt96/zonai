@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0
 
 **Web Push to browsers and PWAs, with no Firebase.** `DevicePlatform.web`
 (stored as `web`; `webpush`, `web-push`, `web_push` and `browser` parse to it)
@@ -11,11 +11,23 @@ the `privateKey` as `WebPushPrivateKey.file(path)` or `.inline(key)` (PEM or a
 base64url 32-byte scalar), and a `subject` (`mailto:` or `https:`).
 `hasWebPush` says whether it is set. `AppConfig.validate` refuses a
 half-configured `webPush`, and now accepts a push config whose only transport
-is Web Push.
+is Web Push. Delivered by the zonai CLI 0.17.0.
 
 `DevicePlatform` gained a value, so a `switch` over it with no default no
-longer covers every case. Nothing a worker parses changed, so there is no need
-to re-run `zonai compile` for this alone.
+longer covers every case.
+
+**A create that leaves out a column with a default stores the default.**
+`safeCreate` used to refuse a non-null column with a `defaultValue` as
+"required" when the body left it out; it now fills the default in, so row
+rules see the value that will be stored. A column sent as `null` is still
+refused, and a SQL expression default (`CURRENT_TIMESTAMP`) still has to be
+sent.
+
+**An update without its `type` answers `400`, not `500`.** `Update.fromJson`
+and `UpdateValue.fromJson` throw `ArgumentError` for an unknown or missing
+`type`, which `parseBody` turns into `InvalidBodyException`.
+
+Both fixes run in the rules worker, so re-run `zonai compile` after upgrading.
 
 ## 0.10.0
 

@@ -1,3 +1,9 @@
+## 0.3.8
+
+- Allows `zonai_schema` 0.11.0 (`>=0.10.0 <0.12.0`), so a project can take
+  the schema that adds Web Push without dropping the client. Nothing else
+  changed.
+
 ## 0.3.7
 
 - **`cron.run` returns what the run did.** `CronDataSource.run` now returns a
