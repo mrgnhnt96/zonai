@@ -23,7 +23,14 @@ void main() {
         .file('templates/magic_link_sign_up.html')
         .writeAsStringSync('up');
 
-    Email send(AuthOperation operation, {bool isResend = false}) => runScoped(
+    Email send(
+      AuthOperation operation, {
+      bool isResend = false,
+      Map<String, dynamic> variables = const {
+        'name': 'Ada',
+        'pending_invite_token': 'tok',
+      },
+    }) => runScoped(
       () => magicLinkEmail(
         operation: operation,
         appName: 'Picto',
@@ -32,7 +39,7 @@ void main() {
         isResend: isResend,
         magicLinkUrl: 'https://example.com/auth/magic-link?s=abc',
         expiresIn: const Duration(minutes: 15),
-        variables: {'name': 'Ada', 'pending_invite_token': 'tok'},
+        variables: variables,
         emailTemplatesPath: 'templates',
       ),
       values: {fsProvider.overrideWith(() => memoryFs)},
@@ -61,6 +68,15 @@ void main() {
       expect(email.to.address, 'New@Example.com');
       expect(email.variables, variables);
       expect(email.thread, 'magic-link:users:new@example.com');
+      expect(
+        email.text,
+        'Hi Ada,\n'
+        '\n'
+        'Create your Picto account:\n'
+        'https://example.com/auth/magic-link?s=abc\n'
+        '\n'
+        'This link expires in 15 minutes.\n',
+      );
     });
 
     test('a sign-up resend continues the same thread', () {
@@ -94,6 +110,42 @@ void main() {
       expect(email.subject, 'Sign in');
       expect(email.preheader, 'Your sign-in link expires in 15 minutes.');
       expect(email.variables, variables);
+      expect(
+        email.text,
+        'Hi Ada,\n'
+        '\n'
+        'Sign in to Picto:\n'
+        'https://example.com/auth/magic-link?s=abc\n'
+        '\n'
+        'This link expires in 15 minutes.\n',
+      );
+    });
+
+    test('the plain-text part greets without a name when there is none', () {
+      for (final variables in [
+        <String, dynamic>{},
+        {'name': ''},
+        {'name': null},
+      ]) {
+        final text = send(.signIn, variables: variables).text;
+        expect(text, startsWith('Hi,\n'), reason: '$variables');
+        expect(text, contains('https://example.com/auth/magic-link?s=abc'));
+      }
+    });
+
+    test('the plain-text part leaves the preheader out', () {
+      addSignUpTemplate();
+
+      for (final operation in [AuthOperation.signIn, AuthOperation.signUp]) {
+        final email = send(operation);
+        expect(email.text, isNot(contains(email.preheader!)));
+      }
+    });
+
+    test('the sign-in email still serialises its plain-text part', () {
+      final email = send(.signIn);
+
+      expect(email.toJson()['text'], email.text);
     });
   });
 
