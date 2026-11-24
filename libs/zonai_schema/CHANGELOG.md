@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+**Web Push to browsers and PWAs, with no Firebase.** `DevicePlatform.web`
+(stored as `web`; `webpush`, `web-push`, `web_push` and `browser` parse to it)
+routes a recipient through standard Web Push. Its token is the browser's
+`PushSubscription.toJSON()` stored as a JSON string. `PushConfig.webPush` takes
+a `WebPushConfig`: the VAPID `publicKey` (base64url uncompressed P-256 point),
+the `privateKey` as `WebPushPrivateKey.file(path)` or `.inline(key)` (PEM or a
+base64url 32-byte scalar), and a `subject` (`mailto:` or `https:`).
+`hasWebPush` says whether it is set. `AppConfig.validate` refuses a
+half-configured `webPush`, and now accepts a push config whose only transport
+is Web Push.
+
+`DevicePlatform` gained a value, so a `switch` over it with no default no
+longer covers every case. Nothing a worker parses changed, so there is no need
+to re-run `zonai compile` for this alone.
+
 ## 0.10.0
 
 **Cron-scoped API tokens.** `ApiTokenScope.crons` names the cron jobs a token

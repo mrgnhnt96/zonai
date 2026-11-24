@@ -1,11 +1,11 @@
 ---
 title: Push Configuration
-description: PushConfig, the two credential forms and their very different rotation costs, and the batching defaults.
+description: PushConfig, the credential forms and their very different rotation costs, the batching defaults, and the APNs and Web Push halves.
 ---
 
 `AppConfig.push` is nullable, just like `AppConfig.email`. If it is not set, the server logs `Cannot send a push notification because AppConfig.push is not configured. Nothing was enqueued.`, and the `push(...)` call throws a `StateError` in your hook or cron, where the stack trace points at the code that tried to send. The server keeps running either way.
 
-`PushConfig` carries **two independent halves**, FCM and APNs. At least one is required and neither is privileged: an Android app configures FCM, an iOS-only app configures APNs and no Firebase project at all, and an app on both platforms configures both and names a [platform column](/push/device-tokens#the-platform-column) so each recipient is routed.
+`PushConfig` carries **three independent halves**: FCM, APNs and Web Push. At least one is required and none is privileged. An Android app configures FCM. An iOS-only app configures APNs and no Firebase project at all. A web app configures Web Push. An app on more than one platform configures each half it needs and names a [platform column](/push/device-tokens#the-platform-column) so each recipient is routed.
 
 ```dart in:app-config
 push: const PushConfig(
@@ -48,7 +48,7 @@ Never commit either form. `.file` points at a path your deploy places; `.inline`
 
 Raising it makes a large fan-out faster and a crash more expensive, in exactly that proportion. Measure against your own recipient sizes before moving it.
 
-`concurrency` bounds how hard a single batch hits the transport, and it applies to both: sequential is slow, while unbounded meets FCM's per-project quota or APNs' documented per-connection limits — a `429` rather than an error you asked for. Both couriers back off exponentially on `429` and `5xx`. The shape underneath differs — FCM is a bounded pool of independent POSTs, APNs multiplexes one HTTP/2 connection — but the knob is the same one.
+`concurrency` bounds how hard a single batch hits the transport, and it applies to every transport: sequential is slow, while unbounded meets FCM's per-project quota, APNs' documented per-connection limits or a Web Push service's rate limit — a `429` rather than an error you asked for. Every transport backs off exponentially on `429` and `5xx`. The shape underneath differs — FCM and Web Push are bounded pools of independent POSTs, APNs multiplexes one HTTP/2 connection — but the knob is the same one.
 
 ## Per flavor
 
@@ -89,6 +89,90 @@ Switching iOS between the two routes is a config change on the server and a **re
 ### `bundleId` is not cosmetic
 
 It becomes the `apns-topic` header, and one key can serve every app on a team, so it is the only thing saying which app a notification is for. Get it wrong and Apple answers `DeviceTokenNotForTopic` for **every** recipient at once. Zonai treats that as a transient failure naming the config field, precisely because a uniform config fault must never be read as every device being dead.
+
+## Reaching browsers with Web Push
+
+Browsers and installed PWAs are reached with standard Web Push: RFC 8030 delivery, RFC 8291 payload encryption and RFC 8292 VAPID. Each browser ships its own push service (Google's for Chrome and Edge, Mozilla's for Firefox, Apple's for Safari), and they all accept the same signed, encrypted request. There is no Firebase project, no Apple account and no console step.
+
+```dart no-analyze
+push: PushConfig(
+  webPush: WebPushConfig(
+    // The same string the app passes as applicationServerKey.
+    publicKey: 'BO_dZrvdyPvN…',
+    privateKey: WebPushPrivateKey.file('/etc/my-app/vapid.pem'),
+    subject: 'mailto:ops@example.com',
+  ),
+),
+```
+
+`webPush` is a third half beside FCM and APNs. It is optional, and it can be the only one configured: a web-only app needs nothing else. Recipients reach it by storing `web` in the [platform column](/push/device-tokens#the-platform-column). A `web` row with no `webPush` configured is never sent through FCM. It is counted as a transient failure that names the missing config, and it is never pruned.
+
+| Field | What it is |
+|---|---|
+| `publicKey` | The P-256 public key as a base64url uncompressed point (65 bytes, starting `0x04`). Browsers bind each subscription to it, and it is sent as the `k=` half of every `Authorization: vapid` header. |
+| `privateKey` | `WebPushPrivateKey.file(path)` or `.inline(key)`, with the same rotation trade as the FCM credentials above. Either holds a PEM key (PKCS#8 or SEC1) or the bare base64url 32-byte scalar most VAPID tools print. |
+| `subject` | A `mailto:` address or an `https:` URL: who a push service should contact about this server's traffic. It becomes the JWT's `sub`, and Apple's push service refuses a send without one. |
+
+`AppConfig.validate` refuses a half-configured `webPush`: a public key that is not a 65-byte point, an empty or unreadable inline private key, or a subject that is neither `mailto:` nor `https:`. At the first send, Zonai also checks that the private key derives the public key. A mismatched pair fails the job instead of being sent, because every push service would answer `403` to it.
+
+### Generating the key pair
+
+Generate it once, locally:
+
+```sh
+openssl ecparam -name prime256v1 -genkey -noout -out vapid.pem
+openssl ec -in vapid.pem -pubout -outform DER | tail -c 65 | base64 | tr '/+' '_-' | tr -d '='
+```
+
+The first command writes the private key, ready for `WebPushPrivateKey.file`. The second prints `publicKey`. `npx web-push generate-vapid-keys` works too, and its base64url private key goes in `WebPushPrivateKey.inline`. Keep the private key out of the repository, like every other key on this page.
+
+**Rotating the pair orphans every subscription.** A browser binds its subscription to the public key it subscribed with, so after a rotation each push service answers `403` until the app calls `subscribe` again with the new key. Zonai counts those as transient and never prunes them, because the subscription is still valid for the old key. Plan a rotation as a client release, not only a server change.
+
+### On the client
+
+The token is the browser's whole subscription, stored as the JSON string `PushSubscription.toJSON()` returns:
+
+```js
+const registration = await navigator.serviceWorker.register('/sw.js');
+const subscription = await registration.pushManager.subscribe({
+  userVisibleOnly: true,
+  applicationServerKey: VAPID_PUBLIC_KEY, // WebPushConfig.publicKey
+});
+// Write this string to the deviceToken column, with platform 'web'.
+const token = JSON.stringify(subscription);
+```
+
+```json
+{"endpoint":"https://fcm.googleapis.com/fcm/send/…","expirationTime":null,"keys":{"p256dh":"BCVx…","auth":"BTBZ…"}}
+```
+
+A value that does not parse as a subscription is that row's problem and never the fan-out's. The same applies to an endpoint that is not `https`, which Zonai refuses so that a row can never point the server at an internal address. That row counts as a transient failure, and everyone else's notification goes out.
+
+The service worker receives the payload as JSON with `title`, `body`, `tag` and `data`. `tag` is the message's `collapseKey`, and it is what `showNotification` replaces on:
+
+```js
+// sw.js
+self.addEventListener('push', (event) => {
+  const { title, body, tag, data } = event.data.json();
+  event.waitUntil(self.registration.showNotification(title, { body, tag, data }));
+});
+```
+
+On iPhone and iPad, Web Push works only for a site added to the home screen (iOS 16.4 and later). In Safari's browser tab, `pushManager` is not offered at all.
+
+### What is sent
+
+Each recipient gets its own `POST` to its subscription's endpoint, through the same bounded pool as FCM. The body is one `aes128gcm` record, encrypted to that browser's keys. The headers are:
+
+| Header | Value |
+|---|---|
+| `Authorization` | `vapid t=<JWT>, k=<publicKey>`. The ES256 JWT's `aud` is the endpoint's origin and it expires in 12 hours, inside RFC 8292's 24-hour cap. One JWT is reused for every subscription on the same push service. |
+| `Content-Encoding` | `aes128gcm` |
+| `TTL` | `86400`. A push service holds the message for a browser that is offline for up to a day. |
+| `Urgency` | `high` |
+| `Topic` | The `collapseKey` when it is at most 32 base64url characters, otherwise a 32-character hash of it, so that the same key always gives the same topic. Omitted when there is no collapse key. |
+
+One record carries at most 3993 bytes of payload. The enqueue-time size check described in [Sending](/push/sending#size-is-checked-at-enqueue-not-at-send) keeps every message under that limit.
 
 ## Two `.p8` files that are not interchangeable
 

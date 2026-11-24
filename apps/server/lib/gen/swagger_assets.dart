@@ -2902,7 +2902,8 @@ const kSwaggerJson = r'''{
         "enum": [
           "ios",
           "iosSandbox",
-          "android"
+          "android",
+          "web"
         ]
       },
       "Email": {
@@ -6033,6 +6034,7 @@ components:
         - ios
         - iosSandbox
         - android
+        - web
     Email:
       type: object
       properties:

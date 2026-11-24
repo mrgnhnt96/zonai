@@ -1486,6 +1486,7 @@ class ZonaiDb {
           // `StateError` before reaching either. A test's override still wins.
           pushCourierProvider,
           apnsCourierProvider,
+          webPushCourierProvider,
           // Every DB operation funnels through here, including the four
           // fire-and-forget email sends whose only signal to an operator is a
           // log line. `logger` reads without an `orElse`, so a caller that
@@ -1604,6 +1605,7 @@ class ZonaiDb {
           externalIdpProvisioningGateProvider,
           pushCourierProvider,
           apnsCourierProvider,
+          webPushCourierProvider,
           // Kept in step with [_run]'s set.
           loggerProvider,
         },

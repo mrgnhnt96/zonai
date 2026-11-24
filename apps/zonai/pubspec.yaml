@@ -22,6 +22,9 @@ dependencies:
   meta: ^1.17.0
   mustache_template: ^2.0.4
   path: ^1.9.1
+  # Web Push: the ECDH, AES-128-GCM and P-256 point maths of RFC 8291. Already
+  # in the tree through jose.
+  pointycastle: ^3.9.1
   pub_semver: ^2.2.0
   raindrop_cli:
     path: ../../libs/raindrop/packages/raindrop_cli

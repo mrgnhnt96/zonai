@@ -19,7 +19,7 @@ So the batch size is also the blast radius of a crash: at `batchSize: 500`, a cr
 
 The paging is keyset — `WHERE pk > cursor ORDER BY pk` — never `OFFSET`. `OFFSET` degrades linearly across a scan and, worse, silently skips or repeats rows when the table is written to mid-scan. It will be: devices register while a fan-out is running.
 
-**Collapse keys.** A duplicate carrying the same `collapseKey` *replaces* the earlier notification on the device instead of stacking beside it — FCM calls it `collapseKey`, APNs calls it `apns-collapse-id`, and Zonai sets whichever the recipient's transport wants. This is the only mechanism that makes a duplicate invisible to the person holding the phone, rather than merely rare. Set one on anything sent from a fan-out.
+**Collapse keys.** A duplicate carrying the same `collapseKey` *replaces* the earlier notification on the device instead of stacking beside it — FCM calls it `collapseKey`, APNs calls it `apns-collapse-id`, Web Push uses the `Topic` header and the notification's `tag`, and Zonai sets whichever the recipient's transport wants. This is the only mechanism that makes a duplicate invisible to the person holding the phone, rather than merely rare. Set one on anything sent from a fan-out.
 
 ## The other side of the trade
 

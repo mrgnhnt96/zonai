@@ -1,20 +1,22 @@
 ---
 title: Push Notifications
-description: Send through Firebase Cloud Messaging or straight to APNs, with a checkpointed fan-out Zonai owns end to end.
+description: Send through Firebase Cloud Messaging, straight to APNs, or to browsers with standard Web Push, with a checkpointed fan-out Zonai owns end to end.
 ---
 
-Zonai sends push notifications through **Firebase Cloud Messaging**, or **straight to APNs** for iOS with no Firebase in the path. You declare which column holds a device token; Zonai pages the recipient set, sends in batches, survives a restart mid-send, and clears tokens the transport reports as dead.
+Zonai sends push notifications through **Firebase Cloud Messaging**, **straight to APNs** for iOS with no Firebase in the path, and to browsers and installed PWAs with standard **Web Push** (VAPID). You declare which column holds a device token; Zonai pages the recipient set, sends in batches, survives a restart mid-send, and clears tokens the transport reports as dead.
 
 Supabase has no native push — it points you at OneSignal or Expo. Firebase has it because FCM is theirs. A self-hosted backend where notifications work out of the box is one of the few gaps left in Zonai's surface, and this closes it.
 
-## Two routes to a device
+## Routes to a device
 
 | | Android | iOS |
 |---|---|---|
 | **FCM** | The transport. On Android, FCM *is* push — there is no alternative. | Reached by FCM proxying to APNs, with a key you upload to the Firebase console. |
 | **APNs direct** | Not applicable. | Zonai signs its own provider tokens and talks to Apple. No Firebase project involved at all. |
 
-Configure both and each recipient is routed by its platform — see [Device Tokens](/push/device-tokens). Configure only APNs and the app is iOS-only, and needs no Firebase project anywhere in its setup. Nothing about your schema changes between the two: the same token column and the same platform column serve either route, and the choice lives entirely in `AppConfig.push`.
+Browsers are a third route of their own. **Web Push** reaches Chrome, Firefox, Edge and Safari (including a PWA added to an iPhone's home screen) through each browser's own push service, signed with a VAPID key pair you generate once. There is no Firebase and no Apple account involved, and nothing to register anywhere. See [Reaching browsers with Web Push](/push/configuration#reaching-browsers-with-web-push).
+
+Configure more than one and each recipient is routed by its platform — see [Device Tokens](/push/device-tokens). Configure only APNs and the app is iOS-only, and needs no Firebase project anywhere in its setup. Nothing about your schema changes between the two: the same token column and the same platform column serve either route, and the choice lives entirely in `AppConfig.push`.
 
 ## Setup is not two lines, and nobody's is
 
@@ -26,7 +28,8 @@ FCM reaches iOS *through* APNs. "One integration covers both platforms" is true 
 | A service-account JSON key | Firebase console → Project settings → Service accounts. |
 | An APNs auth key uploaded to Firebase | iOS via FCM only. Apple Developer → Keys → `.p8`. |
 | An APNs `.p8`, Key ID, Team ID and bundle id | iOS direct only. The same kind of key, held by you instead of Google. |
-| The push SDK in your client app | Zonai sends; the device has to be registered to receive. |
+| A VAPID key pair and a contact subject | Web Push only. Generated locally; no console anywhere. |
+| The push SDK in your client app | Zonai sends; the device has to be registered to receive. On the web, that is the browser's own `PushManager` and a service worker. |
 
 An Android-only app needs the first two rows. An iOS-only app going direct needs the fourth. An app on both platforms with iOS direct needs the first, second and fourth, and never touches the Firebase console's Cloud Messaging tab.
 
@@ -65,4 +68,4 @@ A framework that writes into your tables is one you have to trust. That trust is
 
 **Payload localization is decided against, not deferred.** Zonai does not translate notification text. An app that needs per-locale copy builds the string before calling `push` — it already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select (see [Sending](/push/sending)).
 
-Also out of scope for now: web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts.
+Also out of scope for now: scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts.

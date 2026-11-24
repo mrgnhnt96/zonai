@@ -6,7 +6,7 @@ void main() {
     test('stores each value under its wire name', () {
       expect(
         [for (final p in DevicePlatform.values) p.toJson()],
-        ['ios', 'ios-sandbox', 'android'],
+        ['ios', 'ios-sandbox', 'android', 'web'],
       );
     });
 

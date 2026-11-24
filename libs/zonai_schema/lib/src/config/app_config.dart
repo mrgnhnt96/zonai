@@ -154,10 +154,10 @@ final class AppConfig {
       // At least one transport, or the config is a statement of intent with
       // no way to act on it: `push()` would enqueue jobs that can never be
       // delivered, and the queue would fill silently.
-      if (!push.hasFcm && !push.hasApns) {
+      if (!push.hasFcm && !push.hasApns && !push.hasWebPush) {
         errors.add(
-          'push is configured with neither FCM (projectId + credentials) nor '
-          'APNs (apns) — nothing could be sent',
+          'push is configured with none of FCM (projectId + credentials), '
+          'APNs (apns) or Web Push (webPush) — nothing could be sent',
         );
       }
       // A half-configured FCM is a mistake, never a choice. Left to itself it
@@ -179,6 +179,7 @@ final class AppConfig {
         // header rather than the config field, so it is worth catching here.
         if (apns.bundleId.isEmpty) errors.add('push.apns.bundleId is empty');
       }
+      if (push.webPush case final webPush?) errors.addAll(webPush.errors);
       if (push.batchSize < 1) {
         errors.add('push.batchSize must be at least 1 (got ${push.batchSize})');
       }

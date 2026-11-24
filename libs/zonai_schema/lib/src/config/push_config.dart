@@ -1,4 +1,5 @@
 import 'package:zonai_schema/src/config/apns_config.dart';
+import 'package:zonai_schema/src/config/web_push_config.dart';
 
 /// What Zonai does to a row whose token FCM permanently rejected.
 ///
@@ -102,6 +103,7 @@ class PushConfig {
     this.projectId,
     this.credentials,
     this.apns,
+    this.webPush,
     this.onPermanentRejection = OnPermanentRejection.clearColumn,
     this.batchSize = defaultBatchSize,
     this.concurrency = defaultConcurrency,
@@ -118,6 +120,12 @@ class PushConfig {
     },
     apns: switch (json['apns']) {
       final Map<dynamic, dynamic> raw => ApnsConfig.fromJson(
+        Map<String, dynamic>.from(raw),
+      ),
+      _ => null,
+    },
+    webPush: switch (json['webPush']) {
+      final Map<dynamic, dynamic> raw => WebPushConfig.fromJson(
         Map<String, dynamic>.from(raw),
       ),
       _ => null,
@@ -187,12 +195,21 @@ class PushConfig {
   /// Whether APNs is usable.
   bool get hasApns => apns != null;
 
+  /// Set to reach browsers and installed PWAs through standard Web Push —
+  /// recipients whose platform is `DevicePlatform.web`. Independent of FCM
+  /// and APNs: a web-only app needs nothing else.
+  final WebPushConfig? webPush;
+
+  /// Whether Web Push is usable.
+  bool get hasWebPush => webPush != null;
+
   /// This config with [apns] replaced — how a `DevicePlatform.iosSandbox`
   /// recipient is sent to the sandbox host without a second server.
   PushConfig withApns(ApnsConfig apns) => PushConfig(
     projectId: projectId,
     credentials: credentials,
     apns: apns,
+    webPush: webPush,
     onPermanentRejection: onPermanentRejection,
     batchSize: batchSize,
     concurrency: concurrency,
@@ -209,6 +226,7 @@ class PushConfig {
     if (projectId case final id?) 'projectId': id,
     if (credentials case final creds?) 'credentials': creds.toJson(),
     if (apns case final apns?) 'apns': apns.toJson(),
+    if (webPush case final webPush?) 'webPush': webPush.toJson(),
     'onPermanentRejection': onPermanentRejection.toJson(),
     'batchSize': batchSize,
     'concurrency': concurrency,

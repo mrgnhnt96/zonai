@@ -25,6 +25,10 @@ import 'package:zonai_schema/zonai_schema.dart' as schema show Table;
 import '../../../support/temp_directory.dart';
 import 'package:http2/http2.dart' show ClientTransportConnection;
 import 'package:zonai/src/push/apns_push_courier.dart';
+import 'package:zonai/src/push/web_push_courier.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'dart:convert';
 
 import '../../push/fake_apns.dart';
 import '../../push/fake_fcm.dart';
@@ -355,12 +359,14 @@ version: $kVersion
   /// can watch the two independently — which is what makes "iOS went direct
   /// and Android went through FCM" an observation rather than an inference.
   PushCourier? overrideApnsCourier;
+  PushCourier? overrideWebPushCourier;
 
   setUp(() {
     extension = RecordingExtension();
     courier = FakePushCourier();
     overrideCourier = null;
     overrideApnsCourier = null;
+    overrideWebPushCourier = null;
 
     // The door `project_main` uses. Without these the host would go looking
     // for compiled worker executables that this fixture has no project to
@@ -390,6 +396,9 @@ version: $kVersion
           pushCourierProvider.overrideWith(() => overrideCourier ?? courier),
           apnsCourierProvider.overrideWith(
             () => overrideApnsCourier ?? FakePushCourier(),
+          ),
+          webPushCourierProvider.overrideWith(
+            () => overrideWebPushCourier ?? FakePushCourier(),
           ),
         },
         processProvider,
@@ -1912,6 +1921,130 @@ version: $kVersion
         });
       },
     );
+  });
+
+  group('web routing', () {
+    late FakePushCourier web;
+
+    setUp(() {
+      web = FakePushCourier();
+      overrideWebPushCourier = web;
+    });
+
+    /// RFC 8291's application-server key pair.
+    const webPush = WebPushConfig(
+      publicKey:
+          'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8',
+      privateKey: WebPushPrivateKey.inline(
+        'yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw',
+      ),
+      subject: 'mailto:ops@example.com',
+    );
+
+    PushConfig withWebPush({bool fcm = true}) => PushConfig(
+      projectId: fcm ? 'fixture-project' : null,
+      credentials: fcm ? const PushCredentials.inline('{}') : null,
+      webPush: webPush,
+      batchSize: 10,
+      concurrency: 2,
+      maxAttemptsPerBatch: 1,
+    );
+
+    Future<PushJobId?> enqueue(ZonaiDb zonaiDb) => zonaiDb.enqueuePush(
+      message: message,
+      table: 'device_tokens',
+      column: 'token',
+      platformColumn: 'platform',
+      where: null,
+      jwt: CronJwt(),
+      caller: PushCaller.serverCode,
+    );
+
+    test('web goes to Web Push and Android to FCM, in one job', () async {
+      await run(_appConfigWith(withWebPush()), (zonaiDb) async {
+        await seed(
+          zonaiDb,
+          count: 4,
+          platformAt: (i) => i.isEven ? 'web' : 'android',
+        );
+
+        final id = await enqueue(zonaiDb);
+        await zonaiDb.drainPushJobs();
+
+        expect(web.allSentTokens..sort(), ['tok-d000000', 'tok-d000002']);
+        expect(courier.allSentTokens..sort(), ['tok-d000001', 'tok-d000003']);
+        expect((await job(zonaiDb, id!)).delivered, 4);
+      });
+    });
+
+    test('a web recipient with no webPush config is reported, not sent '
+        'via FCM and not pruned', () async {
+      // A subscription is not an FCM token, so FCM could only refuse it —
+      // and that refusal would prune a registration that becomes deliverable
+      // the moment webPush is configured.
+      await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
+        await seed(zonaiDb, count: 2, platformAt: (_) => 'browser');
+
+        final id = await enqueue(zonaiDb);
+        await zonaiDb.drainPushJobs();
+
+        expect(courier.allSentTokens, isEmpty);
+        expect(web.allSentTokens, isEmpty);
+        final entry = await job(zonaiDb, id!);
+        expect(entry.transientlyFailed, 2);
+        expect(entry.permanentlyRejected, 0);
+        expect([
+          for (final r in await rows(zonaiDb)) r.token,
+        ], isNot(contains(isNull)));
+      });
+    });
+
+    test('a push service 410 clears the row through the real courier, '
+        'a 201 leaves it', () async {
+      // The real `WebPushCourier`, with only the socket faked: the browser
+      // half of each subscription is RFC 8291's user agent.
+      String subscription(String id) => jsonEncode({
+        'endpoint': 'https://push.example.net/push/$id',
+        'expirationTime': null,
+        'keys': {
+          'p256dh':
+              'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',
+          'auth': 'BTBZMqHH6r4Tts7J_aSIgg',
+        },
+      });
+      final posted = <Uri>[];
+      overrideWebPushCourier = WebPushCourier(
+        fileSystem: const LocalFileSystem(),
+        client: MockClient((request) async {
+          posted.add(request.url);
+          final gone = request.url.path.endsWith('d000001');
+          return http.Response('', gone ? 410 : 201);
+        }),
+      );
+
+      await run(_appConfigWith(withWebPush(fcm: false)), (zonaiDb) async {
+        await seed(zonaiDb, count: 2, platformAt: (_) => 'web');
+        final db = await zonaiDb.open();
+        for (final id in ['d000000', 'd000001']) {
+          await db.execute(
+            'UPDATE "device_tokens" SET "token" = ? WHERE "id" = ?',
+            [subscription(id), id],
+          );
+        }
+
+        final id = await enqueue(zonaiDb);
+        await zonaiDb.drainPushJobs();
+
+        expect(posted, hasLength(2));
+        final entry = await job(zonaiDb, id!);
+        expect(entry.delivered, 1);
+        expect(entry.permanentlyRejected, 1);
+        expect(await rows(zonaiDb), [
+          (id: 'd000000', token: subscription('d000000')),
+          (id: 'd000001', token: null),
+        ]);
+      });
+    });
   });
 
   /// The engine driving the **real** APNs transport over a real HTTP/2

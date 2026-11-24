@@ -234,9 +234,13 @@ No key material in a test fixture, a doc example, or a committed config.
 
 **Topics.** For a true broadcast, FCM topics are one API call with no token list, no pruning, and no restart-duplicate problem — strictly the right primitive for "everyone." Deferred because a project large enough to need it is not a project reaching for this feature first, and topics bring their own surface (subscribe / unsubscribe / per-topic auth) that would roughly double v1. Recorded here so it is a deferral rather than an omission: when broadcast comes up, the answer is topics, not a bigger fan-out.
 
+### Shipped since v1
+
+APNs direct (`.p8`), with a per-row sandbox. Web Push to browsers and PWAs (RFC 8030 delivery, RFC 8291 `aes128gcm` encryption, RFC 8292 VAPID), routed by a `web` platform value, with the browser's `PushSubscription.toJSON()` as the token. Neither needs Firebase.
+
 ### Out of scope for v1
 
-APNs direct (`.p8`) · web push · scheduled or delayed sends · delivery analytics · an in-app notification inbox · per-user preference storage · rich media attachments · badge-count management.
+Scheduled or delayed sends · delivery analytics · an in-app notification inbox · per-user preference storage · rich media attachments · badge-count management.
 
 ### Decided against, rather than deferred
 
